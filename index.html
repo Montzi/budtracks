@@ -3083,8 +3083,9 @@ const bulkOk = s => s.kind === 'transfer' ? !!s.pick : canAccept(s);
 function guessHTML(s) {
   const c = s.pick;
   if (s.kind === 'plan') return c ? `${s.confidence === 'high' ? 'Matches' : 'Likely'} ${esc(c.provider)} · ${esc(c.merchant)} ${c.n} of ${c.total}` : `New ${esc(BT.planProvider(s.txn.desc))} plan?`;
-  if (s.kind === 'bill') return `${esc(c.name)} ${c.kind === 'card' ? 'payment' : 'bill'} due ${md(c.date)}`;
-  if (s.kind === 'income') return `${esc(c.name)} ${md(c.date)}`;
+  // A bill or paycheck match can be taken by another transaction in the same sync, leaving no pick.
+  if (s.kind === 'bill') return c ? `${esc(c.name)} ${c.kind === 'card' ? 'payment' : 'bill'} due ${md(c.date)}` : 'Looks like a bill payment. Tap Change to pick one';
+  if (s.kind === 'income') return c ? `${esc(c.name)} ${md(c.date)}` : 'Money in. Tap Change to pick a paycheck, or Ignore';
   if (s.kind === 'transfer') return c ? `Pays ${esc(c.name)}, due ${md(c.date)}` : s.refund ? 'Refund or money in, not spending' : 'Transfer, not spending';
   return `${catIcon(s.category)}${esc(s.category)}${s.source === 'rule' ? ' · learned' : ''}`;
 }
@@ -3109,6 +3110,13 @@ function inboxRow(s) {
     <div class="bx-g"><span class="pill conf-${s.confidence}">${{ high: 'Sure', medium: 'Likely', low: 'Unsure' }[s.confidence]}</span><span class="g-t">${guessHTML(s)}</span></div>
     <div class="bx-a"><button class="btn sm primary" data-action="ix-accept" data-id="${id}"${can ? '' : ' disabled'}>${acceptLabel}</button><button class="btn sm" data-action="ix-change" data-id="${id}" aria-expanded="${open}">Change</button>${t.amount > 0 ? `<button class="btn sm" data-action="ix-edit" data-id="${id}">Edit</button>` : ''}<button class="btn sm" data-action="ix-skip" data-id="${id}">Ignore</button></div>${panel}</div>`;
 }
+// One row that fails to draw must never block the whole inbox; show it plainly with Ignore.
+function safeRow(s) {
+  try { return inboxRow(s); } catch (e) {
+    const t = (s && s.txn) || {}, id = esc(t.id || '');
+    return `<div class="bm bx" data-id="${id}"><div class="bm-d"><b>${esc(t.desc || 'Transaction')}</b><span class="amt">${fmt(Math.abs(t.amount || 0))}</span></div><div class="bm-m">${t.date ? md(t.date) : ''}</div><div class="bx-a"><button class="btn sm" data-action="ix-skip" data-id="${id}">Ignore</button></div></div>`;
+  }
+}
 function inboxSheet() {
   const q = state.bank.inbox.slice().sort((a, b) => a.txn.date < b.txn.date ? 1 : a.txn.date > b.txn.date ? -1 : 0);
   const ready = q.filter(bulkOk).length;
@@ -3116,7 +3124,7 @@ function inboxSheet() {
   const sc = document.querySelector('#sheet .sheet'), top = sc && !$('#sheet').hidden ? sc.scrollTop : 0;
   bankSheet(`<div class="sheet-h"><div><h3>New transactions</h3><p class="lede">${q.length ? q.length + (q.length === 1 ? ' needs' : ' need') + ' a quick look. Sure matches were already applied.' : 'All caught up.'}</p></div>
     <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
-    ${q.length ? `<div class="bx-top"><span class="note">Nothing here is counted until you accept it.</span><button class="btn primary" data-action="ix-all"${ready ? '' : ' disabled'}>Accept all (${ready})</button></div><div class="bm-list">${q.map(inboxRow).join('')}</div>` : ''}
+    ${q.length ? `<div class="bx-top"><span class="note">Nothing here is counted until you accept it.</span><button class="btn primary" data-action="ix-all"${ready ? '' : ' disabled'}>Accept all (${ready})</button></div><div class="bm-list">${q.map(safeRow).join('')}</div>` : ''}
     ${recent.length ? `<div class="bx-sh">Recently synced</div><ul class="bx-rec">${recent.map(([id, r]) => `<li><div class="main"><div class="nm">${esc(r.what || r.desc)}</div><div class="sub">${esc(r.desc)} · ${md(r.date)}${r.auto ? ' · auto' : ''}</div></div><span class="amt">${r.amount < 0 ? '+' : ''}${fmt(Math.abs(r.amount))}</span><button class="btn sm" data-action="ix-undo" data-id="${esc(id)}">Undo</button></li>`).join('')}</ul>` : ''}
     ${state.bank.history.length ? `<p class="note"><button class="linkbtn" data-action="hx-open">Earlier transactions · ${state.bank.history.length}</button></p>` : ''}
     ${!q.length && !recent.length ? '<p class="note">Nothing yet. New transactions show up here after a sync.</p>' : ''}
