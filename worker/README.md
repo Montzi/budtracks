@@ -26,3 +26,6 @@ cd worker && npm install && npm test     # offline tests with mocked Plaid
 npx wrangler dev                          # needs real ids in wrangler.toml and Plaid secrets; localhost origins allowed in sandbox
 ```
 Manual deploy: set the placeholder in `wrangler.toml`, run `wrangler secret put PLAID_CLIENT_ID`, `wrangler secret put PLAID_SECRET`, `openssl rand -base64 32 | wrangler secret put ENC_KEY`, then `npm run deploy`. Do not rotate `ENC_KEY` afterwards: stored tokens would become unreadable (users must reconnect banks).
+
+## Status
+Sandbox deploys run from the `bank-sync` branch while bank sync is tested.
