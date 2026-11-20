@@ -641,6 +641,25 @@ h3 > .icon-pick { display: inline-grid; vertical-align: middle; width: 38px; hei
 .tabs { transition: opacity .18s ease; }
 html.rotating *, html.rotating *::before, html.rotating *::after { transition: none !important; scroll-behavior: auto !important; }
 html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
+/* Paycheck prompt inside the navy cycle card */
+.pay-ask { margin-top: 12px; padding: 12px; border: 1px dashed var(--brass-hi); border-radius: 12px; background: #ffffff0f; display: grid; gap: 10px; font-size: 13px; color: var(--hero-ink-2); }
+.pay-ask label b { display: block; color: var(--hero-ink); font-size: 14px; margin-bottom: 2px; }
+.pay-row { display: flex; gap: 8px; }
+.pay-row .money-in { flex: 1; min-width: 0; }
+.pay-row input { width: 100%; min-width: 0; padding: 10px 12px 10px 24px; border-radius: 10px; border: 1px solid var(--hero-line); background: #0000004d; color: var(--hero-ink); font: 16px var(--mono); }
+.pay-row input:focus { outline: 2px solid var(--brass-hi); outline-offset: 0; }
+.pay-ask .money-in i { color: var(--hero-ink-2); }
+.pay-opts { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.pay-same { background: none; border: 1px solid var(--brass-hi); color: var(--brass-hi); border-radius: 99px; padding: 7px 12px; font-size: 13px; font-weight: 500; }
+.pay-same:hover { background: #ffffff10; }
+.pay-edit { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+/* iPhone Duo and notched phones: the camera can sit on a side edge, with different insets on each side.
+   Keep sheets, toasts and floating bubbles inside the safe area. */
+.sheet-wrap { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+.sheet { max-height: calc(100% - 12px); }
+.toast { max-width: calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)); }
+.bud.float { right: calc(14px + env(safe-area-inset-right)); }
+.fld input[type="date"] { -webkit-appearance: none; appearance: none; min-width: 0; display: block; text-align: left; min-height: 44px; }
 /* Landscape: cycle card a little narrower, chart card wider so legend names fit. */
 @media (min-width: 900px), (orientation: landscape) and (min-width: 740px) {
   .ov { grid-template-columns: minmax(0, .86fr) minmax(0, 1.14fr); }
@@ -851,16 +870,37 @@ const BT = (() => {
     return res;
   }
 
+  function payDates(i, r) {
+    if (i.freq === 'biweekly') return stepDates(i.date, 14, r);
+    if (i.freq === 'weekly') return stepDates(i.date, 7, r);
+    if (i.freq === 'monthly') return monthlyDates(parse(i.date).getDate(), r);
+    return inR(i.date, r) ? [i.date] : [];
+  }
+  // Paychecks from askFrom on have no automatic amount: each deposit date needs its own entry in perCycle.
+  // Dates before askFrom keep the usual amount. Returns null when the amount is still unknown.
+  function payAmount(i, date) {
+    if (i.askFrom && date >= i.askFrom) { const v = (i.perCycle || {})[date]; return typeof v === 'number' ? v : null; }
+    return i.amount || null;
+  }
+  // Most recent known amount before a date, for the "Same as previous paycheck" button.
+  function prevPay(i, date) {
+    const ks = Object.keys(i.perCycle || {}).filter(k => k < date).sort();
+    return ks.length ? i.perCycle[ks[ks.length - 1]] : (i.amount || 0);
+  }
   function incomeIn(st, r) {
     const out = [];
     for (const i of st.income) {
-      if (!i.amount || !i.date) continue;
-      let ds = [];
-      if (i.freq === 'biweekly') ds = stepDates(i.date, 14, r);
-      else if (i.freq === 'weekly') ds = stepDates(i.date, 7, r);
-      else if (i.freq === 'monthly') ds = monthlyDates(parse(i.date).getDate(), r);
-      else if (inR(i.date, r)) ds = [i.date];
-      ds.forEach(date => out.push({ ref: i.id, name: i.name, amount: i.amount, date }));
+      if (!i.date || (!i.amount && !i.askFrom)) continue;
+      payDates(i, r).forEach(date => { const amount = payAmount(i, date); if (amount) out.push({ ref: i.id, name: i.name, amount, date }); });
+    }
+    return out;
+  }
+  // Deposits in this range that still need an amount.
+  function payAsk(st, r) {
+    const out = [];
+    for (const i of st.income) {
+      if (!i.date || !i.askFrom) continue;
+      payDates(i, r).forEach(date => { if (date >= i.askFrom && payAmount(i, date) === null) out.push({ ref: i.id, name: i.name, date, prev: prevPay(i, date) }); });
     }
     return out;
   }
@@ -1034,7 +1074,7 @@ const BT = (() => {
       amount: txn.amount, freq, lastDate: txn.date, paid: 0, total, category: o.category || '', via: o.via || '', autopay: true, created: o.today || txn.date, imported: true, fromTxn: txn.id };
   }
 
-  return { PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, summary, anchor, paycheck, GROUPS, round2 };
+  return { PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
 })();
 
 
@@ -1237,6 +1277,8 @@ function normalize(s) {
   if (!o.occ || typeof o.occ !== 'object') o.occ = {};
   if (!Array.isArray(o.billCats)) o.billCats = ['Housing', 'Utilities', 'Transportation', 'Insurance', 'Phone & Internet', 'Loans', 'Taxes', 'Entertainment', 'Software', 'Other'];
   if (!o.icons || typeof o.icons !== 'object') o.icons = {};
+  // Repeating paychecks stop filling themselves in. From the current pay cycle on, each deposit asks for its amount.
+  o.income.forEach(i => { if (i.freq !== 'once' && !i.askFrom) { i.askFrom = BT.periodRange(o, 'biweekly', 0, TODAY).start; i.perCycle = i.perCycle || {}; } });
   // v5: Paid via becomes a saved list; existing labels like "Bank **1234" become bank + last 4.
   if (!Array.isArray(o.payVia)) {
     o.payVia = ['PayPal', 'Apple', 'Cash App', 'Venmo', 'Zelle'].map(b => ({ bank: b, last4: '', type: '' }));
@@ -1430,7 +1472,7 @@ function viewOverview() {
     </div>
     <div class="ladder">
       <div class="lad l1"><span class="hs-k">Left in paycheck</span>
-        ${s.income > 0 ? `<span class="v${remain < 0 ? ' neg' : ''}">${big(remain)}</span><span class="hs-s">of ${fmt(s.income)}${dep ? '<br>' + lng(dep.date) : ''}</span>` : `<span class="v dim">${big(0)}</span><span class="hs-s">Paycheck not set</span>`}</div>
+        ${s.income > 0 ? `<span class="v${remain < 0 ? ' neg' : ''}">${big(remain)}</span><span class="hs-s">${dep && isAsk(dep.ref) ? `<button class="pay-edit" data-action="pay-edit" data-date="${dep.date}">of ${fmt(s.income)}</button>` : 'of ' + fmt(s.income)}${dep ? '<br>' + lng(dep.date) : ''}</span>` : `<span class="v dim">${big(0)}</span><span class="hs-s">Paycheck not set</span>`}</div>
       <div class="lad l2"><span class="hs-k">${{ weekly: 'Week', biweekly: 'Cycle', monthly: 'Month' }[view]} needs</span><span class="v">${big(s.needed)}</span><span class="hs-s">${Math.round(pct)}% paid</span></div>
       <button class="lad l3" data-action="account"><span class="hs-k">In account</span>${acct === null ? '<span class="v set">Set</span><span class="hs-s">Tap to add</span>' : `<span class="v${acct < 0 ? ' neg' : ''}">${big(acct)}</span><span class="hs-s">${split(acct).prev > 0.004 ? 'incl. ' + fmt0(split(acct).prev) + ' carried' : state.account.auto ? 'Estimated' : 'Today'}</span>`}${state.savings.on ? `<span class="sv-chip">Savings: ${fmt0(BT.savingsBalance(state))}</span>` : ''}</button>
     </div>
@@ -1442,7 +1484,7 @@ function viewOverview() {
       <div><dt>Still due</dt><dd>${fmt(s.due)}</dd></div>
       <div><dt>After all bills</dt><dd class="${s.left < 0 && s.income > 0 ? 'neg' : ''}">${s.income > 0 ? fmt(s.left) : 'Set income'}</dd></div>
     </dl>
-    ${pc && !pc.amount ? `<button class="cta" data-action="edit" data-type="income" data-id="${pc.id}">Add your paycheck amount to see what is left over each ${VIEWNAME[view]}.</button>` : ''}
+    ${payPrompt(r) || (pc && !pc.amount && !pc.askFrom ? `<button class="cta" data-action="edit" data-type="income" data-id="${pc.id}">Add your paycheck amount to see what is left over each ${VIEWNAME[view]}.</button>` : '')}
     <div class="hero-foot"><span>Next ${VIEWNAME[view]} needs <b>${fmt(ns.needed)}</b></span>${isNow ? '' : '<button class="linkbtn" data-action="today">Back to now</button>'}<span class="sync" data-s="${SYNC.s}" role="status">${esc(SYNC.t)}</span></div>
   </section>
     <section class="card ov-donut"><header class="card-h"><h2>Where this ${VIEWNAME[view]} goes</h2><span class="meta">${fmt(s.needed)}</span></header>
@@ -1555,13 +1597,29 @@ function viewCards() {
     </section></div>`;
 }
 
+/* ---------- Per-cycle paycheck ---------- */
+let PAY_EDIT = null;
+const isAsk = id => { const i = state.income.find(x => x.id === id); return !!(i && i.askFrom); };
+function payPrompt(r) {
+  let a = BT.payAsk(state, r)[0], cur = null;
+  if (!a && PAY_EDIT) {
+    const i = state.income.find(x => x.askFrom && x.perCycle && typeof x.perCycle[PAY_EDIT] === 'number' && PAY_EDIT >= r.start && PAY_EDIT < r.end);
+    if (i) { a = { ref: i.id, name: i.name, date: PAY_EDIT, prev: BT.prevPay(i, PAY_EDIT) }; cur = i.perCycle[PAY_EDIT]; }
+  }
+  if (!a) return '';
+  const d = `data-id="${a.ref}" data-date="${a.date}"`;
+  return `<div class="pay-ask"><label for="payamt"><b>${esc(a.name)} · ${lng(a.date)}</b>How much was deposited this pay cycle?</label>
+    <div class="pay-row"><span class="money-in"><i>$</i><input id="payamt" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${cur === null ? '' : cur.toFixed(2)}"></span><button class="btn primary sm" data-action="pay-set" ${d}>Save</button></div>
+    <div class="pay-opts">${a.prev ? `<button class="pay-same" data-action="pay-same" ${d} data-amt="${a.prev}">Same as previous paycheck · ${fmt(a.prev)}</button>` : ''}${cur !== null ? '<button class="linkbtn" data-action="pay-cancel">Cancel</button>' : ''}</div></div>`;
+}
+
 function viewIncome() {
   return `<div class="grid-2"><div class="stack">
     <section class="card"><header class="card-h"><h2>Income</h2><button class="btn primary sm" data-action="add" data-type="income">${ICON.plus}Add income</button></header>
       <ul class="rows">${state.income.map(i => `<li class="row tap" data-action="edit" data-type="income" data-id="${i.id}" tabindex="0" role="button" aria-label="Edit ${esc(i.name)}">
         <span></span><div class="daybadge">${i.freq === 'biweekly' ? '2w' : i.freq === 'weekly' ? '1w' : i.freq === 'monthly' ? '1m' : '1×'}</div>
-        <div class="main"><div class="nm">${esc(i.name)}${i === BT.paycheck(state) ? ' <span class="pill soft">Sets your cycle</span>' : ''}</div><div class="sub">${FREQ[i.freq]} · ${i.freq === 'once' ? lng(i.date) : 'next ' + lng(nextPay(i))}</div></div>
-        <div class="amt">${i.amount ? fmt(i.amount) : '<span class="muted">Set amount</span>'}</div></li>`).join('')}</ul>
+        <div class="main"><div class="nm">${esc(i.name)}${i === BT.paycheck(state) ? ' <span class="pill soft">Sets your cycle</span>' : ''}</div><div class="sub">${FREQ[i.freq]} · ${i.freq === 'once' ? lng(i.date) : 'next ' + lng(nextPay(i))}${i.askFrom ? ' · amount asked each pay cycle' : ''}</div></div>
+        <div class="amt">${i.askFrom ? (() => { const v = BT.prevPay(i, '9999-12-31'); return v ? '<span class="muted">last</span> ' + fmt(v) : '<span class="muted">Each cycle</span>'; })() : i.amount ? fmt(i.amount) : '<span class="muted">Set amount</span>'}</div></li>`).join('')}</ul>
     </section>
     <p class="note">Each pay cycle starts on a paycheck date and runs until the day before the next one. A bill belongs to the most recent deposit before its due date, so <b>Up next</b> always shows what this paycheck has to cover.</p>
   </div>
@@ -1994,6 +2052,7 @@ function saveForm(form) {
   const item = Object.assign({ id: uid(type[0]) }, o);
   if (type === 'extra') chime();
   if (type === 'plan') item.created = TODAY;
+  if (type === 'income' && item.freq !== 'once') { item.askFrom = item.date; item.perCycle = item.amount ? { [item.date]: item.amount } : {}; }
   list.push(item);
   if (type === 'plan' && !item.category) { commit(); openCategory(item.id, true); }
   else if (type === 'plan') { closeSheet(); commit('Added ' + item.merchant + ' · ' + item.category); }
@@ -2529,6 +2588,16 @@ document.addEventListener('click', async e => {
     case 'bank-read': case 'bank-ok': case 'bank-new': case 'bank-back': case 'bank-skip': case 'bank-pick': bankAct(act, a); break;
     case 'copy-backup': backupSheet('copy'); break;
     case 'restore': backupSheet('restore'); break;
+    case 'pay-same': case 'pay-set': {
+      const i = state.income.find(x => x.id === a.dataset.id); if (!i) break;
+      const raw = a.dataset.action === 'pay-same' ? a.dataset.amt : (($('#payamt') || {}).value || '');
+      const v = parseFloat(String(raw).replace(/[$,\s]/g, ''));
+      if (!(v >= 0)) { toast('Enter the paycheck amount'); const f = $('#payamt'); if (f) f.focus(); break; }
+      i.perCycle = i.perCycle || {}; i.perCycle[a.dataset.date] = BT.round2(v); PAY_EDIT = null;
+      commit('Paycheck saved · ' + fmt(v)); break;
+    }
+    case 'pay-edit': PAY_EDIT = a.dataset.date; render(); setTimeout(() => { const f = $('#payamt'); if (f) { f.focus(); f.select(); } }, 30); break;
+    case 'pay-cancel': PAY_EDIT = null; render(); break;
     case 'do-copy': try { await navigator.clipboard.writeText($('#bk').value); toast('Backup copied'); } catch (err) { $('#bk').select(); $('#ferr').textContent = 'Copy was blocked. The text is selected, so copy it by hand.'; } break;
     case 'do-restore': try { const s = normalize(JSON.parse($('#bk').value)); if (!Array.isArray(s.bills)) throw 0; state = s; closeSheet(); commit('Backup restored'); } catch (err) { $('#ferr').textContent = 'That text is not a BudTrack backup. Paste the full backup and try again.'; } break;
     case 'reset': if (!a.classList.contains('arm')) { a.classList.add('arm'); a.textContent = 'Tap again to reset'; } else { state = normalize(clone(SEED)); offset = 0; commit('Starting data restored'); } break;
@@ -2593,6 +2662,7 @@ function onResize() {
   rotT = setTimeout(() => { buildMarks(); requestAnimationFrame(() => document.documentElement.classList.remove('rotating')); }, 220);
 }
 window.addEventListener('resize', onResize);
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'payamt') { e.preventDefault(); const b = document.querySelector('[data-action="pay-set"]'); if (b) b.click(); } });
 window.addEventListener('orientationchange', () => { document.documentElement.classList.add('rotating'); onResize(); });
 
 /* ---------- Bud's speech bubble ---------- */
