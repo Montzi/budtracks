@@ -1175,17 +1175,17 @@ const BT = (() => {
     [/\bcvs\b|walgreens|pharmacy/i, 'Personal care'],
     [/uber|lyft|parking|\btoll|ez ?pass/i, 'Transportation']
   ];
-  const TELLER_CATS = { dining: 'Dining Out', bar: 'Dining Out', groceries: 'Groceries', fuel: 'Gas', transport: 'Transportation', transportation: 'Transportation', utilities: 'Utilities', phone: 'Phone & Internet',
+  const PROVIDER_CATS = { dining: 'Dining Out', bar: 'Dining Out', groceries: 'Groceries', fuel: 'Gas', transport: 'Transportation', transportation: 'Transportation', utilities: 'Utilities', phone: 'Phone & Internet',
     shopping: 'Other', clothing: 'Clothing', entertainment: 'Entertainment', sport: 'Entertainment', health: 'Personal care', insurance: 'Insurance', loan: 'Loans', tax: 'Taxes', home: 'Household',
-    software: 'Software', service: 'Other', general: 'Other', accommodation: 'Other', education: 'Other', charity: 'Gifts', advertising: 'Other', income: 'Other' };
+    software: 'Software', service: 'Other', general: 'Other', electronics: 'Other', accommodation: 'Other', education: 'Other', charity: 'Gifts', advertising: 'Other', income: 'Other' };
   function guessCategory(st, txn) {
     const ok = c => !!c && ((st.categories || []).includes(c) || (st.billCats || []).includes(c));
     const learned = st.bank && st.bank.rules && st.bank.rules[merchantKey(txn.desc)];
     if (ok(learned)) return { category: learned, source: 'rule' };
     const text = String(txn.desc || '') + ' ' + String(txn.counterparty || '');
     for (const [rx, cat] of KEYWORD_RULES) if (rx.test(text) && ok(cat)) return { category: cat, source: 'keyword' };
-    const tc = TELLER_CATS[String(txn.tellerCategory || '').toLowerCase()];
-    if (ok(tc)) return { category: tc, source: 'teller' };
+    const tc = PROVIDER_CATS[String(txn.providerCategory || '').toLowerCase()];
+    if (ok(tc)) return { category: tc, source: 'provider' };
     return { category: 'Other', source: 'default' };
   }
   const TRANSFER_RX = /transfer|xfer|to savings|from savings|zelle to self|payment thank you|autopay payment|credit card payment/i;
@@ -1205,7 +1205,7 @@ const BT = (() => {
       }
       return Object.assign(base, { kind: 'transfer', confidence: 'low', refund: !TRANSFER_RX.test(txn.desc) });
     }
-    if (TRANSFER_RX.test(txn.desc)) {
+    if (TRANSFER_RX.test(txn.desc) || txn.providerCategory === 'transfer') {
       const cands = matchBills(st, txn, today).filter(c => c.kind === 'card');
       return Object.assign(base, { kind: 'transfer', cands, pick: cands[0] || null, confidence: 'medium' });
     }
@@ -2673,7 +2673,7 @@ document.addEventListener('change', e => {
   e.target.files[0].text().then(t => { $('#banktext').value = t; bankRun(t); }).catch(() => { $('#ferr').textContent = 'Could not read that file. Paste the rows instead.'; });
 });
 
-/* ---------- Bank sync (Teller through the BudTracks bank service) ---------- */
+/* ---------- Bank sync (Plaid through the BudTracks bank service) ---------- */
 // The service address lives in state (state.bank.api). The pairing key lives only in this browser's localStorage,
 // never in state, so it never reaches a backup or the account copy.
 const KEYLS = 'budtrack.bankkey';
@@ -2707,10 +2707,10 @@ function relTime(iso) {
   if (m < 1440) return Math.round(m / 60) + ' h ago';
   return Math.round(m / 1440) + ' d ago';
 }
-function loadTeller() {
-  if (window.TellerConnect) return Promise.resolve();
+function loadPlaid() {
+  if (window.Plaid) return Promise.resolve();
   return new Promise((ok, no) => {
-    const s = document.createElement('script'); s.src = 'https://cdn.teller.io/connect/connect.js';
+    const s = document.createElement('script'); s.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
     s.onload = ok; s.onerror = () => no(new Error('Could not load the bank picker. Check your connection.')); document.head.appendChild(s);
   });
 }
@@ -2718,7 +2718,7 @@ function loadTeller() {
 /* Bank connections card (Income tab) */
 function bankCard() {
   const b = state.bank, ready = bankReady(), n = (b.inbox || []).length;
-  const head = `<header class="card-h"><div><h2>Bank connections</h2>${ready ? `<span class="meta">${b.lastSync ? 'Last synced ' + esc(relTime(b.lastSync)) : 'Not synced yet'}</span>` : ''}</div>
+  const head = `<header class="card-h"><div><h2>Bank connections · via Plaid</h2>${ready ? `<span class="meta">${b.lastSync ? 'Last synced ' + esc(relTime(b.lastSync)) : 'Not synced yet'}</span>` : ''}</div>
     ${ready ? `<button class="btn sm" data-action="bk-sync"${BANKUI.syncing ? ' disabled' : ''}>${BANKUI.syncing ? 'Syncing…' : 'Sync now'}</button>` : ''}</header>`;
   if (!ready) return `<section class="card" id="bankcard">${head}<div class="card-b bk">
     <p class="note" style="margin:0">Pull in transactions from your banks automatically. Paste the address of your BudTracks bank service. The first time, this phone is paired with it. Your budget stays on this phone.</p>
@@ -2764,26 +2764,49 @@ async function bankConnectSetup(form) {
   } catch (e) { BANKUI.err = e.message; }
   BANKUI.busy = false; render();
 }
+const LINKLS = 'budtrack.linktoken';
+// Opens Plaid Link with a link token. reconId = update mode (reconnect an existing Item); redirectUri = resuming an OAuth bank.
+async function bankOpenLink(token, reconId, redirectUri) {
+  await loadPlaid();
+  const opts = {
+    token,
+    onSuccess: async (publicToken, meta) => {
+      try { sessionStorage.removeItem(LINKLS); } catch (e) {}
+      try {
+        if (reconId) toast('Bank reconnected');
+        else {
+          const inst = meta && meta.institution && meta.institution.name;
+          await bankFetch('/enroll', { method: 'POST', body: { publicToken, institution: inst || '' } });
+          toast('Bank connected');
+        }
+        BANKUI.enr = null; await bankCardLoad(true); bankSync({ auto: false });
+      } catch (e) { BANKUI.err = e.message; toast(e.message); render(); }
+    },
+    onExit: () => { try { sessionStorage.removeItem(LINKLS); } catch (e) {} }
+  };
+  if (redirectUri) opts.receivedRedirectUri = redirectUri;
+  window.Plaid.create(opts).open();
+}
 async function bankConnectBank(reconId) {
   if (BANKUI.busy) return;
   BANKUI.busy = true; BANKUI.err = ''; render();
   try {
-    const cfg = await bankFetch('/config', { auth: false });
-    await loadTeller();
-    const opts = {
-      applicationId: cfg.tellerAppId, environment: cfg.tellerEnv, products: ['transactions', 'balance'],
-      onSuccess: async en => {
-        try {
-          await bankFetch('/enroll', { method: 'POST', body: { accessToken: en.accessToken, enrollmentId: en.enrollment.id, institution: en.enrollment.institution.name } });
-          toast('Bank connected'); BANKUI.enr = null; await bankCardLoad(true); bankSync({ auto: false });
-        } catch (e) { BANKUI.err = e.message; toast(e.message); render(); }
-      },
-      onExit: () => {}
-    };
-    if (reconId) opts.enrollmentId = reconId;
-    window.TellerConnect.setup(opts).open();
+    const lt = await bankFetch('/link-token' + (reconId ? '?item=' + encodeURIComponent(reconId) : ''));
+    if (!lt.link_token) throw new Error('The bank service did not return a link token.');
+    // Kept so an OAuth bank can send the phone back here and Link can pick up where it left off.
+    try { sessionStorage.setItem(LINKLS, JSON.stringify({ token: lt.link_token, recon: reconId || '' })); } catch (e) {}
+    await bankOpenLink(lt.link_token, reconId || '');
   } catch (e) { BANKUI.err = e.message || 'Could not open the bank picker.'; }
   BANKUI.busy = false; render();
+}
+// Back from an OAuth bank (the URL carries ?oauth_state_id=...): reopen Link with the same token.
+function bankOAuthResume() {
+  if (!/[?&]oauth_state_id=/.test(location.search)) return;
+  const href = location.href;
+  try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}
+  let saved = null; try { saved = JSON.parse(sessionStorage.getItem(LINKLS) || 'null'); } catch (e) {}
+  if (!saved || !saved.token || !bankReady()) return;
+  bankOpenLink(saved.token, saved.recon || '', href).catch(e => { BANKUI.err = e.message; render(); });
 }
 async function bankCardAct(act, a) {
   const find = id => (BANKUI.enr || []).reduce((r, e) => r || (e.accounts || []).find(x => x.id === id), null);
@@ -2797,7 +2820,12 @@ async function bankCardAct(act, a) {
     catch (e) { acc.enabled = !want; toast(e.message); render(); }
     return;
   }
-  if (!a.classList.contains('arm')) { a.classList.add('arm'); a.textContent = act === 'bk-disc' ? 'Tap again to disconnect' : 'Tap again to remove'; return; }
+  if (!a.classList.contains('arm')) {
+    a.classList.add('arm'); a.textContent = act === 'bk-disc' ? 'Tap again to disconnect' : 'Tap again to remove';
+    const box = act === 'bk-disc' && a.closest('.bk-enr');
+    if (box && !box.querySelector('.bk-warn')) box.insertAdjacentHTML('beforeend', `<p class="note bk-warn" role="alert" style="margin:6px 0 0">On Plaid's free plan a removed bank still counts toward the 10-bank limit.</p>`);
+    return;
+  }
   if (act === 'bk-disc') {
     try { await bankFetch('/enroll/' + encodeURIComponent(a.dataset.id), { method: 'DELETE' }); BANKUI.enr = null; toast('Bank disconnected'); await bankCardLoad(true); }
     catch (e) { toast(e.message); render(); }
@@ -2828,9 +2856,28 @@ async function bankSync(o) {
     const r = await bankFetch('/sync?since=' + since);
     const errs = Array.isArray(r.errors) ? r.errors : [];
     const before = new Set(state.bank.inbox.map(s => s.txn.id));
-    const byId = new Map(); state.bank.inbox.forEach(s => byId.set(s.txn.id, s.txn)); (Array.isArray(r.txns) ? r.txns : []).forEach(t => { if (t && t.id) byId.set(t.id, t); });
-    const batch = BT.classifyBatch(state, [...byId.values()], TODAY), inbox = [];
-    let applied = 0;
+    const incoming = (Array.isArray(r.txns) ? r.txns : []).filter(t => t && t.id), removed = new Set((Array.isArray(r.removed) ? r.removed : []).filter(Boolean));
+    const byId = new Map(); state.bank.inbox.forEach(s => byId.set(s.txn.id, s.txn)); incoming.forEach(t => byId.set(t.id, t));
+    const inbox = [];
+    let applied = 0, dropped = 0;
+    absorbChange(state, () => {
+      // Pending charge replaced by its posted version: carry the decision over, drop the pending one.
+      incoming.forEach(t => {
+        const pid = t.pendingOf; if (!pid || pid === t.id) return;
+        byId.delete(pid); before.delete(pid);
+        if (state.bank.seen[pid] && state.bank.seen[pid].src === 'sync') {
+          if (state.bank.seen[t.id]) removed.add(pid); else { carryPending(pid, t); dropped++; }
+        }
+      });
+      // Removed by the bank: forget unreviewed ones, undo applied ones.
+      removed.forEach(id => {
+        byId.delete(id); before.delete(id);
+        const r = state.bank.seen[id];
+        if (r && r.src === 'sync') { revertSeen(id); dropped++; }
+      });
+      state.bank.inbox = state.bank.inbox.filter(s => byId.has(s.txn.id));
+    }, 'Bank sync');
+    const batch = BT.classifyBatch(state, [...byId.values()], TODAY);
     absorbChange(state, () => batch.forEach(s => {
       if (s.confidence === 'high' && s.pick && AUTO_KINDS.includes(s.kind) && applyOne(s, {}, true)) { applied++; return; }
       inbox.push(s);
@@ -2839,9 +2886,9 @@ async function bankSync(o) {
     pruneSeenTxn();
     const fresh = inbox.filter(s => !before.has(s.txn.id)).length;
     const em = errs.length ? errs.map(e => (e.institution ? e.institution + ': ' : '') + (e.needsReconnect ? 'needs reconnect' : e.message || e.error || e.code || 'could not sync')).join('. ') : '';
-    const msg = em || (applied || fresh ? [applied ? applied + ' matched automatically' : '', fresh ? fresh + ' to review' : ''].filter(Boolean).join(', ') : auto ? '' : 'Up to date');
-    if (applied || fresh || !auto) commit(msg); else saveQuiet();
-    if (em && (applied || fresh || auto)) toast(em);
+    const msg = em || (applied || fresh || dropped ? [applied ? applied + ' matched automatically' : '', fresh ? fresh + ' to review' : '', dropped ? dropped + ' updated by your bank' : ''].filter(Boolean).join(', ') : auto ? '' : 'Up to date');
+    if (applied || fresh || dropped || !auto) commit(msg); else saveQuiet();
+    if (em && (applied || fresh || dropped || auto)) toast(em);
     if (errs.some(e => e.needsReconnect)) { BANKUI.enr = null; BANKUI.loadErr = ''; }
   } catch (e) { if (!auto) toast(e.message); }
   BANKUI.syncing = false;
@@ -2918,8 +2965,9 @@ function applyEdited(id, o) {
   if (o.recurring) toast('Added once. Repeating bills are set up on the Bills tab.');
   applySuggestion(s, { kind: 'spend', spend: { category: o.category, desc: o.desc, amount: o.amount, date: o.date, via: o.via, note: o.note || 'Bank sync', from: o.from } });
 }
-function undoSuggestion(id) {
-  const r = state.bank.seen[id]; if (!r || r.src !== 'sync') return;
+// Reverses whatever a synced suggestion did to the budget and forgets it. Does not save or re-render. Returns the record.
+function revertSeen(id) {
+  const r = state.bank.seen[id]; if (!r || r.src !== 'sync') return null;
   if (r.res === 'match') BT.unlinkPayment(state, r.key, r.prev);
   else if (r.res === 'bill') {
     if (r.prev.mark === null) delete state.marks[r.key]; else state.marks[r.key] = r.prev.mark;
@@ -2935,9 +2983,26 @@ function undoSuggestion(id) {
     [state.marks, state.occ].forEach(m => Object.keys(m).forEach(k => { if (k.startsWith('p:' + r.plan + ':')) delete m[k]; }));
   }
   delete state.bank.seen[id];
+  return r;
+}
+function undoSuggestion(id) {
+  const r = revertSeen(id); if (!r) return;
   // Back to the review list so it can be sorted out again.
   if (r.txn && !state.bank.inbox.some(x => x.txn.id === id)) BT.classifyBatch(state, [r.txn], TODAY).forEach(s => state.bank.inbox.push(s));
   commit('Undone'); inboxSheet();
+}
+// A pending charge was replaced by its posted version: the decision made for the pending one now belongs to the posted one.
+function carryPending(pid, t) {
+  const r = state.bank.seen[pid]; if (!r) return;
+  const old = r.txn, same = (a, b) => Math.abs(a - b) < 0.005;
+  delete state.bank.seen[pid];
+  state.bank.seen[t.id] = Object.assign(r, { date: t.date, amount: t.amount, desc: t.desc, txn: t });
+  if (r.res === 'spend') {
+    const x = state.spends.find(z => z.id === r.spendId);
+    if (x) { x.bank = t.id; if (old && same(x.amount, Math.abs(old.amount)) && x.date === old.date) { x.amount = BT.round2(Math.abs(t.amount)); x.date = t.date; } }
+  } else if ((r.res === 'match' || r.res === 'bill') && r.key) {
+    const o = state.occ[r.key]; if (o && o.txn === pid) { o.txn = t.id; if (o.paidOn === (old && old.date)) o.paidOn = t.date; }
+  }
 }
 function finishInboxPlan(t, plan) {
   const r = state.bank.seen[t.id];
@@ -3255,7 +3320,8 @@ function render() {
 }
 window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
 render();
-connect().then(bankAutoSync, bankAutoSync);
+const bankBoot = () => { bankOAuthResume(); bankAutoSync(); };
+connect().then(bankBoot, bankBoot);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') bankAutoSync(); });
 })();
 

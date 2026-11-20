@@ -1,5 +1,5 @@
 // Offline shell. Bump VERSION on each release so phones pick up the new build.
-const VERSION = 'budtracks-v7';
+const VERSION = 'budtracks-v8';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -11,7 +11,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  // The bank service and Teller are never cached or answered by the shell: let them go straight to the network.
+  // The bank service and Plaid are never cached or answered by the shell: let them go straight to the network.
   { const h = new URL(req.url); if (h.origin !== location.origin && !/fonts\.(googleapis|gstatic)\.com$/.test(h.hostname)) return; }
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put('index.html', copy)); return r; })

@@ -69,11 +69,20 @@ test('DoorDash is Takeout Food by keyword', () => {
   const s = BT.classifyTxn(fixture(), T({ desc: 'DOORDASH*CHIPOTLE', amount: 18.4 }), TODAY);
   assert.equal(s.kind, 'spend'); assert.equal(s.confidence, 'medium');
 });
-test('teller category and default', () => {
-  assert.equal(BT.guessCategory(fixture(), T({ desc: 'ACME CORP', tellerCategory: 'fuel' })).category, 'Gas');
-  assert.deepEqual(BT.guessCategory(fixture(), T({ desc: 'ACME CORP', tellerCategory: 'zzz' })), { category: 'Other', source: 'default' });
+test('provider category and default', () => {
+  assert.equal(BT.guessCategory(fixture(), T({ desc: 'ACME CORP', providerCategory: 'fuel' })).category, 'Gas');
+  assert.deepEqual(BT.guessCategory(fixture(), T({ desc: 'ACME CORP', providerCategory: 'zzz' })), { category: 'Other', source: 'default' });
   // category not in the app falls back to Other
-  assert.equal(BT.guessCategory(fixture(), T({ desc: 'x', tellerCategory: 'loan' })).category, 'Other');
+  assert.equal(BT.guessCategory(fixture(), T({ desc: 'x', providerCategory: 'loan' })).category, 'Other');
+});
+test('provider category sets source and electronics falls back to Other', () => {
+  assert.deepEqual(BT.guessCategory(fixture(), T({ desc: 'ACME CORP', providerCategory: 'fuel' })), { category: 'Gas', source: 'provider' });
+  assert.equal(BT.guessCategory(fixture(), T({ desc: 'GADGET SHOP', providerCategory: 'electronics' })).category, 'Other');
+});
+test('provider category transfer (money out) is a transfer, not spending', () => {
+  const s = BT.classifyTxn(fixture(), T({ desc: 'ONLINE PMT 8841', amount: 120, providerCategory: 'transfer' }), TODAY);
+  assert.equal(s.kind, 'transfer'); assert.equal(s.confidence, 'medium');
+  assert.equal(BT.classifyTxn(fixture(), T({ desc: 'ONLINE PMT 8841', amount: 120, providerCategory: 'general' }), TODAY).kind, 'spend');
 });
 test('learned rule overrides keyword', () => {
   const st = fixture(), t = T({ desc: 'DOORDASH*CHIPOTLE 855-973 CA' });

@@ -1,9 +1,9 @@
-// BudTracks bank-sync Worker: a thin, single-user proxy to the Teller API.
-// Tokens are AES-GCM encrypted in KV; the phone authenticates with a device key.
+// BudTracks bank-sync Worker: a thin, single-user proxy to the Plaid API.
+// Access tokens are AES-GCM encrypted in KV; the phone authenticates with a device key.
 
-const TELLER = 'https://api.teller.io';
-const MAX_PAGES = 10;      // safety cap on transaction pagination per account
-const PAGE_SIZE = 100;
+const PLAID_HOSTS = { sandbox: 'https://sandbox.plaid.com', production: 'https://production.plaid.com' };
+const MAX_PAGES = 50;      // safety cap on /transactions/sync pages per item
+const PAGE_SIZE = 500;
 
 // ---------- small helpers ----------
 const enc = new TextEncoder(), dec = new TextDecoder();
@@ -46,7 +46,7 @@ export async function decrypt(env, blob) {
 function allowedOrigin(env, origin) {
   if (!origin) return null;
   if (origin === env.ALLOWED_ORIGIN) return origin;
-  if (env.TELLER_ENV === 'sandbox' && /^http:\/\/localhost(:\d+)?$/.test(origin)) return origin;
+  if (plaidEnv(env) === 'sandbox' && /^http:\/\/localhost(:\d+)?$/.test(origin)) return origin;
   return null;
 }
 function corsHeaders(env, req) {
@@ -70,70 +70,112 @@ async function requireAuth(env, req) {
   if (!safeEqual(await sha256(m[1]), unb64(stored))) throw new HttpError(401, 'unauthorized');
 }
 
-// ---------- Teller client ----------
-// Basic auth: access token as username, empty password. mTLS via binding when present.
-async function teller(env, token, path, init = {}) {
-  const headers = { Authorization: 'Basic ' + btoa(token + ':'), Accept: 'application/json', ...(init.headers || {}) };
-  const f = env.TELLER_CERT ? (u, i) => env.TELLER_CERT.fetch(u, i) : fetch;
-  const res = await f(TELLER + path, { ...init, headers });
-  let body = null;
-  try { body = await res.json(); } catch { /* empty body (e.g. 204) */ }
-  return { status: res.status, ok: res.ok, body };
+// ---------- Plaid client ----------
+const plaidEnv = (env) => (env.PLAID_ENV === 'production' ? 'production' : 'sandbox');
+// Every Plaid call is a JSON POST carrying client_id and secret in the body.
+async function plaid(env, path, body = {}) {
+  if (!env.PLAID_CLIENT_ID || !env.PLAID_SECRET) throw new HttpError(500, 'server not configured (Plaid keys missing)');
+  const res = await fetch(PLAID_HOSTS[plaidEnv(env)] + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ client_id: env.PLAID_CLIENT_ID, secret: env.PLAID_SECRET, ...body }),
+  });
+  let data = null;
+  try { data = await res.json(); } catch { /* empty / non-JSON body */ }
+  return { status: res.status, ok: res.ok, body: data, code: data?.error_code || '' };
 }
-// Disconnected / revoked enrollments surface as 401/403 or an enrollment.* error code.
-const needsReconnect = (r) =>
-  r.status === 401 || r.status === 403 || /^enrollment\./.test(r.body?.error?.code || '');
-const tellerMsg = (r) => r.body?.error?.message || `Teller error ${r.status}`;
+// Errors that mean the user has to go through Link again (update mode).
+const RECONNECT = new Set(['ITEM_LOGIN_REQUIRED', 'PENDING_EXPIRATION', 'PENDING_DISCONNECT', 'ITEM_LOCKED',
+  'USER_PERMISSION_REVOKED', 'ITEM_NO_LONGER_AVAILABLE', 'ACCESS_NOT_GRANTED', 'INVALID_ACCESS_TOKEN']);
+const needsReconnect = (r) => RECONNECT.has(r.code);
+const plaidMsg = (r) => r.body?.error_message || `Plaid error ${r.status}`;
 
-// ---------- KV storage of enrollments ----------
-const enrKey = (id) => 'enr:' + id;
-async function loadEnrollments(env) {
-  const list = await env.BT_KV.list({ prefix: 'enr:' });
+// ---------- KV storage of items ----------
+// item:<item_id> -> { token (encrypted access token), institution, cursor, enrolledAt }
+const itemKey = (id) => 'item:' + id;
+async function loadItems(env) {
+  const list = await env.BT_KV.list({ prefix: 'item:' });
   const out = [];
   for (const k of list.keys) {
     const rec = JSON.parse(await env.BT_KV.get(k.name));
-    out.push({ id: k.name.slice(4), institution: rec.institution, token: await decrypt(env, rec.token) });
+    out.push({ id: k.name.slice(5), institution: rec.institution || '', cursor: rec.cursor || null, token: await decrypt(env, rec.token), rec });
   }
   return out;
 }
+async function loadItem(env, id) {
+  const raw = await env.BT_KV.get(itemKey(id));
+  if (!raw) return null;
+  const rec = JSON.parse(raw);
+  return { id, institution: rec.institution || '', cursor: rec.cursor || null, token: await decrypt(env, rec.token), rec };
+}
 const getOff = async (env) => new Set(JSON.parse((await env.BT_KV.get('off')) || '[]'));
 
-const shapeAccount = (a) => ({
-  id: a.id, name: a.name, type: a.type, subtype: a.subtype, last_four: a.last_four,
-  institution: a.institution?.name || '',
+const shapeAccount = (a, off) => ({
+  id: a.account_id, name: a.name || a.official_name || '', type: a.type, subtype: a.subtype || null, last_four: a.mask || null,
+  ...(off ? { enabled: !off.has(a.account_id) } : {}),
 });
 
+// ---------- category mapping ----------
+// Plaid personal_finance_category -> the lowercase vocabulary the app's classifier understands.
+// Detailed codes win over primary ones.
+const DETAILED = {
+  FOOD_AND_DRINK_GROCERIES: 'groceries', FOOD_AND_DRINK_BEER_WINE_AND_LIQUOR: 'general', FOOD_AND_DRINK_VENDING_MACHINES: 'general',
+  TRANSPORTATION_GAS: 'fuel', TRAVEL_RENTAL_CARS: 'transport',
+  RENT_AND_UTILITIES_RENT: 'home', RENT_AND_UTILITIES_INTERNET_AND_CABLE: 'phone', RENT_AND_UTILITIES_TELEPHONE: 'phone',
+  LOAN_PAYMENTS_CREDIT_CARD_PAYMENT: 'transfer',
+  GENERAL_MERCHANDISE_CLOTHING_AND_ACCESSORIES: 'clothing', GENERAL_MERCHANDISE_ELECTRONICS: 'electronics',
+  GENERAL_MERCHANDISE_PHARMACIES_AND_SUPPLEMENTS: 'health', MEDICAL_PHARMACIES_AND_SUPPLEMENTS: 'health',
+  GENERAL_SERVICES_INSURANCE: 'insurance', GOVERNMENT_AND_NON_PROFIT_TAX_PAYMENT: 'tax',
+};
+const PRIMARY = {
+  FOOD_AND_DRINK: 'dining', TRANSPORTATION: 'transport', TRAVEL: 'general', RENT_AND_UTILITIES: 'utilities',
+  LOAN_PAYMENTS: 'loan', TRANSFER_IN: 'transfer', TRANSFER_OUT: 'transfer', INCOME: 'income',
+  ENTERTAINMENT: 'entertainment', PERSONAL_CARE: 'health', MEDICAL: 'health', HOME_IMPROVEMENT: 'home',
+  GENERAL_MERCHANDISE: 'shopping', GENERAL_SERVICES: 'service', GOVERNMENT_AND_NON_PROFIT: 'general', BANK_FEES: 'general', OTHER: null,
+};
+export function mapCategory(pfc) {
+  if (!pfc) return null;
+  return DETAILED[pfc.detailed] || PRIMARY[pfc.primary] || null;
+}
+
 // ---------- transaction normalization ----------
-// Teller sign convention (verify against docs): depository debits are negative;
-// credit-card purchases are positive. We output positive = money out for both.
-export function normalizeTxn(t, acct) {
-  const raw = parseFloat(t.amount);
-  const amount = acct.type === 'credit' ? raw : -raw;
+// Plaid sign convention: positive = money out, negative = money in, for every account type,
+// which is exactly the app's convention. Posted amounts are rounded to cents.
+export function normalizeTxn(t, acct, institution) {
   return {
-    id: 'tl:' + t.id,
-    date: t.date,
-    desc: t.description,
-    amount: Math.round(amount * 100) / 100 || 0, // avoid -0
-    account: { id: acct.id, name: acct.name, last4: acct.last_four, institution: acct.institution?.name || '', type: acct.type },
-    status: t.status,
-    counterparty: t.details?.counterparty?.name || null,
-    tellerCategory: t.details?.category || null,
+    id: 'pl:' + t.transaction_id,
+    date: t.authorized_date || t.date,
+    desc: t.merchant_name || t.name,
+    rawDesc: t.name,
+    amount: Math.round(Number(t.amount) * 100) / 100 || 0, // avoid -0
+    account: { id: t.account_id, name: acct?.name || '', last4: acct?.mask || '', institution: institution || '', type: acct?.type || '' },
+    status: t.pending ? 'pending' : 'posted',
+    pendingOf: t.pending_transaction_id ? 'pl:' + t.pending_transaction_id : null,
+    counterparty: t.merchant_name || null,
+    providerCategory: mapCategory(t.personal_finance_category),
   };
 }
 
-// Fetch transactions newest-first, paging with from_id until older than `since`.
-async function fetchTxns(env, token, acct, since) {
-  const txns = [];
-  let from = null;
-  for (let p = 0; p < MAX_PAGES; p++) {
-    const r = await teller(env, token, `/accounts/${acct.id}/transactions?count=${PAGE_SIZE}` + (from ? `&from_id=${from}` : ''));
-    if (!r.ok) return { r };
-    const page = r.body || [];
-    for (const t of page) if (!since || t.date >= since) txns.push(normalizeTxn(t, acct));
-    if (page.length < PAGE_SIZE || (since && page[page.length - 1].date < since)) break;
-    from = page[page.length - 1].id;
+// Run /transactions/sync to completion from `cursor`. Restarts once from the same cursor if Plaid
+// reports the data changed mid-pagination. Returns { added, modified, removed, cursor } or { r } on error.
+async function syncItem(env, token, cursor) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const out = { added: [], modified: [], removed: [], cursor };
+    let cur = cursor, restart = false;
+    for (let p = 0; p < MAX_PAGES; p++) {
+      const r = await plaid(env, '/transactions/sync', { access_token: token, count: PAGE_SIZE, ...(cur ? { cursor: cur } : {}) });
+      if (!r.ok) {
+        if (r.code === 'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION' && attempt === 0) { restart = true; break; }
+        return { r };
+      }
+      const b = r.body || {};
+      out.added.push(...(b.added || [])); out.modified.push(...(b.modified || [])); out.removed.push(...(b.removed || []));
+      cur = b.next_cursor || cur;
+      if (!b.has_more) { out.cursor = cur; return out; }
+    }
+    if (!restart) return { r: { status: 502, ok: false, body: { error_message: 'too many pages from Plaid' }, code: 'TOO_MANY_PAGES' } };
   }
-  return { txns };
+  return { r: { status: 502, ok: false, body: { error_message: 'Plaid data kept changing during sync, try again' }, code: 'MUTATION' } };
 }
 
 // ---------- route handlers ----------
@@ -144,45 +186,68 @@ async function pair(env) {
   return { key };
 }
 
+async function linkToken(env, itemId) {
+  const base = { client_name: 'BudTracks', user: { client_user_id: 'budtracks-owner' }, country_codes: ['US'], language: 'en' };
+  if (env.PLAID_REDIRECT_URI) base.redirect_uri = env.PLAID_REDIRECT_URI;
+  let body;
+  if (itemId) {
+    const item = await loadItem(env, itemId);
+    if (!item) throw new HttpError(404, 'unknown item');
+    body = { ...base, access_token: item.token };            // update mode: no products
+  } else {
+    body = { ...base, products: ['transactions'], transactions: { days_requested: 90 } };
+  }
+  const r = await plaid(env, '/link/token/create', body);
+  if (!r.ok || !r.body?.link_token) throw new HttpError(502, plaidMsg(r));
+  return { link_token: r.body.link_token };
+}
+
 async function enroll(env, body) {
-  const { accessToken, enrollmentId, institution } = body || {};
-  if (!accessToken || !enrollmentId) throw new HttpError(400, 'accessToken and enrollmentId required');
-  const r = await teller(env, accessToken, '/accounts');
-  if (!r.ok) throw new HttpError(502, tellerMsg(r)); // don't store a token that doesn't work
-  await env.BT_KV.put(enrKey(enrollmentId), JSON.stringify({
-    token: await encrypt(env, accessToken),
-    institution: institution?.name || institution || r.body?.[0]?.institution?.name || '',
-    enrolledAt: new Date().toISOString(),
-  }));
-  return { enrollmentId, accounts: r.body.map(shapeAccount) };
+  const { publicToken, institution } = body || {};
+  if (!publicToken || typeof publicToken !== 'string') throw new HttpError(400, 'publicToken required');
+  const x = await plaid(env, '/item/public_token/exchange', { public_token: publicToken });
+  if (!x.ok || !x.body?.access_token || !x.body?.item_id) throw new HttpError(502, plaidMsg(x));
+  const { access_token: token, item_id: id } = x.body;
+  const ar = await plaid(env, '/accounts/get', { access_token: token });
+  if (!ar.ok) { await plaid(env, '/item/remove', { access_token: token }); throw new HttpError(502, plaidMsg(ar)); } // don't store an unusable token
+  const name = (typeof institution === 'string' ? institution : institution?.name) || '';
+  await env.BT_KV.put(itemKey(id), JSON.stringify({ token: await encrypt(env, token), institution: name, cursor: null, enrolledAt: new Date().toISOString() }));
+  const off = await getOff(env);
+  return { id, institution: name, accounts: (ar.body.accounts || []).map((a) => shapeAccount(a, off)) };
 }
 
 async function accounts(env) {
   const off = await getOff(env);
   const enrollments = [];
-  for (const e of await loadEnrollments(env)) {
-    const r = await teller(env, e.token, '/accounts');
-    if (r.ok) enrollments.push({ id: e.id, institution: e.institution, accounts: r.body.map((a) => ({ ...shapeAccount(a), enabled: !off.has(a.id) })) });
-    else enrollments.push({ id: e.id, institution: e.institution, accounts: [], needsReconnect: needsReconnect(r), error: tellerMsg(r) });
+  for (const it of await loadItems(env)) {
+    const r = await plaid(env, '/accounts/get', { access_token: it.token });
+    if (r.ok) {
+      const itemErr = r.body?.item?.error;
+      enrollments.push({ id: it.id, institution: it.institution, needsReconnect: RECONNECT.has(itemErr?.error_code || ''), accounts: (r.body.accounts || []).map((a) => shapeAccount(a, off)) });
+    } else enrollments.push({ id: it.id, institution: it.institution, accounts: [], needsReconnect: needsReconnect(r), error: plaidMsg(r) });
   }
   return { enrollments };
 }
 
-async function sync(env, since) {
+async function sync(env, since, full) {
   if (since && !/^\d{4}-\d{2}-\d{2}$/.test(since)) throw new HttpError(400, 'since must be YYYY-MM-DD');
   const off = await getOff(env);
-  const txns = [], errors = [];
-  for (const e of await loadEnrollments(env)) {
-    const ar = await teller(env, e.token, '/accounts');
-    if (!ar.ok) { errors.push({ enrollmentId: e.id, institution: e.institution, message: tellerMsg(ar), needsReconnect: needsReconnect(ar) }); continue; }
-    for (const a of ar.body.filter((x) => !off.has(x.id))) {
-      const res = await fetchTxns(env, e.token, a, since);
-      if (res.txns) txns.push(...res.txns);
-      else errors.push({ enrollmentId: e.id, institution: e.institution, message: `${a.name}: ${tellerMsg(res.r)}`, needsReconnect: needsReconnect(res.r) });
-    }
+  const txns = [], removed = new Set(), errors = [];
+  for (const it of await loadItems(env)) {
+    const err = (r, prefix = '') => errors.push({ enrollmentId: it.id, institution: it.institution, message: prefix + plaidMsg(r), needsReconnect: needsReconnect(r) });
+    const ar = await plaid(env, '/accounts/get', { access_token: it.token });
+    if (!ar.ok) { err(ar); continue; }
+    const accts = new Map((ar.body.accounts || []).map((a) => [a.account_id, a]));
+    const res = await syncItem(env, it.token, full ? null : it.cursor);
+    if (res.r) { if (res.r.code !== 'PRODUCT_NOT_READY') err(res.r); continue; }
+    const keep = (t) => !off.has(t.account_id) && (!since || (t.authorized_date || t.date) >= since);
+    for (const t of [...res.added, ...res.modified]) if (keep(t)) txns.push(normalizeTxn(t, accts.get(t.account_id), it.institution));
+    for (const r of res.removed) if (r?.transaction_id) removed.add('pl:' + r.transaction_id);
+    // Persist the cursor only now that every page succeeded.
+    if (res.cursor && res.cursor !== it.cursor) await env.BT_KV.put(itemKey(it.id), JSON.stringify({ ...it.rec, cursor: res.cursor }));
   }
   txns.sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0));
-  return { txns, errors, syncedAt: new Date().toISOString() };
+  return { txns, removed: [...removed], errors, syncedAt: new Date().toISOString() };
 }
 
 async function toggle(env, accountId, body) {
@@ -194,12 +259,10 @@ async function toggle(env, accountId, body) {
 }
 
 async function disconnect(env, id) {
-  const raw = await env.BT_KV.get(enrKey(id));
-  if (!raw) throw new HttpError(404, 'unknown enrollment');
-  const token = await decrypt(env, JSON.parse(raw).token);
-  const r = await teller(env, token, '/accounts');
-  if (r.ok) for (const a of r.body) await teller(env, token, `/accounts/${a.id}`, { method: 'DELETE' }); // best effort
-  await env.BT_KV.delete(enrKey(id));
+  const item = await loadItem(env, id);
+  if (!item) throw new HttpError(404, 'unknown item');
+  await plaid(env, '/item/remove', { access_token: item.token }); // best effort: a dead Item may already be gone
+  await env.BT_KV.delete(itemKey(id));
   return { removed: id };
 }
 
@@ -214,15 +277,16 @@ export default {
       const url = new URL(req.url), path = url.pathname, m = req.method;
       let out;
       if (m === 'GET' && path === '/config') {
-        out = { tellerAppId: env.TELLER_APP_ID, tellerEnv: env.TELLER_ENV, paired: !!(await env.BT_KV.get('key_hash')) };
+        out = { provider: 'plaid', env: plaidEnv(env), paired: !!(await env.BT_KV.get('key_hash')) };
       } else if (m === 'POST' && path === '/pair') {
         out = await pair(env);
       } else {
         await requireAuth(env, req);
         let mt;
-        if (m === 'POST' && path === '/enroll') out = await enroll(env, await readJson(req));
+        if (m === 'GET' && path === '/link-token') out = await linkToken(env, url.searchParams.get('item'));
+        else if (m === 'POST' && path === '/enroll') out = await enroll(env, await readJson(req));
         else if (m === 'GET' && path === '/accounts') out = await accounts(env);
-        else if (m === 'GET' && path === '/sync') out = await sync(env, url.searchParams.get('since'));
+        else if (m === 'GET' && path === '/sync') out = await sync(env, url.searchParams.get('since'), url.searchParams.get('full') === '1');
         else if (m === 'POST' && (mt = /^\/accounts\/([\w-]+)\/toggle$/.exec(path))) out = await toggle(env, mt[1], await readJson(req));
         else if (m === 'DELETE' && (mt = /^\/enroll\/([\w-]+)$/.exec(path))) out = await disconnect(env, mt[1]);
         else throw new HttpError(404, 'not found');

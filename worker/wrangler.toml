@@ -3,20 +3,14 @@ main = "src/index.js"
 compatibility_date = "2025-01-01"
 
 [vars]
-TELLER_ENV = "sandbox"                 # sandbox | development | production
-TELLER_APP_ID = "REPLACE_WITH_TELLER_APP_ID"   # public application id from the Teller dashboard
+PLAID_ENV = "sandbox"                  # sandbox | production (CI overrides from the PLAID_ENV repo variable)
 ALLOWED_ORIGIN = "https://montzi.github.io"
+# PLAID_REDIRECT_URI = "https://montzi.github.io/budtracks/"   # needed for OAuth banks in production (CI sets it)
 
 [[kv_namespaces]]
 binding = "BT_KV"
 id = "REPLACE_WITH_KV_NAMESPACE_ID"    # `wrangler kv namespace create budtracks-kv` prints this
 
-# mTLS is required for TELLER_ENV = development | production (not sandbox).
-# 1. wrangler mtls-certificate upload --cert certificate.pem --key private_key.pem --name teller
-# 2. copy the printed certificate id below and uncomment.
-# [[mtls_certificates]]
-# binding = "TELLER_CERT"
-# certificate_id = "REPLACE_WITH_MTLS_CERT_ID"
-
-# Secret (not stored here): ENC_KEY = base64 of 32 random bytes
-#   openssl rand -base64 32 | wrangler secret put ENC_KEY
+# Secrets (not stored here):
+#   PLAID_CLIENT_ID, PLAID_SECRET   from dashboard.plaid.com (Developers > Keys)
+#   ENC_KEY = base64 of 32 random bytes:  openssl rand -base64 32 | wrangler secret put ENC_KEY
