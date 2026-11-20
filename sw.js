@@ -1,5 +1,5 @@
 // Offline shell. Bump VERSION on each release so phones pick up the new build.
-const VERSION = 'budtracks-v1';
+const VERSION = 'budtracks-v2';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
