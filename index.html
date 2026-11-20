@@ -1074,7 +1074,130 @@ const BT = (() => {
       amount: txn.amount, freq, lastDate: txn.date, paid: 0, total, category: o.category || '', via: o.via || '', autopay: true, created: o.today || txn.date, imported: true, fromTxn: txn.id };
   }
 
-  return { PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
+  // ---- Bank sync classifier (pure: everything comes in through `st`) ----
+  const NOISE = new Set(['pos', 'debit', 'credit', 'purchase', 'ach', 'card', 'check', 'chk', 'checkcard', 'visa', 'mastercard', 'recurring', 'pmt', 'pymt', 'web', 'online', 'withdrawal', 'deposit', 'the', 'and', 'inc', 'llc', 'co', 'www', 'com', 'tst', 'sq', 'ppd', 'ccd', 'id', 'ref', 'trace', 'payment', 'bill', 'autopay', 'from', 'for', 'to']);
+  // Meaningful lowercase tokens of a bank description: no digits, card refs, dates or noise words.
+  function tokens(desc) {
+    return String(desc || '').toLowerCase().replace(/[x*#]{2,}\s*\d+|\bx+\d+\b|\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, ' ').replace(/[^a-z0-9&']+/g, ' ').split(' ')
+      .filter(t => t.length > 2 && !/\d/.test(t) && !NOISE.has(t));
+  }
+  // Stable merchant identity used for learned category rules: first 3 meaningful tokens.
+  function merchantKey(desc) {
+    let s = String(desc || '').replace(/\s+[A-Z]{2}\s*$/, ' ');
+    let t = tokens(s);
+    if (!t.length) t = String(desc || '').toLowerCase().replace(/[^a-z]+/g, ' ').trim().split(' ').filter(Boolean);
+    return t.slice(0, 3).join(' ');
+  }
+  // 0..1: how much of the item name shows up in the bank description (prefix matches count).
+  function nameSim(desc, name) {
+    const a = tokens(desc), b = tokens(name);
+    if (!a.length || !b.length) return 0;
+    const hit = b.filter(y => a.some(x => x === y || (Math.min(x.length, y.length) >= 4 && (x.startsWith(y) || y.startsWith(x))))).length;
+    return hit / b.length;
+  }
+  // Unpaid bills and card minimums that look like this bank line: amount within max($1, 2%), due within 4 days.
+  function matchBills(st, txn, today) {
+    const r = { start: addDays(txn.date, -6), end: addDays(txn.date, 7), view: 'biweekly' }, occ = st.occ || {}, out = [];
+    occurrences(st, r, today).forEach(x => {
+      if ((x.kind !== 'bill' && x.kind !== 'card') || x.paid) return;
+      const o = occ[x.key];
+      if (o && (o.txn || o.skip)) return;
+      const tol = Math.max(1, x.amount * 0.02), diff = Math.abs(x.amount - txn.amount), dist = Math.abs(diffDays(x.date, txn.date));
+      if (diff > tol + 0.004 || dist > 4) return;
+      const sim = nameSim(txn.desc, x.name);
+      const score = round2(0.4 * (1 - diff / tol) + 0.3 * (1 - dist / 5) + 0.3 * sim);
+      out.push({ key: x.key, kind: x.kind, name: x.name, amount: x.amount, date: x.date, score, dist, diff: round2(diff), sim });
+    });
+    return out.sort((a, b) => b.score - a.score || a.dist - b.dist);
+  }
+  // Money-in lines near a paycheck date.
+  function matchIncome(st, txn) {
+    if (!(txn.amount < 0)) return [];
+    const r = { start: addDays(txn.date, -3), end: addDays(txn.date, 4), view: 'biweekly' }, out = [];
+    (st.income || []).forEach(i => {
+      if (!i.date) return;
+      payDates(i, r).forEach(date => out.push({ incomeId: i.id, name: i.name, date, amount: round2(-txn.amount), current: payAmount(i, date), dist: Math.abs(diffDays(date, txn.date)) }));
+    });
+    return out.sort((a, b) => a.dist - b.dist);
+  }
+  const KEYWORD_RULES = [
+    [/doordash|uber ?eats|grubhub|postmates/i, 'Takeout Food'],
+    [/instacart|costco|walmart|aldi|kroger|safeway|whole ?foods|trader joe|stop ?& ?shop|shoprite|wegmans|publix/i, 'Groceries'],
+    [/\bshell\b|exxon|\bbp\b|mobil|sunoco|chevron|wawa|speedway|\bgas\b/i, 'Gas'],
+    [/netflix|spotify|hulu|disney|apple\.com\/bill|google \*|youtube|icloud/i, 'Subscriptions'],
+    [/amazon|amzn/i, 'Other'],
+    [/restaurant|\bbar\b|grill|steakhouse|pizza/i, 'Dining Out'],
+    [/\bcvs\b|walgreens|pharmacy/i, 'Personal care'],
+    [/uber|lyft|parking|\btoll|ez ?pass/i, 'Transportation']
+  ];
+  const TELLER_CATS = { dining: 'Dining Out', bar: 'Dining Out', groceries: 'Groceries', fuel: 'Gas', transport: 'Transportation', transportation: 'Transportation', utilities: 'Utilities', phone: 'Phone & Internet',
+    shopping: 'Other', clothing: 'Clothing', entertainment: 'Entertainment', sport: 'Entertainment', health: 'Personal care', insurance: 'Insurance', loan: 'Loans', tax: 'Taxes', home: 'Household',
+    software: 'Software', service: 'Other', general: 'Other', accommodation: 'Other', education: 'Other', charity: 'Gifts', advertising: 'Other', income: 'Other' };
+  function guessCategory(st, txn) {
+    const ok = c => !!c && ((st.categories || []).includes(c) || (st.billCats || []).includes(c));
+    const learned = st.bank && st.bank.rules && st.bank.rules[merchantKey(txn.desc)];
+    if (ok(learned)) return { category: learned, source: 'rule' };
+    const text = String(txn.desc || '') + ' ' + String(txn.counterparty || '');
+    for (const [rx, cat] of KEYWORD_RULES) if (rx.test(text) && ok(cat)) return { category: cat, source: 'keyword' };
+    const tc = TELLER_CATS[String(txn.tellerCategory || '').toLowerCase()];
+    if (ok(tc)) return { category: tc, source: 'teller' };
+    return { category: 'Other', source: 'default' };
+  }
+  const TRANSFER_RX = /transfer|xfer|to savings|from savings|zelle to self|payment thank you|autopay payment|credit card payment/i;
+  function classifyTxn(st, txn, today) {
+    const base = { txn, kind: 'spend', confidence: 'low', cands: [], pick: null, category: '', source: '' };
+    if (PLAN_RX.test(txn.desc)) {
+      const cands = matchPlanPayments(st, txn, today);
+      const plans = new Set(cands.map(c => c.planId)).size;
+      return Object.assign(base, { kind: 'plan', cands, pick: cands[0] || null, confidence: plans === 1 ? 'high' : plans > 1 ? 'medium' : 'low', newPlan: !cands.length });
+    }
+    if (txn.amount < 0) {
+      const cands = matchIncome(st, txn);
+      if (cands.length) {
+        const c = cands[0], ref = c.current != null ? c.current : (() => { const i = st.income.find(x => x.id === c.incomeId); return i ? prevPay(i, c.date) : 0; })();
+        const near = ref > 0 && Math.abs(c.amount - ref) / ref <= 0.01;
+        return Object.assign(base, { kind: 'income', cands, pick: c, confidence: cands.length === 1 && near ? 'high' : 'medium' });
+      }
+      return Object.assign(base, { kind: 'transfer', confidence: 'low', refund: !TRANSFER_RX.test(txn.desc) });
+    }
+    if (TRANSFER_RX.test(txn.desc)) {
+      const cands = matchBills(st, txn, today).filter(c => c.kind === 'card');
+      return Object.assign(base, { kind: 'transfer', cands, pick: cands[0] || null, confidence: 'medium' });
+    }
+    const cands = matchBills(st, txn, today);
+    if (cands.length) {
+      const b = cands[0], n = cands[1];
+      const clear = !n || b.score - n.score >= 0.15;
+      return Object.assign(base, { kind: 'bill', cands, pick: b, confidence: clear && b.diff <= 1 && b.dist <= 2 && b.sim > 0 ? 'high' : 'medium' });
+    }
+    const g = guessCategory(st, txn);
+    return Object.assign(base, { category: g.category, source: g.source, confidence: g.source === 'rule' ? 'high' : g.source === 'default' ? 'low' : 'medium' });
+  }
+  const candKey = c => c.key || (c.incomeId != null ? 'i:' + c.incomeId + ':' + c.date : '');
+  function classifyBatch(st, txns, today) {
+    const seen = (st.bank && st.bank.seen) || {};
+    const live = txns.filter(t => !seen[t.id] && !(st.since && t.date < st.since));
+    const twin = t => t.status === 'pending' && txns.some(p => p !== t && p.status !== 'pending' && p.amount === t.amount && (!t.account || !p.account || t.account === p.account)
+      && Math.abs(diffDays(t.date, p.date)) <= 3 && (nameSim(t.desc, p.desc) > 0 || (!tokens(t.desc).length && !tokens(p.desc).length)));
+    const sugg = live.filter(t => !twin(t)).map(t => classifyTxn(st, t, today));
+    const rank = { high: 0, medium: 1, low: 2 }, claimed = new Set();
+    sugg.map((s, i) => [s, i]).sort((a, b) => rank[a[0].confidence] - rank[b[0].confidence] || a[1] - b[1]).forEach(([s]) => {
+      if (!s.pick) return;
+      const free = s.cands.find(c => !claimed.has(candKey(c)));
+      if (free) { s.pick = free; claimed.add(candKey(free)); return; }
+      s.pick = null; s.confidence = 'low';
+      if (s.kind === 'bill') { const g = guessCategory(st, s.txn); Object.assign(s, { kind: 'spend', category: g.category, source: g.source }); }
+    });
+    return sugg.sort((a, b) => a.txn.date < b.txn.date ? -1 : a.txn.date > b.txn.date ? 1 : 0);
+  }
+  function learnRule(st, txn, category) {
+    if (!st.bank) st.bank = { seen: {} };
+    if (!st.bank.rules) st.bank.rules = {};
+    const k = merchantKey(txn.desc);
+    if (k && category) st.bank.rules[k] = category;
+  }
+
+  return { matchBills, matchIncome, guessCategory, merchantKey, classifyTxn, classifyBatch, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
 })();
 
 
@@ -1303,7 +1426,11 @@ function normalize(s) {
   if (!o.account || typeof o.account.balance !== 'number') o.account = { balance: 0, asOf: BT.periodRange(o, 'biweekly', 0, TODAY).start, adj: [], auto: true };
   if (!Array.isArray(o.imports)) o.imports = [];
   // Bank CSV lines already handled (matched, made into a plan, or marked not a plan). Never asked about twice.
-  if (!o.bank || typeof o.bank.seen !== 'object' || !o.bank.seen) o.bank = { seen: {} };
+  if (!o.bank || typeof o.bank !== 'object') o.bank = {};
+  if (!o.bank.seen || typeof o.bank.seen !== 'object') o.bank.seen = {};
+  if (!o.bank.rules || typeof o.bank.rules !== 'object') o.bank.rules = {};
+  if (!o.bank.links || typeof o.bank.links !== 'object') o.bank.links = {};
+  if (o.bank.lastSync === undefined) o.bank.lastSync = null;
   if (!o.savings || !Array.isArray(o.savings.tx)) o.savings = { on: false, bank: '', tx: [] };
   mergeUnalloc(o);
   return o;

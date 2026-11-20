@@ -1,0 +1,90 @@
+name: Deploy Worker
+on:
+  push:
+    branches: [main]
+    paths: ['worker/**', '.github/workflows/worker.yml']
+  workflow_dispatch:
+concurrency:
+  group: worker
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      KV_TITLE: budtracks-kv
+      CERT_NAME: teller
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Install pinned deps and run the offline test suite before touching Cloudflare.
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+
+      # Create the KV namespace only if one with this title does not exist yet; export its id.
+      - name: Ensure KV namespace
+        run: |
+          id=$(npx wrangler kv namespace list | jq -r --arg t "$KV_TITLE" '.[] | select(.title==$t) | .id' | head -n1)
+          if [ -z "$id" ]; then
+            npx wrangler kv namespace create "$KV_TITLE" >/dev/null
+            id=$(npx wrangler kv namespace list | jq -r --arg t "$KV_TITLE" '.[] | select(.title==$t) | .id' | head -n1)
+          fi
+          [ -n "$id" ] || { echo "KV namespace id not found"; exit 1; }
+          echo "KV_ID=$id" >> "$GITHUB_ENV"
+
+      # Upload the Teller client certificate once (idempotent by name). Skipped in sandbox
+      # setups where the secrets are not set. Temp files are deleted right after use.
+      - name: Ensure Teller mTLS certificate
+        env:
+          TELLER_CERT_PEM: ${{ secrets.TELLER_CERT_PEM }}
+          TELLER_KEY_PEM: ${{ secrets.TELLER_KEY_PEM }}
+        run: |
+          if [ -z "$TELLER_CERT_PEM" ] || [ -z "$TELLER_KEY_PEM" ]; then echo "No Teller cert secrets; sandbox mode only"; exit 0; fi
+          # `mtls-certificate list` prints text blocks ("ID: ..." then "Name: ..."), not JSON.
+          list() { npx wrangler mtls-certificate list 2>/dev/null | awk -v n="$CERT_NAME" '/^ID:/{id=$2} /^Name:/{if($2==n){print id; exit}}'; }
+          id=$(list || true)
+          if [ -z "$id" ]; then
+            d=$(mktemp -d); printf '%s\n' "$TELLER_CERT_PEM" > "$d/cert.pem"; printf '%s\n' "$TELLER_KEY_PEM" > "$d/key.pem"
+            npx wrangler mtls-certificate upload --cert "$d/cert.pem" --key "$d/key.pem" --name "$CERT_NAME" >/dev/null
+            rm -rf "$d"
+            id=$(list || true)
+          fi
+          [ -n "$id" ] || { echo "mTLS certificate id not found"; exit 1; }
+          echo "CERT_ID=$id" >> "$GITHUB_ENV"
+
+      # Fill the placeholders in wrangler.toml (CI-only copy; never committed).
+      - name: Generate wrangler.toml
+        env:
+          TELLER_APP_ID: ${{ secrets.TELLER_APP_ID }}
+          TELLER_ENV_VAR: ${{ vars.TELLER_ENV }}
+        run: |
+          sed -i "s|REPLACE_WITH_KV_NAMESPACE_ID|$KV_ID|; s|REPLACE_WITH_TELLER_APP_ID|$TELLER_APP_ID|" wrangler.toml
+          if [ -n "$CERT_ID" ]; then
+            printf '\n[[mtls_certificates]]\nbinding = "TELLER_CERT"\ncertificate_id = "%s"\n' "$CERT_ID" >> wrangler.toml
+            sed -i 's|^TELLER_ENV = "sandbox"|TELLER_ENV = "'"${TELLER_ENV_VAR:-development}"'"|' wrangler.toml
+          elif [ -n "$TELLER_ENV_VAR" ]; then
+            sed -i 's|^TELLER_ENV = "sandbox"|TELLER_ENV = "'"$TELLER_ENV_VAR"'"|' wrangler.toml
+          fi
+
+      - name: Deploy
+        run: npx wrangler deploy
+
+      # Set ENC_KEY once. Never rotated automatically: rotating would orphan stored tokens.
+      # Piped via stdin so the value never appears in logs or args.
+      - name: Ensure ENC_KEY secret
+        run: |
+          if npx wrangler secret list | jq -e '.[] | select(.name=="ENC_KEY")' >/dev/null; then
+            echo "ENC_KEY already set"
+          else
+            openssl rand -base64 32 | npx wrangler secret put ENC_KEY >/dev/null
+            echo "ENC_KEY created"
+          fi
