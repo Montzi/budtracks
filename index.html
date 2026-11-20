@@ -699,6 +699,18 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 .pay-opts { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 .pay-same { background: none; border: 1px solid var(--brass-hi); color: var(--brass-hi); border-radius: 99px; padding: 7px 12px; font-size: 13px; font-weight: 500; }
 .pay-same:hover { background: #ffffff10; }
+.bx-split { color: var(--ink-2); font-size: 12px; opacity: .85; overflow-wrap: anywhere; }
+.hero-split { margin: 6px 0 0; font-size: 12px; font-family: var(--mono); color: var(--hero-ink-2); text-align: center; overflow-wrap: anywhere; }
+.bal-total { display: grid; gap: 2px; margin: 6px 0 8px; }
+.bal-total b { font-family: var(--display); font-size: 38px; line-height: 1; letter-spacing: -0.02em; }
+.bal-total span { font-size: 13px; color: var(--ink-2); }
+.bal-acc { list-style: none; margin: 0 0 10px; padding: 0; }
+.bal-acc li { display: flex; align-items: center; gap: 10px; padding: 8px 0; min-width: 0; }
+.bal-acc li + li { border-top: 1px solid var(--line); }
+.bal-acc .main { flex: 1; min-width: 0; }
+.bal-acc .nm { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.bal-acc .sub { font-size: 13px; color: var(--ink-2); }
+.bal-acc .mask { color: var(--ink-2); font-weight: 400; }
 .pay-edit { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
 /* iPhone Duo and notched phones: the camera can sit on a side edge, with different insets on each side.
    Keep sheets, toasts and floating bubbles inside the safe area. */
@@ -1185,6 +1197,60 @@ const BT = (() => {
     });
     return out.sort((a, b) => a.dist - b.dist);
   }
+  // ---- Split paychecks: several deposits on payday (one per bank account) are ONE paycheck ----
+  const PAYROLL_RX = /payroll|direct dep|dir dep|salary|paycheck/i;
+  const rawText = t => [t.desc, t.rawDesc].filter(Boolean).join(' ');
+  const keyToks = k => String(k || '').split(' ').filter(Boolean);
+  // Two merchant keys match when one is a token prefix of the other ("stat delivery" vs "stat delivery payroll").
+  function keyMatch(a, b) {
+    const x = keyToks(a), y = keyToks(b), n = Math.min(x.length, y.length);
+    if (!n) return false;
+    let c = 0; while (c < n && x[c] === y[c]) c++;
+    return c >= Math.min(2, n);
+  }
+  const payerMatch = (income, desc) => !!(income && income.payer) && keyMatch(income.payer, merchantKey(desc));
+  // Bank-sourced deposits already applied to one paycheck: [[txnId, record], ...]
+  function paycheckParts(st, incomeId, date) {
+    return Object.entries((st.bank && st.bank.seen) || {}).filter(([, r]) => r && r.res === 'income' && r.incomeId === incomeId && r.payDate === date);
+  }
+  // Remember the employer: shortest merchant key among the deposits (so the payroll suffix does not matter).
+  function learnPayer(st, incomeId, txns) {
+    const i = (st.income || []).find(x => x.id === incomeId); if (!i || i.payer) return;
+    const ks = txns.map(t => merchantKey(t.desc || t.rawDesc)).filter(Boolean).sort((a, b) => a.length - b.length);
+    if (ks[0]) i.payer = ks[0];
+  }
+  // Groups money-in lines that belong to one paycheck. Returns { groups: [suggestion], rest: [txn] }.
+  function groupPaychecks(st, txns) {
+    const by = new Map(), rest = [], groups = [];
+    txns.forEach(t => {
+      if (!(t.amount < 0) || PLAN_RX.test(t.desc)) { rest.push(t); return; }
+      let best = null;
+      (st.income || []).forEach(i => {
+        if (!i.date || i.freq === 'once') return;
+        payDates(i, { start: addDays(t.date, -1), end: addDays(t.date, 2), view: 'biweekly' }).forEach(pd => {
+          const dist = Math.abs(diffDays(pd, t.date)); if (!best || dist < best.dist) best = { i, pd, dist };
+        });
+      });
+      if (!best) { rest.push(t); return; }
+      const k = best.i.id + '|' + best.pd;
+      if (!by.has(k)) by.set(k, { i: best.i, pd: best.pd, ts: [] });
+      by.get(k).ts.push(t);
+    });
+    by.forEach(({ i, pd, ts }) => {
+      const applied = paycheckParts(st, i.id, pd), appliedKeys = applied.map(([, r]) => merchantKey(r.desc));
+      const anchor = t => PAYROLL_RX.test(rawText(t)) || payerMatch(i, t.desc);
+      const anchors = ts.filter(anchor), anchorKeys = anchors.map(t => merchantKey(t.desc));
+      const member = t => anchor(t) || anchorKeys.some(k => keyMatch(k, merchantKey(t.desc))) || appliedKeys.some(k => keyMatch(k, merchantKey(t.desc)));
+      const parts = ts.filter(member);
+      if (!parts.length || (parts.length < 2 && !applied.length) || (!anchors.length && !applied.length)) { rest.push(...ts); return; }
+      rest.push(...ts.filter(t => !parts.includes(t)));
+      parts.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.amount - b.amount); // most money first within a day
+      const amount = round2(parts.reduce((s, t) => s - t.amount, 0)), main = parts.slice().sort((a, b) => a.amount - b.amount)[0];
+      const pick = { incomeId: i.id, name: i.name, date: pd, amount, current: payAmount(i, pd), dist: 0, split: parts.length > 1 || applied.length > 0 };
+      groups.push({ txn: main, kind: 'income', confidence: 'high', cands: [pick], pick, category: '', source: '', parts, amount, join: applied.length > 0 });
+    });
+    return { groups, rest };
+  }
   const KEYWORD_RULES = [
     [/doordash|uber ?eats|grubhub|postmates/i, 'Takeout Food'],
     [/instacart|costco|walmart|aldi|kroger|safeway|whole ?foods|trader joe|stop ?& ?shop|shoprite|wegmans|publix|lidl|smart and final|food lion|\bgiant\b|harris teeter|h-e-b|\bheb\b|sprouts|meijer|winco|market basket|albertsons/i, 'Groceries'],
@@ -1257,7 +1323,8 @@ const BT = (() => {
     const live = txns.filter(t => !seen[t.id] && !(floor && t.date < floor));
     const twin = t => t.status === 'pending' && txns.some(p => p !== t && p.status !== 'pending' && p.amount === t.amount && (!t.account || !p.account || t.account === p.account)
       && Math.abs(diffDays(t.date, p.date)) <= 3 && (nameSim(t.desc, p.desc) > 0 || (!tokens(t.desc).length && !tokens(p.desc).length)));
-    const sugg = live.filter(t => !twin(t)).map(t => classifyTxn(st, t, today));
+    const pg = groupPaychecks(st, live.filter(t => !twin(t)));
+    const sugg = pg.groups.concat(pg.rest.map(t => classifyTxn(st, t, today)));
     const rank = { high: 0, medium: 1, low: 2 }, claimed = new Set();
     sugg.map((s, i) => [s, i]).sort((a, b) => rank[a[0].confidence] - rank[b[0].confidence] || a[1] - b[1]).forEach(([s]) => {
       if (!s.pick) return;
@@ -1275,7 +1342,7 @@ const BT = (() => {
     if (k && category) st.bank.rules[k] = category;
   }
 
-  return { matchBills, matchIncome, guessCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
+  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, guessCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
 })();
 
 
@@ -1518,6 +1585,28 @@ function normalize(s) {
   if (!Array.isArray(o.bank.history)) o.bank.history = [];
   if (typeof o.bank.api !== 'string') o.bank.api = '';
   if (!o.savings || !Array.isArray(o.savings.tx)) o.savings = { on: false, bank: '', tx: [] };
+  if (!o.bank.countIn || typeof o.bank.countIn !== 'object') o.bank.countIn = {};
+  if (o.bank.balances && (typeof o.bank.balances !== 'object' || !Array.isArray(o.bank.balances.items))) o.bank.balances = null;
+  if (o.bank.balances === undefined) o.bank.balances = null;
+  if (!o.bank.refreshOK || typeof o.bank.refreshOK !== 'object') o.bank.refreshOK = null;
+  // One-time repair: a split paycheck applied as separate deposits left only the last one in perCycle.
+  if (!o.imports.includes('paysplit-fix-1')) {
+    o.imports.push('paysplit-fix-1');
+    o.income.forEach(i => {
+      const recs = Object.entries(o.bank.seen).filter(([, r]) => r && r.res === 'income' && r.incomeId === i.id && typeof r.amount === 'number');
+      const dates = [...new Set(recs.map(([, r]) => r.payDate).filter(Boolean))];
+      const used = new Set();
+      dates.forEach(pd => {
+        const g = recs.filter(([id, r]) => !used.has(id) && Math.abs(BT.diffDays(r.date || pd, pd)) <= 1);
+        if (g.length < 2) return;
+        g.sort((a, b) => (a[1].at || '') < (b[1].at || '') ? -1 : 1);
+        const base = g[0][1].prev === undefined ? null : g[0][1].prev;
+        g.forEach(([id, r]) => { used.add(id); r.part = true; r.payDate = pd; r.prev = base; });
+        i.perCycle = i.perCycle || {};
+        i.perCycle[pd] = BT.round2(g.reduce((a, [, r]) => a - r.amount, 0));
+      });
+    });
+  }
   mergeUnalloc(o);
   return o;
 }
@@ -1634,11 +1723,11 @@ function viewOverview() {
   const dated = s.items.slice().sort((a, b) => a.pinned !== b.pinned ? (a.pinned ? -1 : 1) : shown(a) < shown(b) ? -1 : shown(a) > shown(b) ? 1 : (a.kind === 'spend' ? -1 : 0) - (b.kind === 'spend' ? -1 : 0)), living = [];
   const nextKey = (dated.find(x => x.kind !== 'spend' && !x.paid && x.date >= TODAY) || {}).key;
   const remain = BT.round2(s.income - s.paid);
-  const acct = BT.accountBalance(state, TODAY);
+  const bt = bankTotal(), acct = bt !== null ? bt : BT.accountBalance(state, TODAY);
   const uaOpen = state.unalloc.filter(u => BT.unallocLeft(state, u) > 0.004);
   const uaTotal = BT.round2(uaOpen.reduce((a, u) => a + BT.unallocLeft(state, u), 0)), uaFirst = uaOpen[0];
   const big = n => { const a = Math.abs(n), d = Math.floor(a), c = String(Math.round((a - d) * 100)).padStart(2, '0'); return `${n < 0 ? '−' : ''}<small>$</small>${d.toLocaleString('en-US')}<small>.${c}</small>`; };
-  const dep = s.inc[0];
+  const dep = s.inc[0], dparts = dep ? BT.paycheckParts(state, dep.ref, dep.date).map(([, r]) => r) : [];
   const check = x => `<button class="check" data-action="toggle" data-key="${esc(x.key)}" data-auto="${x.auto ? 1 : 0}" aria-pressed="${x.paid}" aria-label="${x.paid ? 'Mark unpaid' : 'Mark paid'}: ${esc(x.name)}">${ICON.check}</button>`;
   const amtBtn = x => x.kind === 'extra'
     ? `<button class="amt amt-btn" data-action="edit" data-type="extra" data-id="${x.ref}" aria-label="Edit ${esc(x.name)}: ${fmt(x.amount)}">${fmt(x.amount)}</button>`
@@ -1685,10 +1774,11 @@ function viewOverview() {
     </div>
     <div class="ladder">
       <div class="lad l1"><span class="hs-k">Left in paycheck</span>
-        ${s.income > 0 ? `<span class="v${remain < 0 ? ' neg' : ''}">${big(remain)}</span><span class="hs-s">${dep && isAsk(dep.ref) ? `<button class="pay-edit" data-action="pay-edit" data-date="${dep.date}">of ${fmt(s.income)}</button>` : 'of ' + fmt(s.income)}${dep ? '<br>' + lng(dep.date) : ''}</span>` : `<span class="v dim">${big(0)}</span><span class="hs-s">Paycheck not set</span>`}</div>
+        ${s.income > 0 ? `<span class="v${remain < 0 ? ' neg' : ''}">${big(remain)}</span><span class="hs-s">${dep && isAsk(dep.ref) ? `<button class="pay-edit" data-action="pay-edit" data-date="${dep.date}">of ${fmt(s.income)}</button>` : 'of ' + fmt(s.income)}${dep ? '<br>' + lng(dep.date) : ''}${dparts.length > 1 ? ` · <button class="pay-edit" data-action="pay-split" aria-expanded="${HEROUI.split}">split</button>` : ''}</span>` : `<span class="v dim">${big(0)}</span><span class="hs-s">Paycheck not set</span>`}</div>
       <div class="lad l2"><span class="hs-k">${{ weekly: 'Week', biweekly: 'Cycle', monthly: 'Month' }[view]} needs</span><span class="v">${big(s.needed)}</span><span class="hs-s">${Math.round(pct)}% paid</span></div>
-      <button class="lad l3" data-action="account"><span class="hs-k">In account</span>${acct === null ? '<span class="v set">Set</span><span class="hs-s">Tap to add</span>' : `<span class="v${acct < 0 ? ' neg' : ''}">${big(acct)}</span><span class="hs-s">${split(acct).prev > 0.004 ? 'incl. ' + fmt0(split(acct).prev) + ' carried' : state.account.auto ? 'Estimated' : 'Today'}</span>`}${state.savings.on ? `<span class="sv-chip">Savings: ${fmt0(BT.savingsBalance(state))}</span>` : ''}</button>
+      <button class="lad l3" data-action="account"><span class="hs-k">In account</span>${bt !== null ? `<span class="v${bt < 0 ? ' neg' : ''}">${big(bt)}</span><span class="hs-s">Live from ${bankCountedBanks()} ${bankCountedBanks() === 1 ? 'bank' : 'banks'} · updated ${esc(clockTime(state.bank.balances.at))}</span>` : acct === null ? '<span class="v set">Set</span><span class="hs-s">Tap to add</span>' : `<span class="v${acct < 0 ? ' neg' : ''}">${big(acct)}</span><span class="hs-s">${split(acct).prev > 0.004 ? 'incl. ' + fmt0(split(acct).prev) + ' carried' : state.account.auto ? 'Estimated' : 'Today'}</span>`}${state.savings.on && bt === null ? `<span class="sv-chip">Savings: ${fmt0(BT.savingsBalance(state))}</span>` : ''}</button>
     </div>
+    ${HEROUI.split && dparts.length > 1 ? `<p class="hero-split">Split: ${splitLine(dparts.map(p => ({ acct: p.acct || (p.txn ? acctDots(p.txn) : ''), amount: p.amount })))}</p>` : ''}
     ${uaTotal > 0 ? `<button class="ua-bar" data-action="allocate" data-id="${uaFirst.id}"><b>${fmt(uaTotal)} unallocated.</b> Record where it went to see your real spending this cycle.</button>` : ''}
     ${(() => { const n = (state.bank.inbox || []).length; return n ? `<button class="ua-bar bx-bar" data-action="ix-open"><b>${n} new ${n === 1 ? 'transaction' : 'transactions'}</b> from your bank. Review</button>` : ''; })()}
     ${catBar()}
@@ -1813,6 +1903,7 @@ function viewCards() {
 
 /* ---------- Per-cycle paycheck ---------- */
 let PAY_EDIT = null;
+const HEROUI = { split: false };
 const isAsk = id => { const i = state.income.find(x => x.id === id); return !!(i && i.askFrom); };
 function payPrompt(r) {
   let a = BT.payAsk(state, r)[0], cur = null;
@@ -2388,11 +2479,47 @@ function saveOcc(f) {
   closeSheet(); commit('Saved ' + x.name + movedNote(k, x.date));
 }
 
+/* ---------- Live bank balances ---------- */
+const bankHas = () => !!(state.bank.balances && state.bank.balances.items && state.bank.balances.items.some(it => it.accounts && it.accounts.length));
+const OWED_TYPES = ['credit', 'loan'];
+const balOf = a => typeof a.available === 'number' ? a.available : typeof a.current === 'number' ? a.current : null;
+const countedAcct = a => !OWED_TYPES.includes(a.type) && (typeof state.bank.countIn[a.id] === 'boolean' ? state.bank.countIn[a.id] : a.type === 'depository');
+// Sum of the counted accounts (checking and savings by default), or null when the bank number should not be used.
+function bankTotal() {
+  if (state.bank.useBankBalance === false || !bankHas()) return null;
+  let sum = 0;
+  state.bank.balances.items.forEach(it => it.accounts.forEach(a => { if (countedAcct(a) && balOf(a) !== null) sum += balOf(a); }));
+  return BT.round2(sum);
+}
+const bankCountedBanks = () => state.bank.balances.items.filter(it => it.accounts.some(a => countedAcct(a) && balOf(a) !== null)).length;
+const clockTime = iso => { try { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } };
+function balanceSheet() {
+  const bal = state.bank.balances, total = bankTotal() || 0, owed = [];
+  const rows = bal.items.map(it => {
+    const accs = it.accounts.filter(a => !OWED_TYPES.includes(a.type));
+    it.accounts.filter(a => OWED_TYPES.includes(a.type)).forEach(a => owed.push([it, a]));
+    if (!accs.length) return '';
+    return `<div class="bal-bank"><div class="bx-sh">${esc(it.institution || 'Bank')}</div><ul class="bal-acc">${accs.map(a => {
+      const v = balOf(a), cur = typeof a.current === 'number' && typeof a.available === 'number' && Math.abs(a.current - a.available) > 0.004 ? a.current : null;
+      return `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}${a.mask ? ' <span class="mask">••' + esc(a.mask) + '</span>' : ''}</div><div class="sub">${v === null ? 'No balance from the bank' : fmt(v) + (typeof a.available === 'number' ? ' available' : ' current')}${cur !== null ? ' · ' + fmt(cur) + ' current' : ''}</div></div>
+        <label class="tgl"><input type="checkbox" data-action="bal-count" data-id="${esc(a.id)}"${countedAcct(a) ? ' checked' : ''} aria-label="Count ${esc((it.institution || '') + ' ' + (a.name || 'account'))} in total"><span aria-hidden="true"></span></label></li>`;
+    }).join('')}</ul></div>`;
+  }).join('');
+  const owedHTML = owed.length ? `<div class="bx-sh">Owed · not counted</div><ul class="bal-acc">${owed.map(([it, a]) => `<li><div class="main"><div class="nm">${esc(it.institution || 'Bank')} ${esc(a.name || 'Card')}${a.mask ? ' <span class="mask">••' + esc(a.mask) + '</span>' : ''}</div><div class="sub">Owed ${fmt(typeof a.current === 'number' ? a.current : 0)}${typeof a.limit === 'number' ? ' of ' + fmt(a.limit) + ' limit' : ''}</div></div></li>`).join('')}</ul>` : '';
+  bankSheet(`<div class="sheet-h"><div><h3>In account</h3><div class="bal-total"><b>${fmt(total)}</b><span>${bankCountedBanks()} ${bankCountedBanks() === 1 ? 'bank' : 'banks'} · counted accounts</span></div><p class="lede">Live from your banks. Updated ${esc(clockTime(bal.at))}. Banks may take a little while to show new activity.</p></div>
+    <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    ${rows}${owedHTML}
+    <div class="actions"><button type="button" class="btn" data-action="bal-hand">Set balance by hand</button><div class="r"><button type="button" class="btn primary" data-action="bal-sync"${BANKUI.syncing ? ' disabled' : ''}>${BANKUI.syncing ? 'Syncing…' : 'Sync now'}</button></div></div>`);
+  BALUI.open = true;
+}
+
 /* ---------- Account balance ---------- */
-function accountSheet() {
+function accountSheet(force) {
+  if (!force && bankTotal() !== null) return balanceSheet();
   const cur = BT.accountBalance(state, TODAY), est = !!(state.account && state.account.auto);
   openSheet(`<div class="sheet-h"><div><h3>In account</h3>${(() => { const sp = split(cur); return `<div class="split"><div><span>From previous paychecks</span><b>${fmt(sp.prev)}</b></div><div><span>From this paycheck${sp.date ? ' (' + md(sp.date) + ')' : ''}</span><b>${fmt(sp.cur)}</b></div><div class="tot"><span>In account${est ? ' (estimated)' : ''}</span><b>${fmt(cur)}</b></div></div>`; })()}<p class="lede">Enter what your bank shows. If it's less than BudTracks expects, the difference becomes unallocated spending at the top of your list so you can record where it went.</p></div>
     <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    ${bankHas() ? `<div class="sv-box off"><div><b>Live bank balance</b><span>${state.bank.useBankBalance === false ? 'Your own balance is showing. Saving here keeps it that way.' : 'Saving a balance here switches In account to your own number.'}</span></div><button type="button" class="btn" data-action="bal-live">${state.bank.useBankBalance === false ? 'Use live balance' : 'Back to live balance'}</button></div>` : ''}
     <form class="form" id="acctform" novalidate>
       <div class="calc"><span>${est ? 'Estimated balance' : 'Calculated balance'}</span><b>${fmt(cur)}</b></div>
       <label class="fld" for="a-bal"><span>What your bank shows</span><div class="money-in"><i>$</i><input id="a-bal" name="bal" type="number" inputmode="decimal" step="0.01" value=""></div></label>
@@ -2436,11 +2563,12 @@ function saveSavings(f) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { $('#sverr').textContent = 'Pick a date.'; return; }
   state.savings.tx.push({ id: uid('sv'), type: f.elements.type.value, amount: amt, date, note: f.elements.note.value.trim().slice(0, 60) });
   commit(f.elements.type.value === 'in' ? fmt(amt) + ' moved to savings' : f.elements.type.value === 'out' ? fmt(amt) + ' moved to checking' : 'Savings added');
-  accountSheet();
+  accountSheet(true);
 }
 function saveAccount(f) {
   const v = parseFloat(f.elements.bal.value);
   if (!isFinite(v)) { $('#ferr').textContent = 'Enter your balance, like 2450.75.'; f.elements.bal.focus(); return; }
+  if (bankHas()) state.bank.useBankBalance = false; // a hand-entered balance wins over the live one
   const cur = BT.accountBalance(state, TODAY);
   if (cur === null || (f.elements.fresh && f.elements.fresh.checked)) {
     state.account = { balance: 0, asOf: TODAY, adj: [] };
@@ -2580,8 +2708,8 @@ function chime() {
 
 /* ---------- Sheet ---------- */
 let lastFocus = null;
-function openSheet(html) { lastFocus = document.activeElement; $('#sheetBody').innerHTML = html; $('#sheet').hidden = false; document.body.style.overflow = 'hidden'; }
-function closeSheet() { $('#sheet').hidden = true; document.body.style.overflow = ''; if (lastFocus && lastFocus.focus) try { lastFocus.focus(); } catch (e) {} }
+function openSheet(html) { BALUI.open = false; lastFocus = document.activeElement; $('#sheetBody').innerHTML = html; $('#sheet').hidden = false; document.body.style.overflow = 'hidden'; }
+function closeSheet() { BALUI.open = false; $('#sheet').hidden = true; document.body.style.overflow = ''; if (lastFocus && lastFocus.focus) try { lastFocus.focus(); } catch (e) {} }
 
 function backupSheet(mode) {
   const json = JSON.stringify(state, null, 1);
@@ -2602,7 +2730,7 @@ document.addEventListener('pointerdown', e => { const el = e.target.closest && e
 // Klarna, Afterpay and PayPal payments land in the main bank. We read the bank CSV, match those lines to expected
 // plan payments, and ask only when a line is new or unclear. Details: claude/BudTrack-bank-match.md.
 let BANKQ = null;
-function bankSheet(html) { if ($('#sheet').hidden) openSheet(html); else $('#sheetBody').innerHTML = html; }
+function bankSheet(html) { BALUI.open = false; if ($('#sheet').hidden) openSheet(html); else $('#sheetBody').innerHTML = html; }
 function openBank() {
   BANKQ = null;
   bankSheet(`<div class="sheet-h"><div><h3>Import bank transactions</h3><p class="lede">Choose the CSV from your bank. Klarna, Afterpay and PayPal charges are matched to your plans.</p></div>
@@ -2720,6 +2848,7 @@ const KEYLS = 'budtrack.bankkey';
 const bankKey = () => { try { return localStorage.getItem(KEYLS) || ''; } catch (e) { return ''; } };
 const bankApi = () => String((state.bank && state.bank.api) || '').trim().replace(/\/+$/, '');
 const bankReady = () => !!(bankApi() && bankKey());
+const BALUI = { open: false };
 let BANKUI = { enr: null, loading: false, loadErr: '', syncing: false, busy: false, err: '', url: '', tried: 0 };
 let INBOXUI = { open: null, mode: '' };
 async function bankFetch(path, o) {
@@ -2851,7 +2980,7 @@ function bankOAuthResume() {
 }
 async function bankCardAct(act, a) {
   const find = id => (BANKUI.enr || []).reduce((r, e) => r || (e.accounts || []).find(x => x.id === id), null);
-  if (act === 'bk-sync') return bankSync({ auto: false });
+  if (act === 'bk-sync') return bankSyncNow();
   if (act === 'bk-connect') return bankConnectBank();
   if (act === 'bk-reconnect') return bankConnectBank(a.dataset.id);
   if (act === 'bk-toggle') {
@@ -2895,7 +3024,7 @@ function setAutoFrom(v) {
     b.autoFrom = v; if (b.historyFrom > v) b.historyFrom = v;
     const up = b.history.filter(t => t.date >= v), down = b.inbox.filter(s => s.txn.date < v);
     b.history = b.history.filter(t => t.date < v); b.inbox = b.inbox.filter(s => s.txn.date >= v);
-    down.forEach(s => addHistory(s.txn));
+    down.forEach(s => (s.parts || [s.txn]).forEach(addHistory));
     BT.classifyBatch(state, up, TODAY).forEach(s => b.inbox.push(s));
   }, 'Bank sync');
   commit('Automatic from ' + md(v));
@@ -2915,11 +3044,11 @@ async function bankSync(o) {
     const ack = state.bank.syncToken;
     const r = await bankFetch('/sync?since=' + since + (ack ? '&ack=' + encodeURIComponent(ack) : ''));
     const errs = Array.isArray(r.errors) ? r.errors : [];
-    const before = new Set(state.bank.inbox.map(s => s.txn.id));
+    const before = new Set(state.bank.inbox.flatMap(s => (s.parts || [s.txn]).map(t => t.id)));
     const allIn = (Array.isArray(r.txns) ? r.txns : []).filter(t => t && t.id), removed = new Set((Array.isArray(r.removed) ? r.removed : []).filter(Boolean));
     const { autoFrom, historyFrom } = state.bank;
     const incoming = allIn.filter(t => t.date >= autoFrom), earlier = allIn.filter(t => t.date >= historyFrom && t.date < autoFrom); // older than historyFrom: ignored
-    const byId = new Map(); state.bank.inbox.forEach(s => byId.set(s.txn.id, s.txn)); incoming.forEach(t => byId.set(t.id, t));
+    const byId = new Map(); state.bank.inbox.forEach(s => (s.parts || [s.txn]).forEach(t => byId.set(t.id, t))); incoming.forEach(t => byId.set(t.id, t));
     const inbox = [];
     let applied = 0, dropped = 0;
     absorbChange(state, () => {
@@ -2937,7 +3066,7 @@ async function bankSync(o) {
         const r = state.bank.seen[id];
         if (r && SYNCSRC.includes(r.src)) { revertSeen(id); dropped++; }
       });
-      state.bank.inbox = state.bank.inbox.filter(s => byId.has(s.txn.id));
+      state.bank.inbox = state.bank.inbox.filter(s => (s.parts || [s.txn]).every(t => byId.has(t.id)));
       incoming.forEach(t => dropHistory(t.id));
       earlier.forEach(t => { if (!state.bank.seen[t.id] && !removed.has(t.id)) addHistory(t); });
     }, 'Bank sync');
@@ -2947,18 +3076,41 @@ async function bankSync(o) {
       inbox.push(s);
     }), 'Bank sync');
     state.bank.inbox = inbox; state.bank.lastSync = r.syncedAt || new Date().toISOString();
+    if (Array.isArray(r.balances)) state.bank.balances = { at: state.bank.lastSync, items: r.balances.filter(b => b && Array.isArray(b.accounts)) };
     // Remember this response's token only now that it is applied to local state; the save below persists it.
     state.bank.syncToken = typeof r.syncToken === 'string' && r.syncToken ? r.syncToken : null;
     pruneSeenTxn();
-    const fresh = inbox.filter(s => !before.has(s.txn.id)).length;
+    const fresh = inbox.filter(s => !(s.parts || [s.txn]).every(t => before.has(t.id))).length;
     const em = errs.length ? errs.map(e => (e.institution ? e.institution + ': ' : '') + (e.needsReconnect ? 'needs reconnect' : e.message || e.error || e.code || 'could not sync')).join('. ') : '';
-    const msg = em || (applied || fresh || dropped ? [applied ? applied + ' matched automatically' : '', fresh ? fresh + ' to review' : '', dropped ? dropped + ' updated by your bank' : ''].filter(Boolean).join(', ') : auto ? '' : 'Up to date');
+    const asked = o && o.refreshed ? 'Asked your banks for new activity' : '';
+    const news = applied || fresh || dropped ? [applied ? applied + ' matched automatically' : '', fresh ? fresh + ' to review' : '', dropped ? dropped + ' updated by your bank' : ''].filter(Boolean).join(', ') : '';
+    const msg = em || [news, asked].filter(Boolean).join(' · ') || (auto ? '' : 'Up to date');
     if (applied || fresh || dropped || !auto) commit(msg); else saveQuiet();
     if (em && (applied || fresh || dropped || auto)) toast(em);
     if (errs.some(e => e.needsReconnect)) { BANKUI.enr = null; BANKUI.loadErr = ''; }
   } catch (e) { if (!auto) toast(e.message); }
   BANKUI.syncing = false;
-  if (currentTab() === 'income') render();
+  if (currentTab() === 'income') render(); else if (!$('#sheet').hidden && BALUI.open) balanceSheet();
+}
+// "Sync now": ask the banks to refresh (when the plan allows it), sync right away, then once more shortly after (quietly)
+// to pick up whatever the banks answered with.
+async function bankRefresh() {
+  const ro = state.bank.refreshOK;
+  if (ro && ro.ok === false && ro.at && Date.now() - new Date(ro.at).getTime() < 864e5) return false; // not enabled: recheck once a day
+  try {
+    const r = await bankFetch('/refresh', { method: 'POST', body: {} });
+    state.bank.refreshOK = { ok: !r.notEnabled, at: new Date().toISOString() };
+    return !!r.refreshed;
+  } catch (e) { return false; }
+}
+async function bankSyncNow() {
+  if (!bankReady() || BANKUI.syncing) return;
+  BANKUI.syncing = true; if (currentTab() === 'income') render(); if (BALUI.open && !$('#sheet').hidden) balanceSheet();
+  let refreshed = false;
+  try { refreshed = await bankRefresh(); } finally { BANKUI.syncing = false; }
+  await bankSync({ auto: false, refreshed });
+  clearTimeout(BANKUI.follow);
+  BANKUI.follow = setTimeout(() => { if (document.visibilityState === 'visible') bankSync({ auto: true }); }, window.BT_FOLLOWUP_MS || 45000);
 }
 function pruneSeenTxn() {
   Object.entries(state.bank.seen).filter(([, r]) => r.txn).sort((a, b) => (a[1].at || '') < (b[1].at || '') ? 1 : -1).slice(40).forEach(([, r]) => { delete r.txn; });
@@ -2971,6 +3123,7 @@ function cleanMerchant(t) {
   if (s && s === s.toUpperCase()) s = s.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());
   return (s || t.desc || 'Bank transaction').slice(0, 40);
 }
+function acctDots(t) { const a = acctObj(t); return a ? [a.institution || a.name, a.last4 ? '••' + a.last4 : ''].filter(Boolean).join(' ') : ''; }
 function acctObj(t) { return t.account && typeof t.account === 'object' ? t.account : null; }
 function acctText(t) { const a = acctObj(t); return a ? [a.institution || a.name, a.last4 ? '··' + a.last4 : ''].filter(Boolean).join(' ') : ''; }
 function acctVia(t) { const a = acctObj(t), bank = a && (a.institution || a.name); return bank ? viaLabel({ bank: String(bank).slice(0, 30), last4: a.last4 || '' }) : ''; }
@@ -2980,8 +3133,8 @@ const linkedElsewhere = (key, t) => { const o = state.occ[key]; return !!(o && o
 // Applies one suggestion to the budget and records how to undo it. Does not save or re-render. Returns false if it cannot.
 function applyOne(s, ch, auto) {
   const t = s.txn, kind = ch.kind || s.kind, now = new Date().toISOString();
-  const rec = (res, extra) => { state.bank.seen[t.id] = Object.assign({ res, kind, date: t.date, amount: t.amount, desc: t.desc, at: now, src: 'sync', auto: !!auto, txn: t }, extra); return true; };
-  if (kind === 'ignore') return rec('skip', { what: 'Ignored' });
+  const rec = (res, extra, tx) => { tx = tx || t; state.bank.seen[tx.id] = Object.assign({ res, kind, date: tx.date, amount: tx.amount, desc: tx.desc, at: now, src: 'sync', auto: !!auto, txn: tx }, extra); return true; };
+  if (kind === 'ignore') { (s.parts && s.parts.length > 1 ? s.parts : [t]).forEach(p => rec('skip', { what: 'Ignored' }, p)); return true; }
   const c = ch.pick || (ch.kind ? null : s.pick);
   if (kind === 'plan') {
     if (!c || linkedElsewhere(c.key, t)) return false;
@@ -2998,9 +3151,16 @@ function applyOne(s, ch, auto) {
   if (kind === 'income') {
     const i = c && state.income.find(x => x.id === c.incomeId); if (!i) return false;
     i.perCycle = i.perCycle || {};
-    const prev = typeof i.perCycle[c.date] === 'number' ? i.perCycle[c.date] : null;
-    i.perCycle[c.date] = BT.round2(-t.amount);
-    return rec('income', { incomeId: i.id, payDate: c.date, prev, what: i.name + ' ' + md(c.date) });
+    // Every deposit of a split paycheck is a part. Parts from an earlier sync are added to, never overwritten.
+    const parts = s.parts && s.parts.length ? s.parts : [t];
+    const ex = BT.paycheckParts(state, i.id, c.date).sort((a, b) => (a[1].at || '') < (b[1].at || '') ? -1 : 1);
+    const cur = typeof i.perCycle[c.date] === 'number' ? i.perCycle[c.date] : null;
+    const sum = BT.round2(parts.reduce((a, p) => a - p.amount, 0));
+    const prev = ex.length ? (ex[0][1].prev === undefined ? null : ex[0][1].prev) : cur;
+    i.perCycle[c.date] = ex.length && cur !== null ? BT.round2(cur + sum) : sum;
+    BT.learnPayer(state, i.id, parts);
+    parts.forEach(p => rec('income', { incomeId: i.id, payDate: c.date, prev, part: true, acct: acctDots(p), what: i.name + ' ' + md(c.date) }, p));
+    return true;
   }
   if (kind === 'transfer') return rec('transfer', { what: s.refund ? 'Refund or deposit, not counted' : 'Transfer, not counted' });
   if (kind === 'spend') {
@@ -3040,7 +3200,11 @@ function revertSeen(id) {
     if (r.prev.occ) state.occ[r.key] = r.prev.occ; else delete state.occ[r.key];
   } else if (r.res === 'income') {
     const i = state.income.find(x => x.id === r.incomeId);
-    if (i && i.perCycle) { if (r.prev === null) delete i.perCycle[r.payDate]; else i.perCycle[r.payDate] = r.prev; }
+    if (i && i.perCycle) {
+      const others = r.part ? BT.paycheckParts(state, r.incomeId, r.payDate).filter(([k]) => k !== id) : [], cur = i.perCycle[r.payDate];
+      if (others.length && typeof cur === 'number') i.perCycle[r.payDate] = BT.round2(cur + r.amount); // r.amount is negative (money in)
+      else if (r.prev === null || r.prev === undefined) delete i.perCycle[r.payDate]; else i.perCycle[r.payDate] = r.prev;
+    }
   } else if (r.res === 'spend' || r.res === 'manual') {
     state.spends = state.spends.filter(x => x.id !== r.spendId);
     Object.keys(state.marks).concat(Object.keys(state.occ)).forEach(k => { if (k.startsWith('x:' + r.spendId)) { delete state.marks[k]; delete state.occ[k]; } });
@@ -3052,9 +3216,14 @@ function revertSeen(id) {
   return r;
 }
 function undoSuggestion(id) {
-  const r = revertSeen(id); if (!r) return;
+  // Undoing one part of a split paycheck undoes the whole paycheck.
+  const r0 = state.bank.seen[id];
+  const ids = r0 && r0.res === 'income' && r0.part ? BT.paycheckParts(state, r0.incomeId, r0.payDate).filter(([, r]) => SYNCSRC.includes(r.src)).map(([k]) => k) : [id];
+  const recs = ids.map(revertSeen).filter(Boolean); if (!recs.length) return;
   // Back to the review list so it can be sorted out again.
-  if (r.txn && !state.bank.inbox.some(x => x.txn.id === id)) BT.classifyBatch(state, [r.txn], TODAY).forEach(s => state.bank.inbox.push(s));
+  const have = new Set(state.bank.inbox.flatMap(x => (x.parts || [x.txn]).map(t => t.id)));
+  const back = recs.map(r => r.txn).filter(t => t && !have.has(t.id));
+  if (back.length) BT.classifyBatch(state, back, TODAY).forEach(s => state.bank.inbox.push(s));
   commit('Undone'); inboxSheet();
 }
 // A pending charge was replaced by its posted version: the decision made for the pending one now belongs to the posted one.
@@ -3063,7 +3232,10 @@ function carryPending(pid, t) {
   const old = r.txn, same = (a, b) => Math.abs(a - b) < 0.005;
   delete state.bank.seen[pid];
   state.bank.seen[t.id] = Object.assign(r, { date: t.date, amount: t.amount, desc: t.desc, txn: t });
-  if (r.res === 'spend') {
+  if (r.res === 'income' && r.part && old) {
+    const i = state.income.find(x => x.id === r.incomeId);
+    if (i && i.perCycle && typeof i.perCycle[r.payDate] === 'number') i.perCycle[r.payDate] = BT.round2(i.perCycle[r.payDate] + old.amount - t.amount);
+  } else if (r.res === 'spend') {
     const x = state.spends.find(z => z.id === r.spendId);
     if (x) { x.bank = t.id; if (old && same(x.amount, Math.abs(old.amount)) && x.date === old.date) { x.amount = BT.round2(Math.abs(t.amount)); x.date = t.date; } }
   } else if ((r.res === 'match' || r.res === 'bill') && r.key) {
@@ -3085,7 +3257,7 @@ function guessHTML(s) {
   if (s.kind === 'plan') return c ? `${s.confidence === 'high' ? 'Matches' : 'Likely'} ${esc(c.provider)} · ${esc(c.merchant)} ${c.n} of ${c.total}` : `New ${esc(BT.planProvider(s.txn.desc))} plan?`;
   // A bill or paycheck match can be taken by another transaction in the same sync, leaving no pick.
   if (s.kind === 'bill') return c ? `${esc(c.name)} ${c.kind === 'card' ? 'payment' : 'bill'} due ${md(c.date)}` : 'Looks like a bill payment. Tap Change to pick one';
-  if (s.kind === 'income') return c ? `${esc(c.name)} ${md(c.date)}` : 'Money in. Tap Change to pick a paycheck, or Ignore';
+  if (s.kind === 'income') return c ? (s.join ? `Adds to ${esc(c.name)} ${md(c.date)}` : `${esc(c.name)} ${md(c.date)}`) : 'Money in. Tap Change to pick a paycheck, or Ignore';
   if (s.kind === 'transfer') return c ? `Pays ${esc(c.name)}, due ${md(c.date)}` : s.refund ? 'Refund or money in, not spending' : 'Transfer, not spending';
   return `${catIcon(s.category)}${esc(s.category)}${s.source === 'rule' ? ' · learned' : ''}`;
 }
@@ -3094,8 +3266,11 @@ function candLabel(s, c) {
   if (s.kind === 'income') return `${c.name} · ${md(c.date)}`;
   return `${c.name} · ${md(c.date)} · ${fmt(c.amount)}`;
 }
+// "Santander ••6429 $100 · Citizens ••1234 $1,873.31": one segment per deposit of a split paycheck.
+const splitLine = items => items.slice().sort((a, b) => a.amount - b.amount).map(x => (x.acct ? esc(x.acct) + ' ' : '') + fmt(Math.abs(x.amount))).join(' · ');
 function inboxRow(s) {
   const t = s.txn, id = esc(t.id), money = t.amount < 0, open = INBOXUI.open === t.id;
+  const grp = s.kind === 'income' && s.pick && s.parts && s.parts.length > 1, total = grp ? s.amount : Math.abs(t.amount);
   const acceptLabel = s.kind === 'plan' && !s.pick ? 'New plan' : 'Accept';
   const can = canAccept(s) || (s.kind === 'plan' && !s.pick);
   let panel = '';
@@ -3105,8 +3280,9 @@ function inboxRow(s) {
     panel = `<div class="bx-ch">${!showCats ? `<div class="h">Match to</div><div class="chips">${cands}${s.kind === 'plan' ? `<button class="chip" data-action="ix-new" data-id="${id}">New plan</button>` : ''}${t.amount > 0 ? `<button class="chip" data-action="ix-cats" data-id="${id}">Count as spending…</button>` : ''}</div>`
       : `<div class="h">Category</div><div class="chips">${allCats().map(c => `<button class="chip" data-action="ix-cat" data-id="${id}" data-cat="${esc(c)}" aria-pressed="${s.kind === 'spend' && s.category === c}">${catIcon(c)}${esc(c)}</button>`).join('')}</div>`}</div>`;
   }
-  return `<div class="bm bx" data-id="${id}"><div class="bm-d"><b>${esc(cleanMerchant(t))}</b><span class="amt${money ? ' in' : ''}">${money ? '+' : ''}${fmt(Math.abs(t.amount))}</span></div>
-    <div class="bm-m">${md(t.date)}${acctText(t) ? ' · ' + esc(acctText(t)) : ''}${t.status === 'pending' ? ' · pending' : ''}</div>
+  return `<div class="bm bx" data-id="${id}"><div class="bm-d"><b>${grp ? 'Paycheck ' + md(s.pick.date) : esc(cleanMerchant(t))}</b><span class="amt${money ? ' in' : ''}">${money ? '+' : ''}${fmt(total)}</span></div>
+    <div class="bm-m">${grp ? md(t.date) + ' · ' + s.parts.length + ' deposits' : md(t.date) + (acctText(t) ? ' · ' + esc(acctText(t)) : '')}${t.status === 'pending' ? ' · pending' : ''}</div>
+    ${grp ? `<div class="bm-m bx-split">Split: ${splitLine(s.parts.map(p => ({ acct: acctDots(p), amount: p.amount })))}</div>` : ''}
     <div class="bx-g"><span class="pill conf-${s.confidence}">${{ high: 'Sure', medium: 'Likely', low: 'Unsure' }[s.confidence]}</span><span class="g-t">${guessHTML(s)}</span></div>
     <div class="bx-a"><button class="btn sm primary" data-action="ix-accept" data-id="${id}"${can ? '' : ' disabled'}>${acceptLabel}</button><button class="btn sm" data-action="ix-change" data-id="${id}" aria-expanded="${open}">Change</button>${t.amount > 0 ? `<button class="btn sm" data-action="ix-edit" data-id="${id}">Edit</button>` : ''}<button class="btn sm" data-action="ix-skip" data-id="${id}">Ignore</button></div>${panel}</div>`;
 }
@@ -3120,12 +3296,19 @@ function safeRow(s) {
 function inboxSheet() {
   const q = state.bank.inbox.slice().sort((a, b) => a.txn.date < b.txn.date ? 1 : a.txn.date > b.txn.date ? -1 : 0);
   const ready = q.filter(bulkOk).length;
-  const recent = Object.entries(state.bank.seen).filter(([, r]) => r.src === 'sync' && r.at).sort((a, b) => a[1].at < b[1].at ? 1 : -1).slice(0, 20);
+  const recent = [], byPay = {};
+  Object.entries(state.bank.seen).filter(([, r]) => r.src === 'sync' && r.at).sort((a, b) => a[1].at < b[1].at ? 1 : -1).forEach(([id, r]) => {
+    const gk = r.res === 'income' && r.part ? r.incomeId + '|' + r.payDate : '';
+    if (gk && byPay[gk]) { byPay[gk].parts.push(r); byPay[gk].amount = BT.round2(byPay[gk].amount + r.amount); return; }
+    const row = { id, r, parts: [r], amount: r.amount }; recent.push(row); if (gk) byPay[gk] = row;
+  });
+  recent.splice(20);
   const sc = document.querySelector('#sheet .sheet'), top = sc && !$('#sheet').hidden ? sc.scrollTop : 0;
   bankSheet(`<div class="sheet-h"><div><h3>New transactions</h3><p class="lede">${q.length ? q.length + (q.length === 1 ? ' needs' : ' need') + ' a quick look. Sure matches were already applied.' : 'All caught up.'}</p></div>
     <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
     ${q.length ? `<div class="bx-top"><span class="note">Nothing here is counted until you accept it.</span><button class="btn primary" data-action="ix-all"${ready ? '' : ' disabled'}>Accept all (${ready})</button></div><div class="bm-list">${q.map(safeRow).join('')}</div>` : ''}
-    ${recent.length ? `<div class="bx-sh">Recently synced</div><ul class="bx-rec">${recent.map(([id, r]) => `<li><div class="main"><div class="nm">${esc(r.what || r.desc)}</div><div class="sub">${esc(r.desc)} · ${md(r.date)}${r.auto ? ' · auto' : ''}</div></div><span class="amt">${r.amount < 0 ? '+' : ''}${fmt(Math.abs(r.amount))}</span><button class="btn sm" data-action="ix-undo" data-id="${esc(id)}">Undo</button></li>`).join('')}</ul>` : ''}
+    ${recent.length ? `<div class="bx-sh">Recently synced</div><ul class="bx-rec">${recent.map(({ id, r, parts, amount }) => parts.length > 1 ? `<li class="paysplit"><div class="main"><div class="nm">Paycheck ${md(r.payDate)}</div><div class="sub">${parts.length} deposits${r.auto ? ' · auto' : ''}</div><div class="sub bx-split">Split: ${splitLine(parts.map(p => ({ acct: p.acct || (p.txn ? acctDots(p.txn) : ''), amount: p.amount })))}</div></div><span class="amt">${amount < 0 ? '+' : ''}${fmt(Math.abs(amount))}</span><button class="btn sm" data-action="ix-undo" data-id="${esc(id)}">Undo</button></li>`
+      : `<li><div class="main"><div class="nm">${esc(r.what || r.desc)}</div><div class="sub">${esc(r.desc)} · ${md(r.date)}${r.auto ? ' · auto' : ''}</div></div><span class="amt">${r.amount < 0 ? '+' : ''}${fmt(Math.abs(r.amount))}</span><button class="btn sm" data-action="ix-undo" data-id="${esc(id)}">Undo</button></li>`).join('')}</ul>` : ''}
     ${state.bank.history.length ? `<p class="note"><button class="linkbtn" data-action="hx-open">Earlier transactions · ${state.bank.history.length}</button></p>` : ''}
     ${!q.length && !recent.length ? '<p class="note">Nothing yet. New transactions show up here after a sync.</p>' : ''}
     <div class="actions"><div class="r"><button class="btn primary" data-action="close">Done</button></div></div>`);
@@ -3231,9 +3414,14 @@ document.addEventListener('click', async e => {
       commit(now ? (living ? 'Marked spent' : 'Marked paid') : 'Marked unpaid'); break;
     }
     case 'account': accountSheet(); break;
-    case 'sv-on': state.savings.on = true; commit('Savings on'); accountSheet(); break;
-    case 'sv-off': state.savings.on = false; commit('Savings hidden. Your entries are kept.'); accountSheet(); break;
-    case 'sv-del': state.savings.tx = state.savings.tx.filter(t => t.id !== a.dataset.id); commit('Removed'); accountSheet(); break;
+    case 'bal-count': { const id = a.dataset.id, acc = state.bank.balances.items.flatMap(it => it.accounts).find(x => x.id === id); if (acc) { state.bank.countIn[id] = !countedAcct(acc); commit(); balanceSheet(); } break; }
+    case 'bal-sync': bankSyncNow(); break;
+    case 'bal-hand': accountSheet(true); break;
+    case 'bal-live': state.bank.useBankBalance = true; commit('Using the live bank balance'); accountSheet(); break;
+    case 'pay-split': HEROUI.split = !HEROUI.split; render(); break;
+    case 'sv-on': state.savings.on = true; commit('Savings on'); accountSheet(true); break;
+    case 'sv-off': state.savings.on = false; commit('Savings hidden. Your entries are kept.'); accountSheet(true); break;
+    case 'sv-del': state.savings.tx = state.savings.tx.filter(t => t.id !== a.dataset.id); commit('Removed'); accountSheet(true); break;
     case 'sound': state.settings.sound = state.settings.sound === false; commit(state.settings.sound ? 'Sound on' : 'Sound off'); if (state.settings.sound) chime(); break;
     case 'occ': openOcc(a.dataset.key); break;
     case 'cat-expand': { const c = a.dataset.cat, li = a.closest('li'); if (OPEN_CATS.has(c)) OPEN_CATS.delete(c); else OPEN_CATS.add(c); li.classList.toggle('open'); a.setAttribute('aria-expanded', OPEN_CATS.has(c)); break; }
@@ -3288,7 +3476,7 @@ document.addEventListener('click', async e => {
     case 'alloc-rest': saveAlloc(true); break;
     case 'alloc-del': a.closest('.alloc-row').remove(); allocLive(); break;
     case 'alloc-later': ALLOC = null; closeSheet(); toast('Saved for later. It stays pinned at the top.'); break;
-    case 'acct-reset': state.account = { balance: 0, asOf: BT.periodRange(state, 'biweekly', 0, TODAY).start, adj: [], auto: true }; commit('Back to the estimate from this paycheck'); accountSheet(); break;
+    case 'acct-reset': state.account = { balance: 0, asOf: BT.periodRange(state, 'biweekly', 0, TODAY).start, adj: [], auto: true }; commit('Back to the estimate from this paycheck'); accountSheet(true); break;
     case 'acct-clear': state.account = null; closeSheet(); commit('Balance cleared'); break;
     case 'occ-reset': {
       const k = $('#occform').dataset.key;
@@ -3348,7 +3536,7 @@ document.addEventListener('submit', e => {
     if (v && !state[list].includes(v)) { state[list].push(v); commit('Added ' + v); }
   }
   if (e.target.id === 'svform') { saveSavings(e.target); return; }
-  if (e.target.id === 'svbank') { state.savings.bank = e.target.elements.bank.value.trim().slice(0, 30); commit('Bank name saved'); accountSheet(); return; }
+  if (e.target.id === 'svbank') { state.savings.bank = e.target.elements.bank.value.trim().slice(0, 30); commit('Bank name saved'); accountSheet(true); return; }
   if (e.target.id === 'acctform') { saveAccount(e.target); return; }
   if (e.target.id === 'catform') { const v = e.target.elements.newcat.value.trim(); if (v) setCategory(e.target.dataset.id, v.slice(0, 30)); }
 });

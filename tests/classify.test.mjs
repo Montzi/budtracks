@@ -187,3 +187,59 @@ test('P2P transfers carry the p2p flag', () => {
   assert.equal(BT.classifyTxn(st, T({ desc: 'Venmo', amount: 145.09, providerCategory: 'transfer' }), TODAY).p2p, true);
   assert.equal(BT.classifyTxn(st, T({ desc: 'CREDIT CARD PAYMENT', amount: 500 }), TODAY).p2p, false);
 });
+
+/* ---------- Split paychecks: several deposits on payday are one paycheck ---------- */
+const acctOf = (name, last4) => ({ id: name, name: 'Checking', last4, institution: name, type: 'depository' });
+const splitIncome = () => { const st = fixture(); st.income = [{ id: 'pay', name: 'Stat Delivery', freq: 'biweekly', date: '2026-11-20', amount: 0, askFrom: '2026-11-06', perCycle: {} }]; return st; };
+const P = (id, date, desc, amount, account) => T({ id, date, desc, amount, account });
+const trio = () => [
+  P('p1', '2026-11-20', 'STAT DELIVERY SE PAYROLL', -100, acctOf('Santander', '6429')),
+  P('p2', '2026-11-19', 'STAT DELIVERY SE', -300, acctOf('Santander', '6429')),
+  P('p3', '2026-11-19', 'STAT DELIVERY SE PAYROLL CITIZENS PAID EARLY', -1873.31, acctOf('Citizens', '4417'))
+];
+
+test('split paycheck: three deposits around payday become ONE income suggestion', () => {
+  const st = splitIncome(), zelle = P('z1', '2026-11-20', 'ZELLE FROM JOHN', -250, acctOf('Santander', '6429'));
+  const out = BT.classifyBatch(st, trio().concat([zelle]), TODAY);
+  const inc = out.filter(s => s.kind === 'income' && s.parts);
+  assert.equal(inc.length, 1, JSON.stringify(out.map(s => [s.txn.id, s.kind, !!s.parts])));
+  const s = inc[0];
+  assert.deepEqual(s.parts.map(p => p.id).sort(), ['p1', 'p2', 'p3']);
+  assert.equal(s.amount, 2273.31); assert.equal(s.pick.amount, 2273.31); assert.equal(s.pick.incomeId, 'pay'); assert.equal(s.pick.date, '2026-11-20');
+  assert.equal(s.txn.id, 'p3', 'largest part is the representative txn'); assert.equal(s.confidence, 'high');
+  // the non-payroll deposit from a different payer is NOT part of the paycheck
+  assert.ok(!s.parts.some(p => p.id === 'z1'));
+  const z = out.find(x => x.txn.id === 'z1'); assert.ok(z && !z.parts);
+  assert.equal(out.length, 2);
+});
+
+test('split paycheck: a payer-less partial deposit set without any payroll hint is not grouped', () => {
+  const st = splitIncome();
+  const out = BT.classifyBatch(st, [P('a', '2026-11-20', 'ZELLE FROM JOHN', -50, acctOf('Santander', '6429')), P('b', '2026-11-19', 'MOBILE DEPOSIT', -70, acctOf('Citizens', '4417'))], TODAY);
+  assert.ok(out.every(s => !s.parts));
+});
+
+test('payer learning: merchant key is a token prefix match ("STAT DELIVERY SE" ~ "STAT DELIVERY SE PAYROLL")', () => {
+  const st = splitIncome(); BT.learnPayer(st, 'pay', trio());
+  assert.ok(st.income[0].payer && st.income[0].payer.startsWith('stat delivery'), st.income[0].payer);
+  assert.ok(BT.payerMatch(st.income[0], 'STAT DELIVERY SE')); assert.ok(BT.payerMatch(st.income[0], 'STAT DELIVERY SE PAYROLL CITIZENS PAID EARLY'));
+  assert.ok(!BT.payerMatch(st.income[0], 'ZELLE FROM JOHN'));
+  const keep = st.income[0].payer; BT.learnPayer(st, 'pay', [P('q', '2026-11-20', 'OTHER CO', -1)]); assert.equal(st.income[0].payer, keep, 'never overwritten');
+  // with the payer known, a deposit with no payroll word joins by payer alone
+  const out = BT.classifyBatch(st, [P('x1', '2026-11-19', 'STAT DELIVERY SE', -300), P('x2', '2026-11-20', 'STAT DELIVERY SE', -100)], TODAY);
+  assert.equal(out.length, 1); assert.equal(out[0].amount, 400);
+});
+
+test('late part: a deposit that shows up after the paycheck was applied joins it', () => {
+  const st = splitIncome(); BT.learnPayer(st, 'pay', trio());
+  st.income[0].perCycle['2026-11-20'] = 2273.31;
+  trio().forEach(t => { st.bank.seen[t.id] = { res: 'income', incomeId: 'pay', payDate: '2026-11-20', date: t.date, amount: t.amount, desc: t.desc, part: true, prev: null, src: 'sync', at: '2026-11-20T10:00:00Z' }; });
+  const late = P('late', '2026-11-21', 'STAT DELIVERY SE', -50, acctOf('Santander', '6429'));
+  const out = BT.classifyBatch(st, [late, P('z2', '2026-11-21', 'ZELLE FROM JOHN', -25)], TODAY);
+  const s = out.find(x => x.txn.id === 'late');
+  assert.equal(s.kind, 'income'); assert.equal(s.join, true); assert.equal(s.confidence, 'high'); assert.equal(s.pick.date, '2026-11-20'); assert.equal(s.amount, 50);
+  assert.ok(!out.find(x => x.txn.id === 'z2').join, 'unrelated deposit does not join');
+  // too far from payday: does not join
+  const far = BT.classifyBatch(st, [P('far', '2026-11-23', 'STAT DELIVERY SE', -50)], TODAY);
+  assert.ok(!far[0].join);
+});

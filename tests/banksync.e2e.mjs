@@ -43,7 +43,7 @@ async function newPage(w, h) {
   const errs = [], calls = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
-  const mock = { paired: false, txns: TXNS, removed: [], errors: [], offline: false, seq: 0, enrollments: [{ id: 'enr_1', institution: 'Chime', needsReconnect: false, accounts: [{ id: 'acc1', name: 'Everyday Checking', type: 'depository', subtype: 'checking', last_four: '1234', enabled: true }, { id: 'acc2', name: 'Savings', type: 'depository', subtype: 'savings', last_four: '9876', enabled: true }] }] };
+  const mock = { paired: false, balances: undefined, refreshResp: null, txns: TXNS, removed: [], errors: [], offline: false, seq: 0, enrollments: [{ id: 'enr_1', institution: 'Chime', needsReconnect: false, accounts: [{ id: 'acc1', name: 'Everyday Checking', type: 'depository', subtype: 'checking', last_four: '1234', enabled: true }, { id: 'acc2', name: 'Savings', type: 'depository', subtype: 'savings', last_four: '9876', enabled: true }] }] };
   await page.route('**/worker.test/**', async route => {
     const req = route.request(), u = new URL(req.url()), p = u.pathname, m = req.method();
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
@@ -55,7 +55,8 @@ async function newPage(w, h) {
     if (p === '/link-token') return json({ link_token: u.searchParams.get('item') ? 'link-update-token' : 'link-new-token' });
     if (p === '/pair') return json({ key: 'secret-device-key-123' });
     if (p === '/accounts') return json({ enrollments: mock.enrollments });
-    if (p === '/sync') return json({ txns: mock.txns, removed: mock.removed, errors: mock.errors, syncToken: 'tok-' + (++mock.seq), syncedAt: new Date().toISOString() });
+    if (p === '/sync') return json({ txns: mock.txns, removed: mock.removed, errors: mock.errors, syncToken: 'tok-' + (++mock.seq), syncedAt: new Date().toISOString(), ...(mock.balances ? { balances: mock.balances } : {}) });
+    if (p === '/refresh' && m === 'POST') return mock.refreshResp ? json(mock.refreshResp) : json({ error: 'nope' }, 404);
     if (p === '/enroll' && m === 'POST') { mock.enrollments.push({ id: 'enr_2', institution: 'Citizens', needsReconnect: false, accounts: [] }); return json({ accounts: [] }); }
     if (p.startsWith('/enroll/') && m === 'DELETE') { mock.enrollments = mock.enrollments.filter(e => !p.endsWith(e.id)); return json({ ok: true }); }
     if (/\/accounts\/.+\/toggle/.test(p)) return json({ ok: true });
@@ -482,6 +483,187 @@ for (const [w, h] of [[390, 844], [951, 669]]) {
     await noHScroll(page, w + ' card after change');
   });
   assert.deepEqual(errs, [], 'page errors in history flow');
+  await page.context().close();
+}
+
+
+/* ---------- Split paycheck = one deposit ---------- */
+const SANT = { id: 'sa1', name: 'Checking', last4: '6429', institution: 'Santander', type: 'depository' };
+const CITI = { id: 'ci1', name: 'Checking', last4: '4417', institution: 'Citizens', type: 'depository' };
+const SPLIT = [
+  T('s1', '2026-11-20', 'STAT DELIVERY SE PAYROLL', -100, { account: SANT }),
+  T('s2', '2026-11-19', 'STAT DELIVERY SE', -300, { account: SANT }),
+  T('s3', '2026-11-19', 'STAT DELIVERY SE PAYROLL CITIZENS PAID EARLY', -1873.31, { account: CITI }),
+  T('z1', '2026-11-20', 'ZELLE FROM JOHN', -25, { account: SANT })
+];
+const splitSeed = async page => page.evaluate(() => {
+  const s = JSON.parse(localStorage.getItem('budtrack.v1'));
+  s.income = [{ id: 'pay', name: 'Stat Delivery', freq: 'biweekly', date: '2026-11-20', amount: 0, askFrom: '2026-11-06', perCycle: {} }];
+  s.bills = []; s.plans = []; s.cards = [];
+  localStorage.setItem('budtrack.v1', JSON.stringify(s));
+});
+{
+  const { page, errs, mock } = await prepared(390, 844);
+  mock.txns = SPLIT;
+  await splitSeed(page);
+  await page.goto(BASE + '#overview', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
+  await step('split paycheck: three deposits apply as ONE paycheck of 2,273.31; Zelle from John stays in the inbox', async () => {
+    const s = await getState(page);
+    assert.equal(s.income[0].perCycle['2026-11-20'], 2273.31);
+    assert.deepEqual(['pl:s1', 'pl:s2', 'pl:s3'].map(i => s.bank.seen[i] && s.bank.seen[i].part), [true, true, true]);
+    assert.ok(/^stat delivery/.test(s.income[0].payer), 'payer learned: ' + s.income[0].payer);
+    assert.deepEqual(s.bank.inbox.map(x => x.txn.id), ['pl:z1']);
+    assert.match(await page.locator('.lad.l1').innerText(), /2,273\.31/);
+  });
+  await step('left in paycheck "split" reveals the per-account split', async () => {
+    await page.click('[data-action="pay-split"]');
+    const t = await page.locator('.hero-split').innerText();
+    assert.match(t, /Santander ••6429 \$100\.00/); assert.match(t, /Santander ••6429 \$300\.00/); assert.match(t, /Citizens ••4417 \$1,873\.31/);
+    await noHScroll(page, '390 overview with split');
+    await page.click('[data-action="pay-split"]');
+  });
+  await step('recently synced shows one Paycheck row with the split line', async () => {
+    await page.click('.bx-bar'); await page.waitForSelector('.bx-rec');
+    assert.equal(await page.locator('.bx-rec li').count(), 1);
+    const li = await page.locator('.bx-rec li').innerText();
+    assert.match(li, /Paycheck Nov 20/); assert.match(li, /\$2,273\.31/); assert.match(li, /Split: .*Citizens ••4417 \$1,873\.31/);
+    await sheetNoHScroll(page, '390 split recent');
+  });
+  await step('undo removes every part and restores perCycle; the paycheck returns as one inbox row', async () => {
+    await page.locator('.bx-rec [data-action="ix-undo"]').click();
+    await page.waitForFunction(() => document.querySelectorAll('.bx').length === 2);
+    const s = await getState(page);
+    assert.equal(s.income[0].perCycle['2026-11-20'], undefined); assert.ok(!['pl:s1', 'pl:s2', 'pl:s3'].some(i => i in s.bank.seen));
+    const row = page.locator('.bx', { hasText: 'Paycheck Nov 20' });
+    assert.match(await row.innerText(), /\$2,273\.31/); assert.match(await row.innerText(), /3 deposits/); assert.match(await row.locator('.bx-split').innerText(), /^Split: Santander ••6429 \$100\.00 · Santander ••6429 \$300\.00|Split: .*Citizens ••4417 \$1,873\.31/);
+    await sheetNoHScroll(page, '390 split inbox');
+    await page.locator('#sheet .sheet').screenshot({ path: SHOTS + '/paysplit-390.png' });
+  });
+  await step('accepting the grouped row sets perCycle to the sum and records parts', async () => {
+    await page.locator('.bx', { hasText: 'Paycheck Nov 20' }).locator('[data-action="ix-accept"]').click();
+    await page.waitForSelector('.bx-rec');
+    const s = await getState(page);
+    assert.equal(s.income[0].perCycle['2026-11-20'], 2273.31); assert.equal(s.bank.seen['pl:s3'].part, true); assert.equal(s.bank.seen['pl:s3'].acct, 'Citizens ••4417');
+  });
+  await step('a late part joins the applied paycheck and adds to perCycle; undo takes it all out', async () => {
+    mock.txns = SPLIT.concat([T('s4', '2026-11-21', 'STAT DELIVERY SE', -50, { account: SANT })]);
+    await page.keyboard.press('Escape'); await page.click('[data-action="today"]').catch(() => {});
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.bank.lastSync = null; localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
+    await page.goto(BASE + '#income'); await page.reload({ waitUntil: 'load' });
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.seen['pl:s4']);
+    let s = await getState(page);
+    assert.equal(s.income[0].perCycle['2026-11-20'], 2323.31); assert.equal(s.bank.seen['pl:s4'].part, true);
+    await page.click('#bankcard [data-action="ix-open"]');
+    assert.match(await page.locator('.bx-rec li').first().innerText(), /\$2,323\.31/); assert.match(await page.locator('.bx-rec li').first().innerText(), /4 deposits/);
+    await page.locator('.bx-rec [data-action="ix-undo"]').first().click();
+    await page.waitForFunction(() => document.querySelectorAll('.bx').length >= 2);
+    s = await getState(page); assert.equal(s.income[0].perCycle['2026-11-20'], undefined);
+    await page.keyboard.press('Escape');
+  });
+  assert.deepEqual(errs, [], 'page errors in split paycheck flow');
+  await page.context().close();
+}
+{
+  const { page, errs } = await newPage(390, 844);
+  await seed(page);
+  await step('repair migration: perCycle=100 with 3 seen parts becomes the sum (runs once)', async () => {
+    await page.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('budtrack.v1'));
+      s.income = [{ id: 'pay', name: 'Stat Delivery', freq: 'biweekly', date: '2026-11-20', amount: 0, askFrom: '2026-11-06', perCycle: { '2026-11-20': 100 } }];
+      s.imports = [];
+      const rec = (date, amount, desc, at, prev) => ({ res: 'income', kind: 'income', incomeId: 'pay', payDate: '2026-11-20', prev, date, amount, desc, at, src: 'sync', auto: true });
+      s.bank.seen = { 'pl:r2': rec('2026-11-19', -300, 'STAT DELIVERY SE', '2026-11-20T09:00:01Z', null), 'pl:r3': rec('2026-11-19', -1873.31, 'STAT DELIVERY SE PAYROLL CITIZENS PAID EARLY', '2026-11-20T09:00:00Z', null), 'pl:r1': rec('2026-11-20', -100, 'STAT DELIVERY SE PAYROLL', '2026-11-20T09:00:02Z', 300) };
+      localStorage.setItem('budtrack.v1', JSON.stringify(s));
+    });
+    await page.reload({ waitUntil: 'load' });
+    let s = await getState(page);
+    assert.equal(s.income[0].perCycle['2026-11-20'], 2273.31); assert.ok(s.imports.includes('paysplit-fix-1'));
+    assert.ok(Object.values(s.bank.seen).every(r => r.part === true && r.prev === null));
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.income[0].perCycle['2026-11-20'] = 5; localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
+    await page.reload({ waitUntil: 'load' });
+    s = await getState(page); assert.equal(s.income[0].perCycle['2026-11-20'], 5, 'not repaired a second time');
+  });
+  assert.deepEqual(errs, [], 'page errors in repair migration');
+  await page.context().close();
+}
+
+/* ---------- Live bank balances + refresh on demand ---------- */
+{
+  const { page, errs, calls, mock } = await prepared(390, 844);
+  mock.balances = [
+    { itemId: 'enr_1', institution: 'Chime', accounts: [
+      { id: 'acc1', name: 'Everyday Checking', mask: '1234', type: 'depository', subtype: 'checking', available: 1200.5, current: 1250.5, limit: null, currency: 'USD', enabled: true },
+      { id: 'acc2', name: 'Savings', mask: '9876', type: 'depository', subtype: 'savings', available: 800, current: 800, limit: null, currency: 'USD', enabled: true },
+      { id: 'acc3', name: 'Visa Card', mask: '4242', type: 'credit', subtype: 'credit card', available: 1500, current: 500, limit: 2000, currency: 'USD', enabled: true }] },
+    { itemId: 'enr_2', institution: 'Citizens', accounts: [{ id: 'acc4', name: 'Checking', mask: '4417', type: 'depository', subtype: 'checking', available: 300, current: 300, limit: null, currency: 'USD', enabled: true }] }
+  ];
+  await page.goto(BASE + '#overview', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => { const b = JSON.parse(localStorage.getItem('budtrack.v1')).bank; return b.balances && b.balances.items.length; });
+  await step('hero In account is the live total of checking + savings (credit not counted)', async () => {
+    const t = await page.locator('.lad.l3').innerText();
+    assert.match(t, /2,300/); assert.match(t, /Live from 2 banks/); assert.match(t, /updated \d{1,2}:\d{2}/);
+    await noHScroll(page, '390 hero live balance');
+  });
+  await step('balance sheet: total, accounts, owed card, toggle changes total', async () => {
+    await page.click('[data-action="account"]'); await page.waitForSelector('.bal-total');
+    assert.match(await page.locator('.bal-total').innerText(), /\$2,300\.50/);
+    const t = await page.locator('#sheet').innerText();
+    assert.match(t, /chime/i); assert.match(t, /Everyday Checking\s*••1234/); assert.match(t, /\$1,200\.50 available · \$1,250\.50 current/); assert.match(t, /citizens/i);
+    assert.match(t, /owed · not counted/i); assert.match(t, /Owed \$500\.00 of \$2,000\.00 limit/);
+    assert.equal(await page.locator('.bal-acc .tgl input').count(), 3, 'credit has no toggle');
+    assert.match(t, /set balance by hand/i); assert.match(t, /Updated/);
+    await sheetNoHScroll(page, '390 balance sheet');
+    await page.locator('#sheet .sheet').screenshot({ path: SHOTS + '/balance-390.png' });
+    await page.locator('.tgl', { has: page.locator('[data-id="acc2"]') }).click();
+    await page.waitForFunction(() => /\$1,500\.50/.test(document.querySelector('.bal-total').textContent));
+    const s = await getState(page); assert.equal(s.bank.countIn.acc2, false);
+    await page.locator('.tgl', { has: page.locator('[data-id="acc2"]') }).click();
+    await page.waitForFunction(() => /\$2,300\.50/.test(document.querySelector('.bal-total').textContent));
+  });
+  await step('Sync now calls /refresh then /sync, toasts, remembers refreshOK, schedules a quiet follow-up', async () => {
+    mock.refreshResp = { refreshed: true, notEnabled: false, results: [{ itemId: 'enr_1', refreshed: true }] };
+    await page.evaluate(() => { window.BT_FOLLOWUP_MS = 600; });
+    const n = calls.length, syncs = calls.filter(c => c.p === '/sync').length;
+    await page.click('[data-action="bal-sync"]');
+    await page.waitForFunction(() => /Asked your banks for new activity/.test(document.querySelector('#toast').textContent));
+    const after = calls.slice(n).map(c => c.p);
+    assert.ok(after.indexOf('/refresh') >= 0 && after.indexOf('/sync') > after.indexOf('/refresh'), 'order: ' + after.join(','));
+    assert.equal(calls.find((c, i) => i >= n && c.p === '/refresh').m, 'POST');
+    assert.equal(calls.find((c, i) => i >= n && c.p === '/refresh').auth, 'Bearer secret-device-key-123');
+    let s = await getState(page); assert.equal(s.bank.refreshOK.ok, true);
+    await page.waitForFunction(c => true, 0);
+    await page.waitForTimeout(1100);
+    assert.ok(calls.filter(c => c.p === '/sync').length >= syncs + 2, 'follow-up sync ran');
+  });
+  await step('refresh not enabled: remembered, skipped on the next Sync now, no refresh toast', async () => {
+    mock.refreshResp = { refreshed: false, notEnabled: true, results: [{ itemId: 'enr_1', refreshed: false, code: 'PRODUCT_NOT_ENABLED' }] };
+    await page.evaluate(() => { window.BT_FOLLOWUP_MS = 600000; const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.bank.refreshOK = null; localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
+    await page.reload({ waitUntil: 'load' }); await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.refreshOK === null);
+    await page.evaluate(() => { window.BT_FOLLOWUP_MS = 600000; });
+    await page.click('[data-action="account"]'); await page.waitForSelector('[data-action="bal-sync"]');
+    const r1 = calls.filter(c => c.p === '/refresh').length;
+    await page.click('[data-action="bal-sync"]');
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.refreshOK && JSON.parse(localStorage.getItem('budtrack.v1')).bank.refreshOK.ok === false);
+    await page.waitForFunction(() => !document.querySelector('[data-action="bal-sync"]').disabled);
+    assert.equal(calls.filter(c => c.p === '/refresh').length, r1 + 1);
+    assert.ok(!/Asked your banks/.test(await page.locator('#toast').innerText()));
+    await page.click('[data-action="bal-sync"]');
+    await page.waitForFunction(() => !document.querySelector('[data-action="bal-sync"]').disabled);
+    await page.waitForTimeout(150);
+    assert.equal(calls.filter(c => c.p === '/refresh').length, r1 + 1, 'not asked again within a day');
+  });
+  await step('Set balance by hand opens the manual sheet; saving keeps your own number; Use live balance returns', async () => {
+    await page.click('[data-action="bal-hand"]'); await page.waitForSelector('#acctform');
+    await page.fill('#a-bal', '1234.56'); await page.click('#acctform button[type=submit]');
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.useBankBalance === false);
+    assert.doesNotMatch(await page.locator('.lad.l3').innerText(), /Live from/);
+    await page.click('[data-action="account"]'); await page.waitForSelector('#acctform');
+    await page.click('[data-action="bal-live"]'); await page.waitForSelector('.bal-total');
+    assert.match(await page.locator('.lad.l3').innerText(), /Live from 2 banks/);
+    await page.keyboard.press('Escape');
+  });
+  assert.deepEqual(errs, [], 'page errors in balance flow');
   await page.context().close();
 }
 

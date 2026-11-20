@@ -48,6 +48,10 @@ export function mockPlaid({ tokens } = {}) {
     if (u.pathname === '/item/remove') return R(200, { removed: true });
     if (t.error) return R(400, PLAID_ERR(t.error));
     if (u.pathname === '/accounts/get') return R(200, { accounts: t.accounts, item: { institution_id: 'ins_1', error: t.itemError || null } });
+    if (u.pathname === '/transactions/refresh') {
+      if (t.refreshError) return R(400, PLAID_ERR(t.refreshError, 'INVALID_REQUEST', 'this product is not enabled for your account'));
+      return R(200, { request_id: 'r1' });
+    }
     if (u.pathname === '/transactions/sync') {
       const empty = { added: [], modified: [], removed: [] };
       let b = 0, p = 0, m;

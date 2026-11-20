@@ -415,3 +415,79 @@ test('loan and investment accounts are off by default and can be toggled on', as
     assert.equal((await en()).acc_loan, false);
   });
 });
+
+// ---------- live balances and refresh ----------
+const bal = (account_id, name, mask, type, subtype, balances) => ({ account_id, name, official_name: null, mask, type, subtype, balances });
+const withBalances = () => ({ tokens: {
+  tok_good: { item_id: 'item_1', batches: [[{ added: [], modified: [], removed: [] }]], accounts: [
+    bal('acc_chk', 'Everyday Checking', '1234', 'depository', 'checking', { available: 1200.5, current: 1250.5, limit: null, iso_currency_code: 'USD' }),
+    bal('acc_sav', 'Savings', '5555', 'depository', 'savings', { available: 800, current: 800, limit: null, iso_currency_code: 'USD' }),
+    bal('acc_cc', 'Sapphire Card', '9876', 'credit', 'credit card', { available: 4500, current: 500, limit: 5000, iso_currency_code: 'USD' })] } } });
+
+test('GET /balances needs auth and returns every account with balances and the enabled flag', async () => {
+  const p = mockPlaid(withBalances());
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    assert.equal((await call(env, 'GET', '/balances')).status, 401);
+    await call(env, 'POST', '/accounts/acc_sav/toggle', { key, body: { enabled: false } });
+    const r = await call(env, 'GET', '/balances', { key }); assert.equal(r.status, 200);
+    const b = await r.json(); assert.equal(b.balances.length, 1);
+    assert.equal(b.balances[0].itemId, 'item_1'); assert.equal(b.balances[0].institution, 'Chase');
+    const by = Object.fromEntries(b.balances[0].accounts.map((a) => [a.id, a]));
+    assert.deepEqual(by.acc_chk, { id: 'acc_chk', name: 'Everyday Checking', mask: '1234', type: 'depository', subtype: 'checking', available: 1200.5, current: 1250.5, limit: null, currency: 'USD', enabled: true });
+    assert.equal(by.acc_sav.enabled, false, 'disabled accounts are included but flagged');
+    assert.equal(by.acc_cc.limit, 5000); assert.equal(by.acc_cc.current, 500); assert.equal(by.acc_cc.type, 'credit');
+    assert.equal(p.calls.filter((c) => c.path === '/accounts/get').length >= 1, true);
+  });
+});
+
+test('GET /balances flags a dead Item instead of failing', async () => {
+  const p = mockPlaid({ tokens: { tok_good: withBalances().tokens.tok_good, tok_dead: { item_id: 'item_dead', accounts: [], batches: [], error: 'ITEM_LOGIN_REQUIRED' } } });
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    await env.BT_KV.put('item:item_dead', JSON.stringify({ token: await encrypt(env, 'tok_dead'), institution: 'Dead Bank', cursor: null }));
+    const b = await (await call(env, 'GET', '/balances', { key })).json(); const d = b.balances.find((x) => x.itemId === 'item_dead');
+    assert.equal(d.needsReconnect, true); assert.deepEqual(d.accounts, []);
+  });
+});
+
+test('GET /sync also returns balances', async () => {
+  const p = mockPlaid(withBalances());
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    const b = await sync(env, key);
+    assert.equal(b.balances.length, 1); assert.equal(b.balances[0].institution, 'Chase');
+    assert.equal(b.balances[0].accounts.find((a) => a.id === 'acc_chk').available, 1200.5);
+    assert.equal(b.balances[0].accounts.find((a) => a.id === 'acc_cc').current, 500);
+  });
+});
+
+test('POST /refresh asks Plaid to refresh every Item (needs auth)', async () => {
+  const p = mockPlaid(withBalances());
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    assert.equal((await call(env, 'POST', '/refresh')).status, 401);
+    p.calls.length = 0;
+    const r = await call(env, 'POST', '/refresh', { key }); assert.equal(r.status, 200);
+    const b = await r.json();
+    assert.equal(b.refreshed, true); assert.equal(b.notEnabled, false);
+    assert.deepEqual(b.results, [{ itemId: 'item_1', institution: 'Chase', refreshed: true }]);
+    const c = p.calls.filter((x) => x.path === '/transactions/refresh'); assert.equal(c.length, 1);
+    assert.equal(c[0].body.access_token, 'tok_good'); assert.equal(c[0].body.client_id, 'cid_test'); assert.equal(c[0].body.secret, 'sec_test');
+  });
+});
+
+test('POST /refresh reports PRODUCT_NOT_ENABLED per Item without failing', async () => {
+  const t = withBalances(); t.tokens.tok_good.refreshError = 'PRODUCT_NOT_ENABLED';
+  const p = mockPlaid(t);
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    const r = await call(env, 'POST', '/refresh', { key }); assert.equal(r.status, 200);
+    const b = await r.json();
+    assert.equal(b.refreshed, false); assert.equal(b.notEnabled, true);
+    assert.equal(b.results[0].refreshed, false); assert.equal(b.results[0].code, 'PRODUCT_NOT_ENABLED'); assert.match(b.results[0].reason, /not enabled/);
+    // A different error on the same call also never throws.
+    t.tokens.tok_good.refreshError = 'INVALID_PRODUCT';
+    assert.equal((await (await call(env, 'POST', '/refresh', { key })).json()).notEnabled, true);
+  });
+});

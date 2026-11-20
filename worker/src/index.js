@@ -122,6 +122,15 @@ const shapeAccount = (a, off) => ({
   ...(off ? { enabled: !off.has(a.account_id, a.type) } : {}),
 });
 
+// Plaid's cached balances (the same values /accounts/get returns; no extra cost). `available` is null for some accounts.
+const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+const shapeBalance = (a, off) => ({
+  id: a.account_id, name: a.name || a.official_name || '', mask: a.mask || null, type: a.type, subtype: a.subtype || null,
+  available: num(a.balances?.available), current: num(a.balances?.current), limit: num(a.balances?.limit),
+  currency: a.balances?.iso_currency_code || a.balances?.unofficial_currency_code || 'USD', enabled: !off.has(a.account_id, a.type),
+});
+const balanceItem = (it, accounts, off) => ({ itemId: it.id, institution: it.institution, accounts: accounts.map((a) => shapeBalance(a, off)) });
+
 // ---------- category mapping ----------
 // Plaid personal_finance_category -> the lowercase vocabulary the app's classifier understands.
 // Detailed codes win over primary ones.
@@ -260,7 +269,7 @@ async function accounts(env) {
 async function sync(env, since, full, ack) {
   if (since && !/^\d{4}-\d{2}-\d{2}$/.test(since)) throw new HttpError(400, 'since must be YYYY-MM-DD');
   const off = await getOff(env);
-  const txns = [], removed = new Set(), errors = [];
+  const txns = [], removed = new Set(), errors = [], balances = [];
   // Two-phase cursor: `cursor` is committed (the app confirmed it received that batch); `pending` is what the
   // last response handed out. Each sync reads from the committed cursor and parks its new cursor as pending
   // under `syncToken`; the app's NEXT sync acks that token, which commits it.
@@ -274,7 +283,8 @@ async function sync(env, since, full, ack) {
     }
     const err = (r, prefix = '') => errors.push({ enrollmentId: it.id, institution: it.institution, message: prefix + plaidMsg(r), needsReconnect: needsReconnect(r) });
     const ar = await plaid(env, '/accounts/get', { access_token: it.token });
-    if (!ar.ok) { err(ar); continue; }
+    if (!ar.ok) { err(ar); balances.push({ itemId: it.id, institution: it.institution, accounts: [], needsReconnect: needsReconnect(ar) }); continue; }
+    balances.push(balanceItem(it, ar.body.accounts || [], off));
     const accts = new Map((ar.body.accounts || []).map((a) => [a.account_id, a]));
     const res = await syncItem(env, it.token, full ? null : it.cursor);
     if (res.r) { if (res.r.code !== 'PRODUCT_NOT_READY') err(res.r); continue; }
@@ -288,7 +298,32 @@ async function sync(env, since, full, ack) {
     }
   }
   txns.sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0));
-  return { txns, removed: [...removed], errors, syncToken: issued ? syncToken : null, syncedAt: new Date().toISOString() };
+  return { txns, removed: [...removed], errors, syncToken: issued ? syncToken : null, syncedAt: new Date().toISOString(), balances };
+}
+
+// Live balances for every Item, disabled accounts included (flagged enabled: false).
+async function getBalances(env) {
+  const off = await getOff(env), items = [];
+  for (const it of await loadItems(env)) {
+    const r = await plaid(env, '/accounts/get', { access_token: it.token });
+    if (r.ok) items.push(balanceItem(it, r.body.accounts || [], off));
+    else items.push({ itemId: it.id, institution: it.institution, accounts: [], needsReconnect: needsReconnect(r), error: plaidMsg(r) });
+  }
+  return { balances: items, at: new Date().toISOString() };
+}
+
+// Ask Plaid to look for new activity now. /transactions/refresh needs the Transactions Refresh add-on; when Plaid says no,
+// report it per Item instead of failing the request.
+const NOT_ENABLED = new Set(['PRODUCT_NOT_ENABLED', 'INVALID_PRODUCT', 'PRODUCT_NOT_READY', 'ADDITIONAL_CONSENT_REQUIRED', 'UNAUTHORIZED_PRODUCT', 'API_NOT_ENABLED']);
+const notEnabled = (r) => NOT_ENABLED.has(r.code) || r.status === 401 || r.status === 403 || /not (?:enabled|authorized|available)|not authorised/i.test(plaidMsg(r));
+async function refresh(env) {
+  const results = [];
+  for (const it of await loadItems(env)) {
+    const r = await plaid(env, '/transactions/refresh', { access_token: it.token });
+    if (r.ok) results.push({ itemId: it.id, institution: it.institution, refreshed: true });
+    else results.push({ itemId: it.id, institution: it.institution, refreshed: false, reason: plaidMsg(r), code: r.code || null, notEnabled: notEnabled(r), needsReconnect: needsReconnect(r) });
+  }
+  return { refreshed: results.some((x) => x.refreshed), notEnabled: results.length > 0 && results.every((x) => !x.refreshed && x.notEnabled), results };
 }
 
 async function toggle(env, accountId, body) {
@@ -330,6 +365,8 @@ export default {
         else if (m === 'DELETE' && path === '/pair') out = await unpair(env);
         else if (m === 'POST' && path === '/sandbox/item') out = env.PLAID_ENV === 'sandbox' ? await sandboxItem(env, await readJsonOpt(req)) : (() => { throw new HttpError(404, 'not found'); })();
         else if (m === 'GET' && path === '/accounts') out = await accounts(env);
+        else if (m === 'GET' && path === '/balances') out = await getBalances(env);
+        else if (m === 'POST' && path === '/refresh') out = await refresh(env);
         else if (m === 'GET' && path === '/sync') out = await sync(env, url.searchParams.get('since'), url.searchParams.get('full') === '1', url.searchParams.get('ack') || '');
         else if (m === 'POST' && (mt = /^\/accounts\/([\w-]+)\/toggle$/.exec(path))) out = await toggle(env, mt[1], await readJson(req));
         else if (m === 'DELETE' && (mt = /^\/enroll\/([\w-]+)$/.exec(path))) out = await disconnect(env, mt[1]);
