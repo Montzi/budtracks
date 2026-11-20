@@ -676,6 +676,8 @@ h3 > .icon-pick { display: inline-grid; vertical-align: middle; width: 38px; hei
 .bx-rec .main { flex: 1; min-width: 0; }
 .bx-rec .nm { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
 .bx-rec .amt { font-size: 13px; white-space: nowrap; }
+.bk-auto { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin: 8px 0 0; }
+.bk-auto input { font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--ink); max-width: 100%; }
 .bx-sh { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; margin: 4px 0 4px; }
 
 /* Installed app: page runs edge to edge, so keep content clear of the notch, status bar and home bar. */
@@ -1251,7 +1253,8 @@ const BT = (() => {
   const candKey = c => c.key || (c.incomeId != null ? 'i:' + c.incomeId + ':' + c.date : '');
   function classifyBatch(st, txns, today) {
     const seen = (st.bank && st.bank.seen) || {};
-    const live = txns.filter(t => !seen[t.id] && !(st.since && t.date < st.since));
+    const floor = (st.bank && st.bank.autoFrom) || st.since; // the automatic-from date governs when set
+    const live = txns.filter(t => !seen[t.id] && !(floor && t.date < floor));
     const twin = t => t.status === 'pending' && txns.some(p => p !== t && p.status !== 'pending' && p.amount === t.amount && (!t.account || !p.account || t.account === p.account)
       && Math.abs(diffDays(t.date, p.date)) <= 3 && (nameSim(t.desc, p.desc) > 0 || (!tokens(t.desc).length && !tokens(p.desc).length)));
     const sugg = live.filter(t => !twin(t)).map(t => classifyTxn(st, t, today));
@@ -1508,6 +1511,11 @@ function normalize(s) {
   if (o.bank.lastSync === undefined) o.bank.lastSync = null;
   if (typeof o.bank.syncToken !== 'string') o.bank.syncToken = null;
   if (!Array.isArray(o.bank.inbox)) o.bank.inbox = [];
+  // Only transactions from autoFrom on go through the automatic pipeline. historyFrom..autoFrom are listed to add by hand.
+  const isoD = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  if (!isoD(o.bank.autoFrom)) o.bank.autoFrom = '2026-11-19';
+  if (!isoD(o.bank.historyFrom)) o.bank.historyFrom = '2026-11-01';
+  if (!Array.isArray(o.bank.history)) o.bank.history = [];
   if (typeof o.bank.api !== 'string') o.bank.api = '';
   if (!o.savings || !Array.isArray(o.savings.tx)) o.savings = { on: false, bank: '', tx: [] };
   mergeUnalloc(o);
@@ -2160,20 +2168,20 @@ function planSummary(p, curKey) {
 function openForm(type, id, extra) {
   const spec = SPECS[type], item = id ? findItem(type, id) : DEFAULTS[type](extra);
   if (!item) return;
-  const isNew = !id, inbox = type === 'extra' && extra && extra.inbox ? extra.inbox : '';
-  if (inbox && extra.prefill) Object.assign(item, extra.prefill);
+  const isNew = !id, inbox = type === 'extra' && extra && extra.inbox ? extra.inbox : '', hist = type === 'extra' && extra && extra.history ? extra.history : '';
+  if ((inbox || hist) && extra.prefill) Object.assign(item, extra.prefill);
   EDIT_AMT = item.amount || 0;
   openSheet(`<div class="sheet-h"><div><h3>${isNew ? (type === 'plan' ? 'Log a purchase' : 'Add ' + spec.title.toLowerCase()) : 'Edit ' + spec.title.toLowerCase()}</h3>
     <p class="lede">${type === 'plan' ? 'Klarna, Afterpay or PayPal. Next payments schedule themselves.' : type === 'bill' ? 'Repeats every month on the due day.' : type === 'income' ? 'Your main paycheck sets the start of every pay cycle.' : type === 'card' ? 'The minimum payment joins your cycle on its due day.' : type === 'extra' ? 'Spending outside your bills. It comes out of the pay cycle of its date.' : 'Counted once per pay cycle.'}</p></div>
     <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
-    ${isNew && !inbox && (type === 'extra' || type === 'plan') ? `<div class="seg kind-seg" role="group" aria-label="Type of spending"><button type="button" data-action="add" data-type="extra" aria-pressed="${type === 'extra'}">One-time spending</button><button type="button" data-action="add" data-type="plan" aria-pressed="${type === 'plan'}">Klarna · Afterpay · PayPal</button></div>` : ''}
+    ${isNew && !inbox && !hist && (type === 'extra' || type === 'plan') ? `<div class="seg kind-seg" role="group" aria-label="Type of spending"><button type="button" data-action="add" data-type="extra" aria-pressed="${type === 'extra'}">One-time spending</button><button type="button" data-action="add" data-type="plan" aria-pressed="${type === 'plan'}">Klarna · Afterpay · PayPal</button></div>` : ''}
     ${type === 'plan' && !isNew ? planSummary(item) : ''}
-    <form class="form" id="form" data-type="${type}" data-id="${id || ''}"${inbox ? ` data-inbox="${esc(inbox)}"` : ''} novalidate>
+    <form class="form" id="form" data-type="${type}" data-id="${id || ''}"${inbox ? ` data-inbox="${esc(inbox)}"` : ''}${hist ? ` data-history="${esc(hist)}"` : ''} novalidate>
       ${spec.fields.map(f => fieldHTML(f, item[f.k], isNew)).join('')}
       ${type === 'plan' ? '<div class="preview" id="preview" aria-live="polite"></div>' : ''}
       <div class="form-err" id="ferr" role="alert"></div>
       <div class="actions">${isNew ? '' : '<button type="button" class="btn danger" data-action="delete">Delete</button>'}
-        <div class="r"><button type="button" class="btn" data-action="${inbox ? 'ix-open' : 'close'}">Cancel</button><button type="submit" class="btn primary">${isNew ? (type === 'plan' ? 'Save and choose category' : 'Add') : 'Save'}</button></div></div>
+        <div class="r"><button type="button" class="btn" data-action="${inbox ? 'ix-open' : hist ? 'hx-open' : 'close'}">Cancel</button><button type="submit" class="btn primary">${isNew ? (type === 'plan' ? 'Save and choose category' : 'Add') : 'Save'}</button></div></div>
     </form>`);
   if (type === 'plan') { const f = $('#form'); f.addEventListener('input', planPreview); planPreview(); }
   addIconChooser($('#form'));
@@ -2238,6 +2246,7 @@ function saveForm(form) {
   const type = form.dataset.type, id = form.dataset.id;
   const o = readForm(form, type); if (!o) return;
   if (form.dataset.inbox) return applyEdited(form.dataset.inbox, o);
+  if (form.dataset.history) return addFromHistory(form.dataset.history, o);
   if (o.category) saveIconChoice(form, o.category);
   const list = state[listOf(type)];
   if (id) {
@@ -2748,7 +2757,7 @@ function loadPlaid() {
 
 /* Bank connections card (Income tab) */
 function bankCard() {
-  const b = state.bank, ready = bankReady(), n = (b.inbox || []).length;
+  const b = state.bank, ready = bankReady(), n = (b.inbox || []).length, hn = (b.history || []).length;
   const head = `<header class="card-h"><div><h2>Bank connections · via Plaid</h2>${ready ? `<span class="meta">${b.lastSync ? 'Last synced ' + esc(relTime(b.lastSync)) : 'Not synced yet'}</span>` : ''}</div>
     ${ready ? `<button class="btn sm" data-action="bk-sync"${BANKUI.syncing ? ' disabled' : ''}>${BANKUI.syncing ? 'Syncing…' : 'Sync now'}</button>` : ''}</header>`;
   if (!ready) return `<section class="card" id="bankcard">${head}<div class="card-b bk">
@@ -2763,9 +2772,10 @@ function bankCard() {
         <label class="tgl"><input type="checkbox" data-action="bk-toggle" data-id="${esc(a.id)}" data-eid="${esc(e.id)}"${a.enabled ? ' checked' : ''} aria-label="Sync ${esc(a.name || 'account')}"><span aria-hidden="true"></span></label></li>`).join('') || '<li><div class="sub">No accounts found.</div></li>'}</ul></div>`).join('')
     : '<p class="bk-ok">No banks connected yet. Tap Connect a bank.</p>';
   return `<section class="card" id="bankcard">${head}<div class="card-b bk">${list}
-    <div class="bk-btns"><button class="btn primary" data-action="bk-connect"${BANKUI.busy ? ' disabled' : ''}>Connect a bank</button>${n ? `<button class="btn" data-action="ix-open">Review ${n} new</button>` : '<button class="btn" data-action="ix-open">Recently synced</button>'}</div>
+    <div class="bk-btns"><button class="btn primary" data-action="bk-connect"${BANKUI.busy ? ' disabled' : ''}>Connect a bank</button>${n ? `<button class="btn" data-action="ix-open">Review ${n} new</button>` : '<button class="btn" data-action="ix-open">Recently synced</button>'}<button class="btn" data-action="hx-open">Earlier transactions · ${hn}</button></div>
+    <label class="bk-auto"><span>Automatic from ${esc(md(b.autoFrom))}</span><input type="date" id="bk-autofrom" value="${esc(b.autoFrom)}" aria-label="Automatic from date"></label>
     <p class="bk-err" role="alert">${esc(BANKUI.err)}</p>
-    <p class="note" style="margin:0">Matching bills, paychecks and Klarna, Afterpay and PayPal payments are applied for you. Anything unsure waits in your review list. <button class="linkbtn" style="color:var(--ink-3)" data-action="bk-forget">Remove pairing from this phone</button></p></div></section>`;
+    <p class="note" style="margin:0">From the automatic date on, matching bills, paychecks and Klarna, Afterpay and PayPal payments are applied for you, and anything unsure waits in your review list. Earlier ones are yours to add by hand. <button class="linkbtn" style="color:var(--ink-3)" data-action="bk-forget">Remove pairing from this phone</button></p></div></section>`;
 }
 async function bankCardLoad(force) {
   if (!bankReady() || BANKUI.loading) return;
@@ -2875,6 +2885,22 @@ function bankAutoSync() {
   bankSync({ auto: true });
 }
 const AUTO_KINDS = ['plan', 'bill', 'income'];
+const SYNCSRC = ['sync', 'history'];
+function dropHistory(id) { state.bank.history = state.bank.history.filter(h => h.id !== id); }
+function addHistory(t) { dropHistory(t.id); state.bank.history.push(t); }
+// Moves the automatic-from date. Earlier rows already listed move into the review inbox; unreviewed inbox rows before it move to the list.
+function setAutoFrom(v) {
+  const b = state.bank; if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || v === b.autoFrom) return;
+  absorbChange(state, () => {
+    b.autoFrom = v; if (b.historyFrom > v) b.historyFrom = v;
+    const up = b.history.filter(t => t.date >= v), down = b.inbox.filter(s => s.txn.date < v);
+    b.history = b.history.filter(t => t.date < v); b.inbox = b.inbox.filter(s => s.txn.date >= v);
+    down.forEach(s => addHistory(s.txn));
+    BT.classifyBatch(state, up, TODAY).forEach(s => b.inbox.push(s));
+  }, 'Bank sync');
+  commit('Automatic from ' + md(v));
+}
+document.addEventListener('change', e => { if (e.target.id === 'bk-autofrom') setAutoFrom(e.target.value); });
 async function bankSync(o) {
   const auto = !!(o && o.auto);
   if (!bankReady()) { if (!auto) toast('Connect a bank first'); return; }
@@ -2882,7 +2908,7 @@ async function bankSync(o) {
   BANKUI.syncing = true; BANKUI.tried = Date.now();
   if (currentTab() === 'income') render();
   try {
-    let since = state.since;
+    let since = state.bank.historyFrom;
     if (state.bank.lastSync) { const d = BT.addDays(BT.iso(new Date(state.bank.lastSync)), -5); if (d > since) since = d; }
     // Two-phase cursor: ack the previous response (it reached us and was saved), so the Worker commits its cursor.
     // The token stays until a response arrives; a lost ack only means the Worker re-sends a batch we dedupe.
@@ -2890,26 +2916,30 @@ async function bankSync(o) {
     const r = await bankFetch('/sync?since=' + since + (ack ? '&ack=' + encodeURIComponent(ack) : ''));
     const errs = Array.isArray(r.errors) ? r.errors : [];
     const before = new Set(state.bank.inbox.map(s => s.txn.id));
-    const incoming = (Array.isArray(r.txns) ? r.txns : []).filter(t => t && t.id), removed = new Set((Array.isArray(r.removed) ? r.removed : []).filter(Boolean));
+    const allIn = (Array.isArray(r.txns) ? r.txns : []).filter(t => t && t.id), removed = new Set((Array.isArray(r.removed) ? r.removed : []).filter(Boolean));
+    const { autoFrom, historyFrom } = state.bank;
+    const incoming = allIn.filter(t => t.date >= autoFrom), earlier = allIn.filter(t => t.date >= historyFrom && t.date < autoFrom); // older than historyFrom: ignored
     const byId = new Map(); state.bank.inbox.forEach(s => byId.set(s.txn.id, s.txn)); incoming.forEach(t => byId.set(t.id, t));
     const inbox = [];
     let applied = 0, dropped = 0;
     absorbChange(state, () => {
       // Pending charge replaced by its posted version: carry the decision over, drop the pending one.
-      incoming.forEach(t => {
+      allIn.forEach(t => {
         const pid = t.pendingOf; if (!pid || pid === t.id) return;
-        byId.delete(pid); before.delete(pid);
-        if (state.bank.seen[pid] && state.bank.seen[pid].src === 'sync') {
+        byId.delete(pid); before.delete(pid); dropHistory(pid);
+        if (state.bank.seen[pid] && SYNCSRC.includes(state.bank.seen[pid].src)) {
           if (state.bank.seen[t.id]) removed.add(pid); else { carryPending(pid, t); dropped++; }
         }
       });
       // Removed by the bank: forget unreviewed ones, undo applied ones.
       removed.forEach(id => {
-        byId.delete(id); before.delete(id);
+        byId.delete(id); before.delete(id); dropHistory(id);
         const r = state.bank.seen[id];
-        if (r && r.src === 'sync') { revertSeen(id); dropped++; }
+        if (r && SYNCSRC.includes(r.src)) { revertSeen(id); dropped++; }
       });
       state.bank.inbox = state.bank.inbox.filter(s => byId.has(s.txn.id));
+      incoming.forEach(t => dropHistory(t.id));
+      earlier.forEach(t => { if (!state.bank.seen[t.id] && !removed.has(t.id)) addHistory(t); });
     }, 'Bank sync');
     const batch = BT.classifyBatch(state, [...byId.values()], TODAY);
     absorbChange(state, () => batch.forEach(s => {
@@ -3003,7 +3033,7 @@ function applyEdited(id, o) {
 }
 // Reverses whatever a synced suggestion did to the budget and forgets it. Does not save or re-render. Returns the record.
 function revertSeen(id) {
-  const r = state.bank.seen[id]; if (!r || r.src !== 'sync') return null;
+  const r = state.bank.seen[id]; if (!r || !SYNCSRC.includes(r.src)) return null;
   if (r.res === 'match') BT.unlinkPayment(state, r.key, r.prev);
   else if (r.res === 'bill') {
     if (r.prev.mark === null) delete state.marks[r.key]; else state.marks[r.key] = r.prev.mark;
@@ -3011,7 +3041,7 @@ function revertSeen(id) {
   } else if (r.res === 'income') {
     const i = state.income.find(x => x.id === r.incomeId);
     if (i && i.perCycle) { if (r.prev === null) delete i.perCycle[r.payDate]; else i.perCycle[r.payDate] = r.prev; }
-  } else if (r.res === 'spend') {
+  } else if (r.res === 'spend' || r.res === 'manual') {
     state.spends = state.spends.filter(x => x.id !== r.spendId);
     Object.keys(state.marks).concat(Object.keys(state.occ)).forEach(k => { if (k.startsWith('x:' + r.spendId)) { delete state.marks[k]; delete state.occ[k]; } });
   } else if (r.res === 'new') {
@@ -3088,6 +3118,7 @@ function inboxSheet() {
     <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
     ${q.length ? `<div class="bx-top"><span class="note">Nothing here is counted until you accept it.</span><button class="btn primary" data-action="ix-all"${ready ? '' : ' disabled'}>Accept all (${ready})</button></div><div class="bm-list">${q.map(inboxRow).join('')}</div>` : ''}
     ${recent.length ? `<div class="bx-sh">Recently synced</div><ul class="bx-rec">${recent.map(([id, r]) => `<li><div class="main"><div class="nm">${esc(r.what || r.desc)}</div><div class="sub">${esc(r.desc)} · ${md(r.date)}${r.auto ? ' · auto' : ''}</div></div><span class="amt">${r.amount < 0 ? '+' : ''}${fmt(Math.abs(r.amount))}</span><button class="btn sm" data-action="ix-undo" data-id="${esc(id)}">Undo</button></li>`).join('')}</ul>` : ''}
+    ${state.bank.history.length ? `<p class="note"><button class="linkbtn" data-action="hx-open">Earlier transactions · ${state.bank.history.length}</button></p>` : ''}
     ${!q.length && !recent.length ? '<p class="note">Nothing yet. New transactions show up here after a sync.</p>' : ''}
     <div class="actions"><div class="r"><button class="btn primary" data-action="close">Done</button></div></div>`);
   if (sc && top) sc.scrollTop = top;
@@ -3122,6 +3153,53 @@ function inboxAct(act, a) {
       break;
     }
   }
+}
+
+/* Earlier transactions: before the automatic date, listed to add by hand. Money in can only be hidden for now. */
+function historyRow(t) {
+  const id = esc(t.id), money = t.amount < 0, g = BT.guessCategory(state, t);
+  return `<div class="bm bx" data-id="${id}"><div class="bm-d"><b>${esc(cleanMerchant(t))}</b><span class="amt${money ? ' in' : ''}">${money ? '+' : ''}${fmt(Math.abs(t.amount))}</span></div>
+    <div class="bm-m">${md(t.date)}${acctText(t) ? ' · ' + esc(acctText(t)) : ''}${t.status === 'pending' ? ' · pending' : ''}${money ? ' · money in' : ' · looks like ' + esc(g.category)}</div>
+    <div class="bx-a">${money ? '' : `<button class="btn sm primary" data-action="hx-add" data-id="${id}">Add</button>`}<button class="btn sm" data-action="hx-hide" data-id="${id}">Hide</button></div></div>`;
+}
+function historySheet() {
+  const q = state.bank.history.slice().sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
+  const recent = Object.entries(state.bank.seen).filter(([, r]) => r.src === 'history' && r.at && r.txn).sort((a, b) => a[1].at < b[1].at ? 1 : -1).slice(0, 20);
+  const sc = document.querySelector('#sheet .sheet'), top = sc && !$('#sheet').hidden ? sc.scrollTop : 0;
+  bankSheet(`<div class="sheet-h"><div><h3>Earlier transactions</h3><p class="lede">${q.length ? 'From ' + md(state.bank.historyFrom) + ' to the day before ' + md(state.bank.autoFrom) + '. Nothing is counted until you add it.' : 'Nothing waiting. Earlier bank transactions show up here after a sync.'}</p></div>
+    <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    ${q.length ? `<div class="bm-list">${q.map(historyRow).join('')}</div>` : ''}
+    ${recent.length ? `<div class="bx-sh">Recently added</div><ul class="bx-rec">${recent.map(([id, r]) => `<li><div class="main"><div class="nm">${esc(r.what || r.desc)}</div><div class="sub">${esc(r.desc)} · ${md(r.date)}</div></div><span class="amt">${r.amount < 0 ? '+' : ''}${fmt(Math.abs(r.amount))}</span><button class="btn sm" data-action="hx-undo" data-id="${esc(id)}">Undo</button></li>`).join('')}</ul>` : ''}
+    <div class="actions"><div class="r"><button class="btn primary" data-action="close">Done</button></div></div>`);
+  if (sc && top) sc.scrollTop = top;
+}
+function addFromHistory(id, o) {
+  const t = state.bank.history.find(x => x.id === id); if (!t) { closeSheet(); return; }
+  if (o.recurring) toast('Added once. Repeating bills are set up on the Bills tab.');
+  const s = { txn: t, kind: 'spend', category: BT.guessCategory(state, t).category };
+  let ok = false;
+  absorbChange(state, () => {
+    ok = applyOne(s, { kind: 'spend', spend: { category: o.category, desc: o.desc, amount: o.amount, date: o.date, via: o.via, note: o.note || 'Bank sync', from: o.from } }, false);
+    if (ok) { Object.assign(state.bank.seen[t.id], { res: 'manual', src: 'history' }); dropHistory(t.id); }
+  }, 'Bank sync');
+  if (!ok) { toast('Pick a category first'); return; }
+  commit('Added · ' + state.bank.seen[t.id].what); historySheet();
+}
+function historyAct(act, a) {
+  if (act === 'hx-open') { historySheet(); return; }
+  const id = a.dataset.id;
+  if (act === 'hx-undo') {
+    const r = revertSeen(id); if (!r) return;
+    if (r.txn) addHistory(r.txn);
+    commit('Undone'); historySheet(); return;
+  }
+  const t = state.bank.history.find(x => x.id === id); if (!t) return;
+  if (act === 'hx-hide') {
+    state.bank.seen[id] = { res: 'skip', kind: 'ignore', what: 'Hidden', date: t.date, amount: t.amount, desc: t.desc, at: new Date().toISOString(), src: 'history', auto: false, txn: t };
+    dropHistory(id); commit('Hidden'); historySheet(); return;
+  }
+  const cats = allCats(), g = BT.guessCategory(state, t);
+  openForm('extra', null, { history: id, prefill: { category: g.category && cats.includes(g.category) ? g.category : cats.includes('Other') ? 'Other' : cats[0], desc: cleanMerchant(t), amount: Math.abs(t.amount), date: t.date, via: acctVia(t), note: 'Bank sync' } });
 }
 
 /* ---------- Events ---------- */
@@ -3217,6 +3295,7 @@ document.addEventListener('click', async e => {
     case 'bank-import': openBank(); break;
     case 'bk-sync': case 'bk-connect': case 'bk-reconnect': case 'bk-toggle': case 'bk-disc': case 'bk-forget': bankCardAct(act, a); break;
     case 'ix-open': case 'ix-accept': case 'ix-change': case 'ix-pick': case 'ix-cat': case 'ix-cats': case 'ix-new': case 'ix-edit': case 'ix-skip': case 'ix-all': case 'ix-undo': inboxAct(act, a); break;
+    case 'hx-open': case 'hx-add': case 'hx-hide': case 'hx-undo': historyAct(act, a); break;
     case 'bank-read': case 'bank-ok': case 'bank-new': case 'bank-back': case 'bank-skip': case 'bank-pick': bankAct(act, a); break;
     case 'copy-backup': backupSheet('copy'); break;
     case 'restore': backupSheet('restore'); break;

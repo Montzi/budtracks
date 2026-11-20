@@ -25,7 +25,7 @@ const fixtureState = s => Object.assign(s, {
   since: '2026-10-01', marks: {}, occ: {}, spends: [], unalloc: [], perPeriod: [],
   categories: ['Gas', 'Subscriptions', 'Groceries', 'Dining Out', 'Takeout Food', 'Personal care', 'Other'],
   payVia: [{ bank: 'Chime', last4: '1234', type: 'debit' }],
-  bank: { seen: {}, rules: {}, links: {}, lastSync: null, inbox: [], api: '' },
+  bank: { seen: {}, rules: {}, links: {}, lastSync: null, inbox: [], api: '', autoFrom: '2026-11-01', historyFrom: '2026-10-01' },
   bills: [{ id: 'rent', name: 'Rent', amount: 1050, day: 1, group: 'Fixed', category: 'Housing' }, { id: 'elec', name: 'Electric', amount: 70, day: 21, group: 'Fixed', category: 'Utilities' }],
   cards: [{ id: 'visa', name: 'Visa', day: 22, minPayment: 35, balance: 500, limit: 2000 }],
   plans: [{ id: 'k1', provider: 'Klarna', merchant: 'Nike', amount: 27.65, total: 4, paid: 1, freq: 'biweekly', lastDate: '2026-11-06', category: 'Other', dates: ['2026-10-23', '2026-11-06', '2026-11-20', '2026-12-04'] }],
@@ -385,6 +385,103 @@ const prepared = async (w, h, extraBank) => {
     assert.deepEqual(s.bank.inbox.map(x => x.txn.id).filter(i => /pend|post/.test(i)), ['pl:post2'], 'pending inbox row replaced by the posted one');
   });
   assert.deepEqual(errs, [], 'page errors in removed/pending flow');
+  await page.context().close();
+}
+
+/* ---------- Automatic-from date and earlier transactions ---------- */
+for (const [w, h] of [[390, 844], [951, 669]]) {
+  const { page, errs, calls, mock } = await prepared(w, h, { autoFrom: '2026-11-19', historyFrom: '2026-11-01' });
+  mock.txns = [
+    T('old', '2026-10-28', 'OLD STUFF', 9), T('h1', '2026-11-05', 'SHELL OIL 5521', 30), T('h2', '2026-11-18', 'TRADER JOES #44', 41.2),
+    T('a1', '2026-11-19', 'DOORDASH*CHICK FIL A', 24.5, { providerCategory: 'dining' }), T('a2', '2026-11-20', 'SQ *MYSTERY SHOP 4412 NY', 18.99)
+  ];
+  const syncNow = async () => {
+    await page.click('[data-action="bk-sync"]');
+    await page.waitForFunction(() => document.querySelector('[data-action="bk-sync"]') && !document.querySelector('[data-action="bk-sync"]').disabled);
+    await page.waitForTimeout(150);
+  };
+  const ids = a => a.map(x => (x.txn || x).id).sort();
+  await page.goto(BASE + '#income', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
+  await step(`${w}: first sync asks since=historyFrom and splits history / automatic / ignored`, async () => {
+    assert.match(calls.find(c => c.p === '/sync').q, /since=2026-11-01/);
+    const s = await getState(page);
+    assert.deepEqual(ids(s.bank.history), ['pl:h1', 'pl:h2']);
+    const auto = [...ids(s.bank.inbox), ...Object.keys(s.bank.seen)].sort();
+    assert.deepEqual(auto, ['pl:a1', 'pl:a2'], 'only 11/19+ in the pipeline');
+    assert.ok(!JSON.stringify(s).includes('pl:old'), 'older than historyFrom ignored');
+    assert.match(await page.locator('#bankcard .bk-auto').innerText(), /Automatic from Nov 19/);
+    assert.match(await page.locator('[data-action="hx-open"]').innerText(), /Earlier transactions · 2/);
+    await noHScroll(page, w + ' card with earlier button');
+  });
+  await step(`${w}: earlier sheet lists newest first; no scroll; screenshot`, async () => {
+    await page.click('#bankcard [data-action="hx-open"]'); await page.waitForSelector('.bx');
+    const names = await page.locator('.bx .bm-d b').allInnerTexts();
+    assert.deepEqual(names.map(n => n.replace(/\d+|#/g, '').trim()), ['Trader Joes', 'Shell Oil']);
+    await sheetNoHScroll(page, w + ' history'); await noHScroll(page, w + ' history');
+    if (w === 390) await page.locator('#sheet .sheet').screenshot({ path: SHOTS + '/history-390.png' });
+  });
+  await step(`${w}: Add opens prefilled form and creates a manual spend`, async () => {
+    await page.locator('.bx', { hasText: 'Trader' }).locator('[data-action="hx-add"]').click();
+    await page.waitForSelector('#form');
+    assert.equal(await page.inputValue('#form [name=amount]'), '41.2');
+    assert.equal(await page.inputValue('#form [name=date]'), '2026-11-18');
+    await page.click('#form button[type=submit]'); await page.waitForSelector('.bx');
+    const s = await getState(page), sp = s.spends.find(x => x.bank === 'pl:h2');
+    assert.ok(sp && sp.amount === 41.2 && sp.date === '2026-11-18' && /Trader/i.test(sp.desc), JSON.stringify(sp));
+    const r = s.bank.seen['pl:h2'];
+    assert.ok(r.res === 'manual' && r.src === 'history' && r.spendId === sp.id, JSON.stringify(r));
+    assert.deepEqual(ids(s.bank.history), ['pl:h1']);
+    assert.equal(await page.locator('#sheet .bx-rec li').count(), 1);
+  });
+  await step(`${w}: Hide skips and removes; Undo returns both to the list`, async () => {
+    await page.locator('.bx', { hasText: 'Shell' }).locator('[data-action="hx-hide"]').click();
+    await page.waitForFunction(() => !document.querySelector('.bx'));
+    let s = await getState(page);
+    assert.ok(s.bank.seen['pl:h1'].res === 'skip' && s.bank.seen['pl:h1'].src === 'history'); assert.equal(s.bank.history.length, 0);
+    assert.equal(await page.locator('#sheet .bx-rec li').count(), 2);
+    for (const id of ['pl:h2', 'pl:h1']) await page.locator(`[data-action="hx-undo"][data-id="${id}"]`).click();
+    await page.waitForFunction(() => document.querySelectorAll('.bx').length === 2);
+    s = await getState(page);
+    assert.deepEqual(ids(s.bank.history), ['pl:h1', 'pl:h2']); assert.ok(!s.spends.some(x => x.bank === 'pl:h2'));
+    assert.ok(!('pl:h1' in s.bank.seen) && !('pl:h2' in s.bank.seen));
+    await page.keyboard.press('Escape');
+  });
+  await step(`${w}: inbox badge ignores history; inbox sheet links to earlier`, async () => {
+    await page.goto(BASE + '#overview'); await page.reload({ waitUntil: 'load' });
+    const s = await getState(page), n = s.bank.inbox.length;
+    if (n) assert.match(await page.locator('.bx-bar').innerText(), new RegExp('^' + n + ' new'));
+    else assert.equal(await page.locator('.bx-bar').count(), 0);
+    await page.goto(BASE + '#income'); await page.reload({ waitUntil: 'load' });
+    await page.click('#bankcard [data-action="ix-open"]');
+    await page.click('#sheet [data-action="hx-open"]'); await page.waitForSelector('.bx');
+    await page.keyboard.press('Escape');
+  });
+  await step(`${w}: removed and pendingOf work for history`, async () => {
+    mock.txns = []; mock.removed = ['pl:h1']; await syncNow();
+    let s = await getState(page); assert.deepEqual(ids(s.bank.history), ['pl:h2']);
+    mock.removed = []; mock.txns = [T('hp', '2026-11-10', 'COFFEE BAR', 6, { status: 'pending' })]; await syncNow();
+    s = await getState(page); assert.deepEqual(ids(s.bank.history), ['pl:h2', 'pl:hp']);
+    mock.txns = [T('hq', '2026-11-10', 'COFFEE BAR', 6.25, { pendingOf: 'pl:hp' })]; await syncNow();
+    s = await getState(page); assert.deepEqual(ids(s.bank.history), ['pl:h2', 'pl:hq']);
+    assert.equal(s.bank.history.find(x => x.id === 'pl:hq').amount, 6.25);
+  });
+  await step(`${w}: changing autoFrom moves rows between history and inbox`, async () => {
+    mock.txns = [T('h1', '2026-11-05', 'SHELL OIL 5521', 30)]; await syncNow();
+    let s = await getState(page); assert.equal(s.bank.history.length, 3);
+    const before = s.bank.inbox.length;
+    await page.fill('#bk-autofrom', '2026-11-05'); await page.waitForTimeout(250);
+    s = await getState(page);
+    assert.equal(s.bank.autoFrom, '2026-11-05'); assert.equal(s.bank.history.length, 0);
+    assert.ok(['pl:h1', 'pl:h2', 'pl:hq'].every(i => s.bank.inbox.some(x => x.txn.id === i)), 'moved into inbox');
+    assert.equal(s.bank.inbox.length, before + 3);
+    assert.match(await page.locator('#bankcard .bk-auto').innerText(), /Automatic from Nov 5/);
+    await page.fill('#bk-autofrom', '2026-11-19'); await page.waitForTimeout(250);
+    s = await getState(page);
+    assert.deepEqual(ids(s.bank.history), ['pl:h1', 'pl:h2', 'pl:hq']); assert.equal(s.bank.inbox.length, before);
+    await noHScroll(page, w + ' card after change');
+  });
+  assert.deepEqual(errs, [], 'page errors in history flow');
   await page.context().close();
 }
 
