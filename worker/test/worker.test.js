@@ -348,3 +348,50 @@ test('two-phase cursor: ack with the wrong token commits nothing', async () => {
     assert.deepEqual(r.txns.map((t) => t.id), ['pl:a1'], 're-fetched from the committed cursor');
   });
 });
+
+test('DELETE /pair requires auth, then allows a new /pair with a new key', async () => {
+  const { env, key } = await paired();
+  assert.equal((await call(env, 'DELETE', '/pair')).status, 401);
+  assert.equal((await call(env, 'DELETE', '/pair', { key: 'x'.repeat(64) })).status, 401);
+  assert.ok(env.BT_KV.m.has('key_hash'));
+  const r = await call(env, 'DELETE', '/pair', { key });
+  assert.equal(r.status, 200); assert.deepEqual(await r.json(), { ok: true });
+  assert.ok(!env.BT_KV.m.has('key_hash'));
+  assert.equal((await call(env, 'GET', '/accounts', { key })).status, 401);
+  const r2 = await call(env, 'POST', '/pair'); assert.equal(r2.status, 200);
+  const { key: key2 } = await r2.json(); assert.notEqual(key2, key);
+  assert.equal((await call(env, 'GET', '/accounts', { key: key2 })).status, 200);
+});
+
+test('POST /sandbox/item: 404 outside sandbox, 401 without auth, works in sandbox', async () => {
+  const p = mockPlaid();
+  await withPlaid(p, async () => {
+    const prod = await paired(mkEnv({ PLAID_ENV: 'production' }));
+    assert.equal((await call(prod.env, 'POST', '/sandbox/item', { key: prod.key })).status, 404);
+    const unset = await paired(mkEnv({ PLAID_ENV: undefined }));
+    assert.equal((await call(unset.env, 'POST', '/sandbox/item', { key: unset.key })).status, 404);
+    assert.equal(p.calls.length, 0);
+
+    const { env, key } = await paired();
+    assert.equal((await call(env, 'POST', '/sandbox/item')).status, 401);
+    assert.equal((await call(env, 'POST', '/sandbox/item', { key: 'x'.repeat(64) })).status, 401);
+    assert.equal(p.calls.length, 0);
+
+    const r = await call(env, 'POST', '/sandbox/item', { key });
+    assert.equal(r.status, 200);
+    const out = await r.json();
+    assert.equal(out.id, 'item_1'); assert.equal(out.institution, 'Sandbox bank'); assert.equal(out.accounts.length, 2);
+    const create = p.calls.find((c) => c.path === '/sandbox/public_token/create').body;
+    assert.equal(create.client_id, 'cid_test'); assert.equal(create.secret, 'sec_test');
+    assert.equal(create.institution_id, 'ins_109508'); assert.deepEqual(create.initial_products, ['transactions']);
+    assert.equal(create.options, undefined);
+    assert.ok(p.calls.some((c) => c.path === '/item/public_token/exchange'));
+    const rec = getItem(env); assert.equal(rec.institution, 'Sandbox bank'); assert.ok(!rec.token.includes('tok_good'));
+
+    p.calls.length = 0;
+    await call(env, 'POST', '/sandbox/item', { key, body: { institution_id: 'ins_1', dynamic: true } });
+    const c2 = p.calls.find((c) => c.path === '/sandbox/public_token/create').body;
+    assert.equal(c2.institution_id, 'ins_1');
+    assert.deepEqual(c2.options, { override_username: 'user_transactions_dynamic', override_password: 'pass_good' });
+  });
+});

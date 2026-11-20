@@ -206,15 +206,36 @@ async function linkToken(env, itemId) {
 async function enroll(env, body) {
   const { publicToken, institution } = body || {};
   if (!publicToken || typeof publicToken !== 'string') throw new HttpError(400, 'publicToken required');
+  const name = (typeof institution === 'string' ? institution : institution?.name) || '';
+  return exchangeAndStore(env, publicToken, name);
+}
+
+// Shared by /enroll and /sandbox/item: exchange the public token, verify accounts, store the encrypted Item.
+async function exchangeAndStore(env, publicToken, name) {
   const x = await plaid(env, '/item/public_token/exchange', { public_token: publicToken });
   if (!x.ok || !x.body?.access_token || !x.body?.item_id) throw new HttpError(502, plaidMsg(x));
   const { access_token: token, item_id: id } = x.body;
   const ar = await plaid(env, '/accounts/get', { access_token: token });
   if (!ar.ok) { await plaid(env, '/item/remove', { access_token: token }); throw new HttpError(502, plaidMsg(ar)); } // don't store an unusable token
-  const name = (typeof institution === 'string' ? institution : institution?.name) || '';
   await env.BT_KV.put(itemKey(id), JSON.stringify({ token: await encrypt(env, token), institution: name, cursor: null, enrolledAt: new Date().toISOString() }));
   const off = await getOff(env);
   return { id, institution: name, accounts: (ar.body.accounts || []).map((a) => shapeAccount(a, off)) };
+}
+
+// Sandbox only: mint a test Item without going through Link.
+async function sandboxItem(env, body) {
+  if (env.PLAID_ENV !== 'sandbox') throw new HttpError(404, 'not found');
+  const { institution_id, dynamic } = body || {};
+  const req = { institution_id: (typeof institution_id === 'string' && institution_id) || 'ins_109508', initial_products: ['transactions'] };
+  if (dynamic === true) req.options = { override_username: 'user_transactions_dynamic', override_password: 'pass_good' };
+  const r = await plaid(env, '/sandbox/public_token/create', req);
+  if (!r.ok || !r.body?.public_token) throw new HttpError(502, plaidMsg(r));
+  return exchangeAndStore(env, r.body.public_token, 'Sandbox bank');
+}
+
+async function unpair(env) {
+  await env.BT_KV.delete('key_hash');
+  return { ok: true };
 }
 
 async function accounts(env) {
@@ -299,6 +320,8 @@ export default {
         let mt;
         if (m === 'GET' && path === '/link-token') out = await linkToken(env, url.searchParams.get('item'));
         else if (m === 'POST' && path === '/enroll') out = await enroll(env, await readJson(req));
+        else if (m === 'DELETE' && path === '/pair') out = await unpair(env);
+        else if (m === 'POST' && path === '/sandbox/item') out = env.PLAID_ENV === 'sandbox' ? await sandboxItem(env, await readJsonOpt(req)) : (() => { throw new HttpError(404, 'not found'); })();
         else if (m === 'GET' && path === '/accounts') out = await accounts(env);
         else if (m === 'GET' && path === '/sync') out = await sync(env, url.searchParams.get('since'), url.searchParams.get('full') === '1', url.searchParams.get('ack') || '');
         else if (m === 'POST' && (mt = /^\/accounts\/([\w-]+)\/toggle$/.exec(path))) out = await toggle(env, mt[1], await readJson(req));
@@ -317,4 +340,11 @@ export default {
 
 async function readJson(req) {
   try { return await req.json(); } catch { throw new HttpError(400, 'invalid JSON'); }
+}
+
+// Optional JSON body: empty is fine, malformed is a 400.
+async function readJsonOpt(req) {
+  const t = await req.text();
+  if (!t.trim()) return {};
+  try { return JSON.parse(t); } catch { throw new HttpError(400, 'invalid JSON'); }
 }

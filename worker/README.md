@@ -3,7 +3,7 @@
 Cloudflare Worker that proxies the [Plaid](https://plaid.com/docs/) API for BudTracks (it replaced Teller, which shut down its API). It holds the Plaid keys and each bank Item's access token (AES-GCM encrypted in Workers KV, with the `/transactions/sync` cursor). The app talks only to this Worker, authenticated with a device key created by the one-time `POST /pair`.
 
 ## Endpoints
-`GET /config` (public, `{provider, env, paired}`) · `POST /pair` (once) · `GET /link-token[?item=<id>]` (update mode for reconnect) · `POST /enroll {publicToken, institution}` · `GET /accounts` · `POST /accounts/:id/toggle {enabled}` · `GET /sync?since=YYYY-MM-DD[&full=1]` · `DELETE /enroll/:id`. All but the first two need `Authorization: Bearer <device key>`. `/sync` returns `{txns, removed, errors, syncedAt}` with amounts as numbers, positive = money out; `removed` holds `pl:` ids Plaid deleted (for example a pending charge replaced by its posted version). `full=1` re-fetches history from an empty cursor; the stored cursor only changes when the whole run succeeds.
+`GET /config` (public, `{provider, env, paired}`) · `POST /pair` (once) · `GET /link-token[?item=<id>]` (update mode for reconnect) · `POST /enroll {publicToken, institution}` · `GET /accounts` · `POST /accounts/:id/toggle {enabled}` · `GET /sync?since=YYYY-MM-DD[&full=1]` · `DELETE /enroll/:id`. `DELETE /pair` (authenticated; clears the stored key hash so a new device can pair) · `POST /sandbox/item {institution_id?, dynamic?}` (sandbox only, else 404; creates a test Item via `/sandbox/public_token/create` and enrolls it like `/enroll`, institution "Sandbox bank"). All but `/config` and `POST /pair` need `Authorization: Bearer <device key>`. `/sync` returns `{txns, removed, errors, syncedAt}` with amounts as numbers, positive = money out; `removed` holds `pl:` ids Plaid deleted (for example a pending charge replaced by its posted version). `full=1` re-fetches history from an empty cursor; the stored cursor only changes when the whole run succeeds.
 
 ## One-time setup
 1. **Plaid**: sign up at dashboard.plaid.com. A Team created after Apr 15 2026 is on the **Trial** plan: real production data, **at most 10 Items (bank logins)**, plus a free sandbox. On the Keys page note the `client_id`, the **sandbox** secret and the **production** secret.
@@ -14,6 +14,9 @@ Cloudflare Worker that proxies the [Plaid](https://plaid.com/docs/) API for BudT
 6. In the app, pair once (the key is returned a single time and kept in the phone's localStorage). To re-pair, delete the `key_hash` key in the KV namespace.
 
 Sandbox login for testing: pick any bank in Link, user `user_good`, password `pass_good`.
+
+## Testing
+`cd worker && npm test` runs offline tests against a mocked Plaid. In a sandbox deploy, `POST /sandbox/item` (Bearer key) adds a test bank without Link; pass `{"dynamic": true}` to use Plaid's `user_transactions_dynamic` test login. `DELETE /pair` with the current key unpairs so another device can pair (no manual KV edit needed).
 
 ## Limits worth knowing
 - Trial caps at 10 bank logins. **Removing an Item does not free a slot**, so avoid connect/disconnect churn.

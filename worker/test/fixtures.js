@@ -35,6 +35,10 @@ export function mockPlaid({ tokens } = {}) {
       const tok = body.public_token.replace('public-', 'tok_');
       return tokens[tok] ? R(200, { access_token: tok, item_id: tokens[tok].item_id }) : R(400, PLAID_ERR('INVALID_PUBLIC_TOKEN', 'INVALID_INPUT'));
     }
+    if (u.pathname === '/sandbox/public_token/create') {
+      if (!body.institution_id || !body.initial_products) return R(400, PLAID_ERR('INVALID_FIELD', 'INVALID_REQUEST'));
+      return R(200, { public_token: 'public-good', request_id: 'x' });
+    }
     if (u.pathname === '/link/token/create') {
       if (body.access_token && !tokens[body.access_token]) return R(400, PLAID_ERR('INVALID_ACCESS_TOKEN', 'INVALID_INPUT'));
       return R(200, { link_token: body.access_token ? 'link-update-token' : 'link-new-token', expiration: 'x' });
