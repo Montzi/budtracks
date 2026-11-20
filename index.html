@@ -636,6 +636,11 @@ h3 > .icon-pick { display: inline-grid; vertical-align: middle; width: 38px; hei
 /* Installed app: page runs edge to edge, so keep content clear of the notch, status bar and home bar. */
 .app { padding-top: max(14px, env(safe-area-inset-top)); padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
 .tabs { padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+/* While the phone rotates: freeze transitions so nothing animates between the two layouts,
+   and hide the fixed tab bar so it does not flash mid-screen. It fades back once the size settles. */
+.tabs { transition: opacity .18s ease; }
+html.rotating *, html.rotating *::before, html.rotating *::after { transition: none !important; scroll-behavior: auto !important; }
+html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#15203a">
@@ -2567,7 +2572,17 @@ function buildMarks() {
   });
 }
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(buildMarks);
-window.addEventListener('resize', buildMarks);
+// Rotation: iOS fires several resizes while it animates. Mark the page as rotating, then redraw the
+// logo arms once after the size stops changing instead of on every intermediate size.
+let lastW = innerWidth, rotT = null;
+function onResize() {
+  if (Math.abs(innerWidth - lastW) > 40) document.documentElement.classList.add('rotating');
+  lastW = innerWidth;
+  clearTimeout(rotT);
+  rotT = setTimeout(() => { buildMarks(); requestAnimationFrame(() => document.documentElement.classList.remove('rotating')); }, 220);
+}
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', () => { document.documentElement.classList.add('rotating'); onResize(); });
 
 /* ---------- Bud's speech bubble ---------- */
 const BUD_LINES = ['Working on it', 'Updating…', 'On it!', 'Consider it done.', "Let's go!", 'Got it.', 'Saved!', 'Done and done.', 'Nice move.', 'Tracking it.'];
