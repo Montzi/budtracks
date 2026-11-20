@@ -1476,6 +1476,7 @@ function normalize(s) {
   if (!o.bank.rules || typeof o.bank.rules !== 'object') o.bank.rules = {};
   if (!o.bank.links || typeof o.bank.links !== 'object') o.bank.links = {};
   if (o.bank.lastSync === undefined) o.bank.lastSync = null;
+  if (typeof o.bank.syncToken !== 'string') o.bank.syncToken = null;
   if (!Array.isArray(o.bank.inbox)) o.bank.inbox = [];
   if (typeof o.bank.api !== 'string') o.bank.api = '';
   if (!o.savings || !Array.isArray(o.savings.tx)) o.savings = { on: false, bank: '', tx: [] };
@@ -2853,7 +2854,10 @@ async function bankSync(o) {
   try {
     let since = state.since;
     if (state.bank.lastSync) { const d = BT.addDays(BT.iso(new Date(state.bank.lastSync)), -5); if (d > since) since = d; }
-    const r = await bankFetch('/sync?since=' + since);
+    // Two-phase cursor: ack the previous response (it reached us and was saved), so the Worker commits its cursor.
+    // The token stays until a response arrives; a lost ack only means the Worker re-sends a batch we dedupe.
+    const ack = state.bank.syncToken;
+    const r = await bankFetch('/sync?since=' + since + (ack ? '&ack=' + encodeURIComponent(ack) : ''));
     const errs = Array.isArray(r.errors) ? r.errors : [];
     const before = new Set(state.bank.inbox.map(s => s.txn.id));
     const incoming = (Array.isArray(r.txns) ? r.txns : []).filter(t => t && t.id), removed = new Set((Array.isArray(r.removed) ? r.removed : []).filter(Boolean));
@@ -2883,6 +2887,8 @@ async function bankSync(o) {
       inbox.push(s);
     }), 'Bank sync');
     state.bank.inbox = inbox; state.bank.lastSync = r.syncedAt || new Date().toISOString();
+    // Remember this response's token only now that it is applied to local state; the save below persists it.
+    state.bank.syncToken = typeof r.syncToken === 'string' && r.syncToken ? r.syncToken : null;
     pruneSeenTxn();
     const fresh = inbox.filter(s => !before.has(s.txn.id)).length;
     const em = errs.length ? errs.map(e => (e.institution ? e.institution + ': ' : '') + (e.needsReconnect ? 'needs reconnect' : e.message || e.error || e.code || 'could not sync')).join('. ') : '';

@@ -43,7 +43,7 @@ async function newPage(w, h) {
   const errs = [], calls = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
-  const mock = { paired: false, txns: TXNS, removed: [], errors: [], offline: false, enrollments: [{ id: 'enr_1', institution: 'Chime', needsReconnect: false, accounts: [{ id: 'acc1', name: 'Everyday Checking', type: 'depository', subtype: 'checking', last_four: '1234', enabled: true }, { id: 'acc2', name: 'Savings', type: 'depository', subtype: 'savings', last_four: '9876', enabled: true }] }] };
+  const mock = { paired: false, txns: TXNS, removed: [], errors: [], offline: false, seq: 0, enrollments: [{ id: 'enr_1', institution: 'Chime', needsReconnect: false, accounts: [{ id: 'acc1', name: 'Everyday Checking', type: 'depository', subtype: 'checking', last_four: '1234', enabled: true }, { id: 'acc2', name: 'Savings', type: 'depository', subtype: 'savings', last_four: '9876', enabled: true }] }] };
   await page.route('**/worker.test/**', async route => {
     const req = route.request(), u = new URL(req.url()), p = u.pathname, m = req.method();
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
@@ -55,7 +55,7 @@ async function newPage(w, h) {
     if (p === '/link-token') return json({ link_token: u.searchParams.get('item') ? 'link-update-token' : 'link-new-token' });
     if (p === '/pair') return json({ key: 'secret-device-key-123' });
     if (p === '/accounts') return json({ enrollments: mock.enrollments });
-    if (p === '/sync') return json({ txns: mock.txns, removed: mock.removed, errors: mock.errors, syncedAt: new Date().toISOString() });
+    if (p === '/sync') return json({ txns: mock.txns, removed: mock.removed, errors: mock.errors, syncToken: 'tok-' + (++mock.seq), syncedAt: new Date().toISOString() });
     if (p === '/enroll' && m === 'POST') { mock.enrollments.push({ id: 'enr_2', institution: 'Citizens', needsReconnect: false, accounts: [] }); return json({ accounts: [] }); }
     if (p.startsWith('/enroll/') && m === 'DELETE') { mock.enrollments = mock.enrollments.filter(e => !p.endsWith(e.id)); return json({ ok: true }); }
     if (/\/accounts\/.+\/toggle/.test(p)) return json({ ok: true });
@@ -170,7 +170,7 @@ const prepared = async (w, h, extraBank) => {
   return c;
 };
 {
-  const { page, errs, calls } = await prepared(390, 844);
+  const { page, errs, calls, mock } = await prepared(390, 844);
   await page.goto(BASE + '#income', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
   await step('auto-sync on load runs once and applies sure matches', async () => {
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
@@ -195,9 +195,31 @@ const prepared = async (w, h, extraBank) => {
     await page.click('[data-action="bk-sync"]');
     await page.waitForFunction(() => document.querySelector('[data-action="bk-sync"]') && !document.querySelector('[data-action="bk-sync"]').disabled);
     const sc = calls.filter(c => c.p === '/sync'); assert.equal(sc.length, 2);
-    assert.equal(sc[1].q, '?since=2026-11-15');
+    assert.equal(sc[1].q, '?since=2026-11-15&ack=tok-1', 'acks the first response token');
     const s = await getState(page);
     assert.equal(s.bank.inbox.length, 4); assert.equal(Object.keys(s.bank.seen).length, 3);
+  });
+  await step('two-phase ack: token stored after commit, sent on next sync; re-delivered batch creates no duplicates', async () => {
+    const sc = () => calls.filter(c => c.p === '/sync');
+    let s = await getState(page); assert.equal(s.bank.syncToken, 'tok-2', 'token of the processed response is persisted');
+    const snap = { inbox: s.bank.inbox.map(x => x.txn.id).sort(), seen: Object.keys(s.bank.seen).sort(), occ: JSON.stringify(s.occ), marks: JSON.stringify(s.marks), pc: JSON.stringify(s.income[0].perCycle), spends: s.spends.length };
+    // A failed request (lost response) keeps the token so the ack is not lost.
+    mock.offline = true;
+    await page.click('[data-action="bk-sync"]');
+    await page.waitForFunction(() => /Could not reach/i.test(document.querySelector('#toast').textContent));
+    mock.offline = false;
+    s = await getState(page); assert.equal(s.bank.syncToken, 'tok-2', 'token kept after a failed sync');
+    // The Worker re-sends the same batch (its ack never landed): same ids again, plus nothing new.
+    const n = sc().length;
+    await page.click('[data-action="bk-sync"]');
+    await page.waitForFunction(() => document.querySelector('[data-action="bk-sync"]') && !document.querySelector('[data-action="bk-sync"]').disabled);
+    const last = sc()[sc().length - 1]; assert.ok(sc().length > n); assert.match(last.q, /&ack=tok-2$/, 'ack sent on next sync');
+    s = await getState(page);
+    assert.notEqual(s.bank.syncToken, 'tok-2', 'token replaced by the new response token');
+    assert.deepEqual(s.bank.inbox.map(x => x.txn.id).sort(), snap.inbox, 'no duplicate inbox rows');
+    assert.equal(new Set(s.bank.inbox.map(x => x.txn.id)).size, s.bank.inbox.length);
+    assert.deepEqual(Object.keys(s.bank.seen).sort(), snap.seen, 'no extra applied items');
+    assert.equal(JSON.stringify(s.occ), snap.occ); assert.equal(JSON.stringify(s.marks), snap.marks); assert.equal(JSON.stringify(s.income[0].perCycle), snap.pc); assert.equal(s.spends.length, snap.spends);
   });
   await step('Overview badge shows count', async () => {
     await page.goto(BASE + '#overview'); await page.reload({ waitUntil: 'load' });

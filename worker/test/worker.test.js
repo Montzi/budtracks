@@ -22,6 +22,7 @@ async function withPlaid(plaid, fn) {
 async function paired(env = mkEnv()) { const { key } = await (await call(env, 'POST', '/pair')).json(); return { env, key }; }
 const enrollGood = (env, key, pub = 'public-good') => call(env, 'POST', '/enroll', { key, body: { publicToken: pub, institution: { name: 'Chase' } } });
 const syncCalls = (p) => p.calls.filter((c) => c.path === '/transactions/sync');
+const sync = async (env, key, q = '') => (await call(env, 'GET', '/sync' + q, { key })).json();
 const getItem = (env, id = 'item_1') => JSON.parse(env.BT_KV.m.get('item:' + id));
 
 test('encryption round trip; ciphertext differs and hides plaintext', async () => {
@@ -193,14 +194,15 @@ test('sync paginates via has_more, persists cursor only after the full loop, the
     const ok = await (await call(env, 'GET', '/sync', { key })).json();
     assert.deepEqual(ok.txns.map((t) => t.id).sort(), ['pl:a1', 'pl:a2', 'pl:a3', 'pl:a4']); assert.deepEqual(ok.errors, []);
     assert.equal(syncCalls(p).length, 3); assert.equal(syncCalls(p)[0].body.cursor, undefined); assert.equal(syncCalls(p)[1].body.cursor, 'p0.1');
+    assert.ok(ok.syncToken);
     assert.ok(syncCalls(p).every((c) => c.body.count === 500));
-    assert.equal(getItem(env).cursor, 'b1');
-    // Next sync resumes from the stored cursor and only sees the new batch.
+    assert.equal(getItem(env).cursor, null); assert.equal(getItem(env).pending.cursor, 'b1'); assert.equal(getItem(env).pending.token, ok.syncToken);
+    // Next sync (acking the previous token) resumes from the committed cursor and only sees the new batch.
     p.calls.length = 0;
-    const next = await (await call(env, 'GET', '/sync', { key })).json();
-    assert.equal(syncCalls(p)[0].body.cursor, 'b1'); assert.deepEqual(next.txns.map((t) => t.id), ['pl:b1']); assert.equal(getItem(env).cursor, 'b2');
-    // Nothing new: empty result, cursor unchanged.
-    const none = await (await call(env, 'GET', '/sync', { key })).json(); assert.deepEqual(none.txns, []); assert.equal(getItem(env).cursor, 'b2');
+    const next = await sync(env, key, '?ack=' + ok.syncToken);
+    assert.equal(syncCalls(p)[0].body.cursor, 'b1'); assert.deepEqual(next.txns.map((t) => t.id), ['pl:b1']); assert.equal(getItem(env).cursor, 'b1'); assert.equal(getItem(env).pending.cursor, 'b2');
+    // Nothing new: empty result, no new pending, committed cursor advanced by the ack.
+    const none = await sync(env, key, '?ack=' + next.syncToken); assert.deepEqual(none.txns, []); assert.equal(getItem(env).cursor, 'b2'); assert.equal(getItem(env).pending, undefined); assert.equal(none.syncToken, null);
   });
 });
 
@@ -212,7 +214,7 @@ test('mutation during pagination restarts once from the old cursor', async () =>
     const b = await (await call(env, 'GET', '/sync', { key })).json();
     assert.deepEqual(b.errors, []); assert.deepEqual(b.txns.map((t) => t.id).sort(), ['pl:a1', 'pl:a2'], 'no duplicates after restart');
     const calls = syncCalls(p); assert.equal(calls.length, 4); assert.equal(calls[2].body.cursor, undefined, 'restart uses the old (empty) cursor');
-    assert.equal(getItem(env).cursor, 'b1');
+    assert.equal(getItem(env).pending.cursor, 'b1'); assert.equal(getItem(env).cursor, null);
   });
 });
 
@@ -222,8 +224,8 @@ test('sync returns removed ids with pl: prefix, modified txns, and pendingOf', a
   const p = mockPlaid({ tokens: { tok_good: { item_id: 'item_1', accounts: [checking], batches } } });
   await withPlaid(p, async () => {
     const { env, key } = await paired(); await enrollGood(env, key);
-    await call(env, 'GET', '/sync', { key });
-    const b = await (await call(env, 'GET', '/sync', { key })).json();
+    const first = await sync(env, key);
+    const b = await sync(env, key, '?ack=' + first.syncToken);
     assert.deepEqual(b.removed.sort(), ['pl:gone', 'pl:pend1']);
     assert.deepEqual(b.txns.map((t) => t.id).sort(), ['pl:m1', 'pl:post1']);
     assert.equal(b.txns.find((t) => t.id === 'pl:post1').pendingOf, 'pl:pend1'); assert.equal(b.txns.find((t) => t.id === 'pl:post1').status, 'posted');
@@ -236,13 +238,13 @@ test('full=1 restarts from an empty cursor and stores the new one; failure keeps
   const p = mockPlaid({ tokens: { tok_good: tok } });
   await withPlaid(p, async () => {
     const { env, key } = await paired(); await enrollGood(env, key);
-    await call(env, 'GET', '/sync', { key }); await call(env, 'GET', '/sync', { key }); assert.equal(getItem(env).cursor, 'b2');
+    const s1 = await sync(env, key); const s2 = await sync(env, key, '?ack=' + s1.syncToken); await sync(env, key, '?ack=' + s2.syncToken); assert.equal(getItem(env).cursor, 'b2');
     p.calls.length = 0;
-    const f = await (await call(env, 'GET', '/sync?full=1', { key })).json();
+    const f = await sync(env, key, '?full=1');
     assert.equal(syncCalls(p)[0].body.cursor, undefined); assert.deepEqual(f.txns.map((t) => t.id).sort(), ['pl:a1', 'pl:a2']);
-    assert.equal(getItem(env).cursor, 'b1');
-    tok.error = 'INTERNAL_SERVER_ERROR'; await env.BT_KV.put('item:item_1', JSON.stringify({ ...getItem(env), cursor: 'b2' }));
-    const e = await (await call(env, 'GET', '/sync?full=1', { key })).json(); assert.equal(e.errors.length, 1); assert.equal(getItem(env).cursor, 'b2');
+    assert.equal(getItem(env).cursor, 'b2', 'committed cursor untouched until acked'); assert.equal(getItem(env).pending.cursor, 'b1');
+    tok.error = 'INTERNAL_SERVER_ERROR';
+    const e = await sync(env, key, '?full=1'); assert.equal(e.errors.length, 1); assert.equal(getItem(env).cursor, 'b2');
   });
 });
 
@@ -304,4 +306,45 @@ test('secrets never appear in responses or logs', async () => {
     });
   } finally { console.error = orig; }
   assert.deepEqual(logs, []);
+});
+
+test('two-phase cursor: a lost response is re-sent on the next sync without ack', async () => {
+  const pg = (ids) => ({ added: ids.map((i) => tx(i, 'acc_chk', '2026-11-10', 'n' + i, 1)), modified: [], removed: [] });
+  const p = mockPlaid({ tokens: { tok_good: { item_id: 'item_1', accounts: [checking], batches: [[pg(['a1', 'a2'])], [pg(['b1'])]] } } });
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    const lost = await sync(env, key); assert.deepEqual(lost.txns.map((t) => t.id).sort(), ['pl:a1', 'pl:a2']); assert.ok(lost.syncToken);
+    // The response never reached the phone, so no ack: same txns come back and the committed cursor never moved.
+    p.calls.length = 0;
+    const again = await sync(env, key); assert.deepEqual(again.txns.map((t) => t.id).sort(), ['pl:a1', 'pl:a2']);
+    assert.equal(syncCalls(p)[0].body.cursor, undefined); assert.equal(getItem(env).cursor, null);
+    assert.notEqual(again.syncToken, lost.syncToken); assert.equal(getItem(env).pending.token, again.syncToken);
+    // The stale token from the lost response no longer commits anything.
+    await sync(env, key, '?ack=' + lost.syncToken); assert.equal(getItem(env).cursor, null);
+  });
+});
+
+test('two-phase cursor: ack commits the pending cursor and the next sync returns only new txns', async () => {
+  const pg = (ids) => ({ added: ids.map((i) => tx(i, 'acc_chk', '2026-11-10', 'n' + i, 1)), modified: [], removed: [] });
+  const p = mockPlaid({ tokens: { tok_good: { item_id: 'item_1', accounts: [checking], batches: [[pg(['a1'])], [pg(['b1'])]] } } });
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    const a = await sync(env, key); assert.deepEqual(a.txns.map((t) => t.id), ['pl:a1']);
+    p.calls.length = 0;
+    const b = await sync(env, key, '?ack=' + a.syncToken);
+    assert.deepEqual(b.txns.map((t) => t.id), ['pl:b1']); assert.equal(syncCalls(p)[0].body.cursor, 'b1');
+    assert.equal(getItem(env).cursor, 'b1'); assert.equal(getItem(env).pending.cursor, 'b2');
+  });
+});
+
+test('two-phase cursor: ack with the wrong token commits nothing', async () => {
+  const pg = (ids) => ({ added: ids.map((i) => tx(i, 'acc_chk', '2026-11-10', 'n' + i, 1)), modified: [], removed: [] });
+  const p = mockPlaid({ tokens: { tok_good: { item_id: 'item_1', accounts: [checking], batches: [[pg(['a1'])], [pg(['b1'])]] } } });
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    await sync(env, key); p.calls.length = 0;
+    const r = await sync(env, key, '?ack=not-the-token');
+    assert.equal(getItem(env).cursor, null); assert.equal(syncCalls(p)[0].body.cursor, undefined);
+    assert.deepEqual(r.txns.map((t) => t.id), ['pl:a1'], 're-fetched from the committed cursor');
+  });
 });

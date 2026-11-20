@@ -91,7 +91,8 @@ const needsReconnect = (r) => RECONNECT.has(r.code);
 const plaidMsg = (r) => r.body?.error_message || `Plaid error ${r.status}`;
 
 // ---------- KV storage of items ----------
-// item:<item_id> -> { token (encrypted access token), institution, cursor, enrolledAt }
+// item:<item_id> -> { token (encrypted access token), institution, cursor (committed), pending: {cursor, token, at}, enrolledAt }
+const randomToken = () => [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('');
 const itemKey = (id) => 'item:' + id;
 async function loadItems(env) {
   const list = await env.BT_KV.list({ prefix: 'item:' });
@@ -229,11 +230,21 @@ async function accounts(env) {
   return { enrollments };
 }
 
-async function sync(env, since, full) {
+async function sync(env, since, full, ack) {
   if (since && !/^\d{4}-\d{2}-\d{2}$/.test(since)) throw new HttpError(400, 'since must be YYYY-MM-DD');
   const off = await getOff(env);
   const txns = [], removed = new Set(), errors = [];
+  // Two-phase cursor: `cursor` is committed (the app confirmed it received that batch); `pending` is what the
+  // last response handed out. Each sync reads from the committed cursor and parks its new cursor as pending
+  // under `syncToken`; the app's NEXT sync acks that token, which commits it.
+  const syncToken = randomToken();
+  let issued = false;
   for (const it of await loadItems(env)) {
+    if (ack && it.rec.pending && it.rec.pending.token === ack) {
+      const { pending, ...rest } = it.rec;
+      it.rec = { ...rest, cursor: pending.cursor }; it.cursor = pending.cursor;
+      await env.BT_KV.put(itemKey(it.id), JSON.stringify(it.rec));
+    }
     const err = (r, prefix = '') => errors.push({ enrollmentId: it.id, institution: it.institution, message: prefix + plaidMsg(r), needsReconnect: needsReconnect(r) });
     const ar = await plaid(env, '/accounts/get', { access_token: it.token });
     if (!ar.ok) { err(ar); continue; }
@@ -243,11 +254,14 @@ async function sync(env, since, full) {
     const keep = (t) => !off.has(t.account_id) && (!since || (t.authorized_date || t.date) >= since);
     for (const t of [...res.added, ...res.modified]) if (keep(t)) txns.push(normalizeTxn(t, accts.get(t.account_id), it.institution));
     for (const r of res.removed) if (r?.transaction_id) removed.add('pl:' + r.transaction_id);
-    // Persist the cursor only now that every page succeeded.
-    if (res.cursor && res.cursor !== it.cursor) await env.BT_KV.put(itemKey(it.id), JSON.stringify({ ...it.rec, cursor: res.cursor }));
+    // Park the new cursor as pending only now that every page succeeded; it is committed by a later ack.
+    if (res.cursor && res.cursor !== it.cursor) {
+      await env.BT_KV.put(itemKey(it.id), JSON.stringify({ ...it.rec, pending: { cursor: res.cursor, token: syncToken, at: new Date().toISOString() } }));
+      issued = true;
+    }
   }
   txns.sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0));
-  return { txns, removed: [...removed], errors, syncedAt: new Date().toISOString() };
+  return { txns, removed: [...removed], errors, syncToken: issued ? syncToken : null, syncedAt: new Date().toISOString() };
 }
 
 async function toggle(env, accountId, body) {
@@ -286,7 +300,7 @@ export default {
         if (m === 'GET' && path === '/link-token') out = await linkToken(env, url.searchParams.get('item'));
         else if (m === 'POST' && path === '/enroll') out = await enroll(env, await readJson(req));
         else if (m === 'GET' && path === '/accounts') out = await accounts(env);
-        else if (m === 'GET' && path === '/sync') out = await sync(env, url.searchParams.get('since'), url.searchParams.get('full') === '1');
+        else if (m === 'GET' && path === '/sync') out = await sync(env, url.searchParams.get('since'), url.searchParams.get('full') === '1', url.searchParams.get('ack') || '');
         else if (m === 'POST' && (mt = /^\/accounts\/([\w-]+)\/toggle$/.exec(path))) out = await toggle(env, mt[1], await readJson(req));
         else if (m === 'DELETE' && (mt = /^\/enroll\/([\w-]+)$/.exec(path))) out = await disconnect(env, mt[1]);
         else throw new HttpError(404, 'not found');
