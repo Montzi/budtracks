@@ -140,3 +140,50 @@ test('batch does not double-assign a candidate', () => {
   assert.equal(bills.filter(s => s.kind === 'bill').length, 1);
   assert.equal(bills.filter(s => s.kind === 'spend').length, 1);
 });
+
+test('cleanDesc strips bank noise from real sandbox descriptions', () => {
+  const c = BT.cleanDesc;
+  assert.equal(c('PURCHASE AUTHORIZED ON 05/27 ROYAL FARMS 100 MONUMENT AVE A P NATIONAL HARBOR MD 0846248421604 CARD 44'), 'ROYAL FARMS 100 MONUMENT AVE A P NATIONAL HARBOR MD');
+  assert.equal(c('INTERAC PURCHASE - 67200 TARGET #052'), 'TARGET');
+  assert.equal(c('CHECKCARD 538036 CLEO AI IN MOUNTAIN VIEWCA 172788892 RECURRING'), 'CLEO AI IN MOUNTAIN VIEWCA');
+  assert.equal(c("5 PURCHASE-SIG DENNY'S 366992 EUGENE OR 6 039488"), "DENNY'S");
+  assert.equal(c('TST*TACO ROCK - LORTON'), 'TACO ROCK - LORTON');
+  assert.equal(c('LIDL #XXXX'), 'LIDL');
+  assert.equal(c('CARD PURCHASE PAYBYPHONE 804665947 11/19'), 'PAYBYPHONE');
+  assert.equal(c({ desc: '', rawDesc: 'POS PURCHASE SHEETZ #12' }), 'SHEETZ');
+  assert.equal(c({ desc: 'Spotify', rawDesc: 'SPOTIFY USA 8885' }), 'Spotify');
+});
+
+test('keyword rules cover real sandbox merchants', () => {
+  const st = fixture(); st.categories = ['Gas', 'Subscriptions', 'Groceries', 'Gaming', 'Household', 'Dining Out', 'Takeout Food', 'Personal care', 'Other'];
+  const cat = d => BT.guessCategory(st, T({ desc: d })).category;
+  assert.equal(cat('LIDL #XXXX'), 'Groceries');
+  assert.equal(cat('CREDIT CARD PURCHASE SMART AND FINAL #1 ANAHEIM CA DATE 12/14'), 'Groceries');
+  assert.equal(cat('INTERAC PURCHASE - 67200 TARGET #052'), 'Household');
+  assert.equal(cat('PURCHASE AUTHORIZED ON 05/27 ROYAL FARMS 100 MONUMENT AVE'), 'Gas');
+  assert.equal(cat('X-ELEVEN XXXXX'), 'Gas');
+  assert.equal(cat('TST*AMBAR - CLARENDON'), 'Dining Out');
+  assert.equal(cat('OPENAI *CHATGPT SUBSCR'), 'Subscriptions');
+  assert.equal(cat('Prime Video Channels'), 'Subscriptions');
+  assert.equal(cat('INOVA HC SVCS-MYCHART'), 'Personal care');
+  assert.equal(cat('UBER 588639690 RIDE 05/12 CA 12095'), 'Transportation');
+  assert.equal(cat('Uber Eats'), 'Takeout Food');
+  assert.equal(cat('DOORDASH*WENDYS'), 'Takeout Food');
+  assert.equal(BT.guessCategory(st, T({ desc: 'garbled', rawDesc: 'garbled' })).source, 'default');
+});
+
+test('CREDIT CARD PURCHASE is a spend, never a transfer, even when the provider says transfer', () => {
+  const st = fixture();
+  const s = BT.classifyTxn(st, T({ desc: 'CREDIT CARD PURCHASE SMART AND FINAL #1 ANAHEIM CA DATE 12/14 CARD 5', amount: 48.25, providerCategory: 'transfer' }), TODAY);
+  assert.equal(s.kind, 'spend'); assert.equal(s.category, 'Groceries');
+  assert.equal(BT.classifyTxn(st, T({ desc: 'Payment Thank You-Mobile', amount: 300, providerCategory: 'transfer' }), TODAY).kind, 'transfer');
+  assert.equal(BT.classifyTxn(st, T({ desc: 'ONLINE TRANSFER TO SAVINGS', amount: 100 }), TODAY).kind, 'transfer');
+  assert.equal(BT.classifyTxn(st, T({ desc: 'TRANSFER PAYPAL ADD TO BALANCE INTERNET PAYMENT', amount: 89 }), TODAY).kind, 'plan');
+});
+
+test('P2P transfers carry the p2p flag', () => {
+  const st = fixture();
+  assert.equal(BT.classifyTxn(st, T({ desc: 'CASH APP TRANSFER', amount: 20, providerCategory: 'transfer' }), TODAY).p2p, true);
+  assert.equal(BT.classifyTxn(st, T({ desc: 'Venmo', amount: 145.09, providerCategory: 'transfer' }), TODAY).p2p, true);
+  assert.equal(BT.classifyTxn(st, T({ desc: 'CREDIT CARD PAYMENT', amount: 500 }), TODAY).p2p, false);
+});

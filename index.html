@@ -1126,9 +1126,27 @@ const BT = (() => {
     return String(desc || '').toLowerCase().replace(/[x*#]{2,}\s*\d+|\bx+\d+\b|\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, ' ').replace(/[^a-z0-9&']+/g, ' ').split(' ')
       .filter(t => t.length > 2 && !/\d/.test(t) && !NOISE.has(t));
   }
+  // Strips bank noise (card-purchase prefixes, processor prefixes, store numbers, dates, city/state and digit tails) from a bank description.
+  // Accepts a description string or a txn ({desc, rawDesc}); desc (Plaid merchant name when known) wins, rawDesc is the fallback.
+  const DESC_PREFIX = [
+    /^\d+\s+/, /^purchase authorized on\s+\d{1,2}\/\d{1,2}\s*/i, /^(?:credit|debit|visa)?\s*card purchase\b\s*/i, /^checkcard\s*\d*\s*/i,
+    /^interac purchase\s*-?\s*\d*\s*/i, /^pos (?:purchase|pur|withdrawal)\b\s*/i, /^purchase-sig\b\s*/i, /^(?:visa|debit card|eft debit|consumer debit|withdrawal)\b\s*/i,
+    /^(?:tst|sq|paypal|pp|dnh)\s*\*\s*/i, /^pos\b\s*/i, /^purchase\b\s*/i, /^recurring\b\s*/i, /^[-*\s]+/
+  ];
+  function cleanDesc(src) {
+    const one = d => {
+      let s = String(d || '').trim(), n;
+      do { n = s; for (const rx of DESC_PREFIX) s = s.replace(rx, ''); } while (s !== n);
+      s = s.replace(/\b(?:card|date|modate|timestamp)\b\s*\d.*$/i, ' ').replace(/\b\d{5,}\b.*$/, ' ').replace(/\b(?:recurring|sig pur|ecomm)\b/gi, ' ')
+        .replace(/\b\d{1,2}\/\d{1,2}(\/\d{2,4})?\b/g, ' ').replace(/#\s*\w+/g, ' ').replace(/\b[x]{3,}\w*/gi, ' ').replace(/[*_]+/g, ' ');
+      return s.replace(/\s+/g, ' ').trim();
+    };
+    if (src && typeof src === 'object') return one(src.desc) || one(src.rawDesc) || '';
+    return one(src);
+  }
   // Stable merchant identity used for learned category rules: first 3 meaningful tokens.
   function merchantKey(desc) {
-    let s = String(desc || '').replace(/\s+[A-Z]{2}\s*$/, ' ');
+    let s = cleanDesc(desc).replace(/\s+[A-Z]{2}\s*$/, ' ');
     let t = tokens(s);
     if (!t.length) t = String(desc || '').toLowerCase().replace(/[^a-z]+/g, ' ').trim().split(' ').filter(Boolean);
     return t.slice(0, 3).join(' ');
@@ -1167,13 +1185,19 @@ const BT = (() => {
   }
   const KEYWORD_RULES = [
     [/doordash|uber ?eats|grubhub|postmates/i, 'Takeout Food'],
-    [/instacart|costco|walmart|aldi|kroger|safeway|whole ?foods|trader joe|stop ?& ?shop|shoprite|wegmans|publix/i, 'Groceries'],
-    [/\bshell\b|exxon|\bbp\b|mobil|sunoco|chevron|wawa|speedway|\bgas\b/i, 'Gas'],
-    [/netflix|spotify|hulu|disney|apple\.com\/bill|google \*|youtube|icloud/i, 'Subscriptions'],
+    [/instacart|costco|walmart|aldi|kroger|safeway|whole ?foods|trader joe|stop ?& ?shop|shoprite|wegmans|publix|lidl|smart and final|food lion|\bgiant\b|harris teeter|h-e-b|\bheb\b|sprouts|meijer|winco|market basket|albertsons/i, 'Groceries'],
+    [/\btarget\b|dollar tree|dollar general|home depot|lowe'?s|ikea|bed bath/i, 'Household'],
+    [/\bshell\b|exxon|\bbp\b|mobil|sunoco|chevron|wawa|speedway|\bgas\b|7-eleven|[x7]-eleven|royal farms|sheetz|circle k|marathon|valero|citgo|\b76\b/i, 'Gas'],
+    [/netflix|spotify|hulu|disney|apple\.com\/bill|google \*|youtube|icloud|prime video|amazon prime|\bhbo\b|max\.com|paramount|peacock|audible|openai|chatgpt|claude\.ai|anthropic|github|adobe|microsoft 365/i, 'Subscriptions'],
+    [/playstation|playstud|xbox|steam ?games|nintendo|pulsz|epic games/i, 'Gaming'],
+    [/cleo ai|godaddy|microsoft/i, 'Subscriptions'],
     [/amazon|amzn/i, 'Other'],
-    [/restaurant|\bbar\b|grill|steakhouse|pizza/i, 'Dining Out'],
-    [/\bcvs\b|walgreens|pharmacy/i, 'Personal care'],
-    [/uber|lyft|parking|\btoll|ez ?pass/i, 'Transportation']
+    [/myschoolbucks|school|scholastic/i, 'Other'],
+    [/cleaners|laundry/i, 'Household'],
+    [/topgolf|dance|bowling|cinema|theat(?:er|re)/i, 'Entertainment'],
+    [/\btst\*|\btoast\b|taco|burger|chick-fil-a|mcdonald|wendy|chipotle|starbucks|dunkin|panera|subway|domino|sweetgreen|cafe|coffee|\bdeli\b|kitchen|diner|denny|restaurant|\bbar\b|grill|steakhouse|pizza|\bcava\b|gyro|\bkfc\b|popeyes|krispy|bakery|\bbbq\b|sushi|wings|ramen|bagel|smoothie/i, 'Dining Out'],
+    [/\bcvs\b|walgreens|pharmacy|rite aid|mychart|hospital|clinic|medical|dental/i, 'Personal care'],
+    [/paybyphone|parkmobile|uber(?! ?eats)|lyft|parking|\btoll|ez ?pass|\bmetro\b|\bmta\b/i, 'Transportation']
   ];
   const PROVIDER_CATS = { dining: 'Dining Out', bar: 'Dining Out', groceries: 'Groceries', fuel: 'Gas', transport: 'Transportation', transportation: 'Transportation', utilities: 'Utilities', phone: 'Phone & Internet',
     shopping: 'Other', clothing: 'Clothing', entertainment: 'Entertainment', sport: 'Entertainment', health: 'Personal care', insurance: 'Insurance', loan: 'Loans', tax: 'Taxes', home: 'Household',
@@ -1182,13 +1206,19 @@ const BT = (() => {
     const ok = c => !!c && ((st.categories || []).includes(c) || (st.billCats || []).includes(c));
     const learned = st.bank && st.bank.rules && st.bank.rules[merchantKey(txn.desc)];
     if (ok(learned)) return { category: learned, source: 'rule' };
-    const text = String(txn.desc || '') + ' ' + String(txn.counterparty || '');
-    for (const [rx, cat] of KEYWORD_RULES) if (rx.test(text) && ok(cat)) return { category: cat, source: 'keyword' };
+    // Cleaned desc first, then the cleaned rawDesc when it differs; a TST* (Toast) prefix is kept as a restaurant hint.
+    const cp = String(txn.counterparty || ''), texts = [txn.desc, txn.rawDesc].filter((d, i, a) => d && a.indexOf(d) === i)
+      .map(d => cleanDesc(d) + ' ' + cp + (/\btst\s*\*/i.test(d) ? ' tst*' : ''));
+    for (const text of texts) for (const [rx, cat] of KEYWORD_RULES) if (rx.test(text) && ok(cat)) return { category: cat, source: 'keyword' };
     const tc = PROVIDER_CATS[String(txn.providerCategory || '').toLowerCase()];
     if (ok(tc)) return { category: tc, source: 'provider' };
     return { category: 'Other', source: 'default' };
   }
-  const TRANSFER_RX = /transfer|xfer|to savings|from savings|zelle to self|payment thank you|autopay payment|credit card payment/i;
+  // Payments and transfers only: never a card purchase.
+  const TRANSFER_RX = /\btransfer\b|\bxfer\b|to savings|from savings|zelle to self|payment thank you|autopay|(?:credit )?card payment|online payment|\bpmnt rcvd\b|add to balance/i;
+  const PURCHASE_RX = /\b(?:card purchase|purchase|pos|checkcard|debit card)\b/i;
+  const P2P_RX = /venmo|cash ?app|zelle/i;
+  const isTransfer = txn => TRANSFER_RX.test(txn.desc) || (txn.providerCategory === 'transfer' && !PURCHASE_RX.test(txn.desc));
   function classifyTxn(st, txn, today) {
     const base = { txn, kind: 'spend', confidence: 'low', cands: [], pick: null, category: '', source: '' };
     if (PLAN_RX.test(txn.desc)) {
@@ -1205,9 +1235,9 @@ const BT = (() => {
       }
       return Object.assign(base, { kind: 'transfer', confidence: 'low', refund: !TRANSFER_RX.test(txn.desc) });
     }
-    if (TRANSFER_RX.test(txn.desc) || txn.providerCategory === 'transfer') {
+    if (isTransfer(txn)) {
       const cands = matchBills(st, txn, today).filter(c => c.kind === 'card');
-      return Object.assign(base, { kind: 'transfer', cands, pick: cands[0] || null, confidence: 'medium' });
+      return Object.assign(base, { kind: 'transfer', cands, pick: cands[0] || null, confidence: 'medium', p2p: P2P_RX.test(txn.desc) });
     }
     const cands = matchBills(st, txn, today);
     if (cands.length) {
@@ -1242,7 +1272,7 @@ const BT = (() => {
     if (k && category) st.bank.rules[k] = category;
   }
 
-  return { matchBills, matchIncome, guessCategory, merchantKey, classifyTxn, classifyBatch, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
+  return { matchBills, matchIncome, guessCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
 })();
 
 
@@ -2907,7 +2937,7 @@ function pruneSeenTxn() {
 /* Applying and undoing suggestions */
 function cleanMerchant(t) {
   let s = String(t.counterparty || '').trim();
-  if (!s) s = String(t.desc || '').replace(/[x*#]{2,}\s*\d+|\bx+\d+\b|\d{1,2}\/\d{1,2}(\/\d{2,4})?|#\d+|\b\d{5,}\b/gi, ' ').replace(/\b(pos|debit|purchase|checkcard|recurring)\b/gi, ' ').replace(/\s+[A-Z]{2}\s*$/, '').replace(/[*_]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!s) s = BT.cleanDesc(t).replace(/\s+[A-Z]{2}\s*$/, '');
   if (s && s === s.toUpperCase()) s = s.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());
   return (s || t.desc || 'Bank transaction').slice(0, 40);
 }

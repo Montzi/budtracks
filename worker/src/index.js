@@ -109,11 +109,17 @@ async function loadItem(env, id) {
   const rec = JSON.parse(raw);
   return { id, institution: rec.institution || '', cursor: rec.cursor || null, token: await decrypt(env, rec.token), rec };
 }
-const getOff = async (env) => new Set(JSON.parse((await env.BT_KV.get('off')) || '[]'));
+// Account on/off: an explicit off-list, plus an explicit on-list that overrides the default-off account types.
+const DEFAULT_OFF_TYPES = new Set(['loan', 'investment']);
+const getList = async (env, k) => new Set(JSON.parse((await env.BT_KV.get(k)) || '[]'));
+const getOff = async (env) => {
+  const [off, on] = [await getList(env, 'off'), await getList(env, 'on')];
+  return { off, on, has: (id, type) => off.has(id) || (!on.has(id) && DEFAULT_OFF_TYPES.has(type)) };
+};
 
 const shapeAccount = (a, off) => ({
   id: a.account_id, name: a.name || a.official_name || '', type: a.type, subtype: a.subtype || null, last_four: a.mask || null,
-  ...(off ? { enabled: !off.has(a.account_id) } : {}),
+  ...(off ? { enabled: !off.has(a.account_id, a.type) } : {}),
 });
 
 // ---------- category mapping ----------
@@ -272,7 +278,7 @@ async function sync(env, since, full, ack) {
     const accts = new Map((ar.body.accounts || []).map((a) => [a.account_id, a]));
     const res = await syncItem(env, it.token, full ? null : it.cursor);
     if (res.r) { if (res.r.code !== 'PRODUCT_NOT_READY') err(res.r); continue; }
-    const keep = (t) => !off.has(t.account_id) && (!since || (t.authorized_date || t.date) >= since);
+    const keep = (t) => !off.has(t.account_id, accts.get(t.account_id)?.type) && (!since || (t.authorized_date || t.date) >= since);
     for (const t of [...res.added, ...res.modified]) if (keep(t)) txns.push(normalizeTxn(t, accts.get(t.account_id), it.institution));
     for (const r of res.removed) if (r?.transaction_id) removed.add('pl:' + r.transaction_id);
     // Park the new cursor as pending only now that every page succeeded; it is committed by a later ack.
@@ -287,9 +293,10 @@ async function sync(env, since, full, ack) {
 
 async function toggle(env, accountId, body) {
   if (typeof body?.enabled !== 'boolean') throw new HttpError(400, 'enabled (boolean) required');
-  const off = await getOff(env);
-  body.enabled ? off.delete(accountId) : off.add(accountId);
+  const { off, on } = await getOff(env);
+  if (body.enabled) { off.delete(accountId); on.add(accountId); } else { on.delete(accountId); off.add(accountId); }
   await env.BT_KV.put('off', JSON.stringify([...off]));
+  await env.BT_KV.put('on', JSON.stringify([...on]));
   return { id: accountId, enabled: body.enabled };
 }
 

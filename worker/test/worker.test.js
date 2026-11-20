@@ -395,3 +395,23 @@ test('POST /sandbox/item: 404 outside sandbox, 401 without auth, works in sandbo
     assert.deepEqual(c2.options, { override_username: 'user_transactions_dynamic', override_password: 'pass_good' });
   });
 });
+
+test('loan and investment accounts are off by default and can be toggled on', async () => {
+  const loan = { account_id: 'acc_loan', name: 'Car Loan', mask: '5555', type: 'loan', subtype: 'auto' };
+  const inv = { account_id: 'acc_inv', name: 'Brokerage', mask: '7777', type: 'investment', subtype: 'brokerage' };
+  const p = mockPlaid({ tokens: { tok_good: { item_id: 'item_1', accounts: [checking, loan, inv], batches: [[{ added: [
+    tx('t_a', 'acc_chk', '2026-11-14', 'COFFEE', 4), tx('t_l', 'acc_loan', '2026-11-14', 'LOAN PMT', 300), tx('t_i', 'acc_inv', '2026-11-14', 'BUY', 50)], modified: [], removed: [] }]] } } });
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    const en = async () => Object.fromEntries((await (await call(env, 'GET', '/accounts', { key })).json()).enrollments[0].accounts.map((a) => [a.id, a.enabled]));
+    assert.deepEqual(await en(), { acc_chk: true, acc_loan: false, acc_inv: false });
+    let b = await (await call(env, 'GET', '/sync?full=1', { key })).json();
+    assert.deepEqual(b.txns.map((t) => t.account.id), ['acc_chk']);
+    await call(env, 'POST', '/accounts/acc_loan/toggle', { key, body: { enabled: true } });
+    assert.equal((await en()).acc_loan, true);
+    b = await (await call(env, 'GET', '/sync?full=1', { key })).json();
+    assert.deepEqual(b.txns.map((t) => t.account.id).sort(), ['acc_chk', 'acc_loan']);
+    await call(env, 'POST', '/accounts/acc_loan/toggle', { key, body: { enabled: false } });
+    assert.equal((await en()).acc_loan, false);
+  });
+});
