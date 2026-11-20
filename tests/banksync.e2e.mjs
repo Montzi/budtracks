@@ -25,7 +25,7 @@ const fixtureState = s => Object.assign(s, {
   since: '2026-10-01', marks: {}, occ: {}, spends: [], unalloc: [], perPeriod: [],
   categories: ['Gas', 'Subscriptions', 'Groceries', 'Dining Out', 'Takeout Food', 'Personal care', 'Other'],
   payVia: [{ bank: 'Chime', last4: '1234', type: 'debit' }],
-  bank: { seen: {}, rules: {}, links: {}, lastSync: null, inbox: [], api: '' },
+  bank: { seen: {}, rules: {}, links: {}, lastSync: null, inbox: [], api: '', autoFrom: '2026-11-01', historyFrom: '2026-10-01' },
   bills: [{ id: 'rent', name: 'Rent', amount: 1050, day: 1, group: 'Fixed', category: 'Housing' }, { id: 'elec', name: 'Electric', amount: 70, day: 21, group: 'Fixed', category: 'Utilities' }],
   cards: [{ id: 'visa', name: 'Visa', day: 22, minPayment: 35, balance: 500, limit: 2000 }],
   plans: [{ id: 'k1', provider: 'Klarna', merchant: 'Nike', amount: 27.65, total: 4, paid: 1, freq: 'biweekly', lastDate: '2026-11-06', category: 'Other', dates: ['2026-10-23', '2026-11-06', '2026-11-20', '2026-12-04'] }],
