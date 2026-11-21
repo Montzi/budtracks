@@ -196,7 +196,8 @@ const prepared = async (w, h, extraBank) => {
     await page.click('[data-action="bk-sync"]');
     await page.waitForFunction(() => document.querySelector('[data-action="bk-sync"]') && !document.querySelector('[data-action="bk-sync"]').disabled);
     const sc = calls.filter(c => c.p === '/sync'); assert.equal(sc.length, 2);
-    assert.equal(sc[1].q, '?since=2026-11-15&ack=tok-1', 'acks the first response token');
+    const d5 = new Date(Date.now() - 5 * 864e5), exp = d5.getFullYear() + '-' + String(d5.getMonth() + 1).padStart(2, '0') + '-' + String(d5.getDate()).padStart(2, '0');
+    assert.equal(sc[1].q, '?since=' + exp + '&ack=tok-1', 'acks the first response token');
     const s = await getState(page);
     assert.equal(s.bank.inbox.length, 4); assert.equal(Object.keys(s.bank.seen).length, 3);
   });
@@ -227,8 +228,15 @@ const prepared = async (w, h, extraBank) => {
     const t = await page.locator('.bx-bar').innerText(); assert.match(t, /4 new transactions/);
     await noHScroll(page, '390 overview');
   });
+  await step('Overview bar opens the Transactions tab filtered to Needs review', async () => {
+    await page.click('.bx-bar'); await page.waitForSelector('.tx');
+    assert.equal(await page.evaluate(() => location.hash), '#transactions');
+    assert.equal(await page.locator('.tx').count(), 4);
+    assert.equal(await page.locator('[data-action="tx-filter"][aria-pressed="true"]').innerText().then(t => t.split(' ')[0]), 'Needs');
+    await noHScroll(page, '390 transactions review');
+  });
   await step('inbox sheet lists rows, no horizontal scroll, screenshot 390', async () => {
-    await page.click('.bx-bar'); await page.waitForSelector('.bx');
+    await page.click('[data-action="ix-open"]'); await page.waitForSelector('.bx');
     assert.equal(await page.locator('.bx').count(), 4);
     const dd = page.locator('.bx', { hasText: 'Doordash' });
     assert.match(await dd.innerText(), /Takeout Food/); assert.match(await dd.innerText(), /likely/i);
@@ -295,7 +303,7 @@ const prepared = async (w, h, extraBank) => {
   });
   await step('Accept all applies every row with a pick or category', async () => {
     const s0 = await getState(page); const n = s0.bank.inbox.length;
-    await page.click('[data-action="ix-all"]');
+    await page.click('#sheet [data-action="ix-all"]');
     await page.waitForTimeout(400);
     const s = await getState(page);
     assert.deepEqual(s.bank.inbox.map(x => x.txn.id), ['pl:adidas'], 'only the new-plan row (no pick, no category) stays; left: ' + JSON.stringify(s.bank.inbox.map(x => [x.txn.id, x.kind, x.confidence])));
@@ -524,7 +532,7 @@ const splitSeed = async page => page.evaluate(() => {
     await page.click('[data-action="pay-split"]');
   });
   await step('recently synced shows one Paycheck row with the split line', async () => {
-    await page.click('.bx-bar'); await page.waitForSelector('.bx-rec');
+    await page.click('.bx-bar'); await page.click('#main [data-action="ix-open"]'); await page.waitForSelector('.bx-rec');
     assert.equal(await page.locator('.bx-rec li').count(), 1);
     const li = await page.locator('.bx-rec li').innerText();
     assert.match(li, /Paycheck Nov 20/); assert.match(li, /\$2,273\.31/); assert.match(li, /Split: .*Citizens ••4417 \$1,873\.31/);
@@ -674,7 +682,7 @@ const splitSeed = async page => page.evaluate(() => {
   await step('951x669 inbox + overview + income: no horizontal scroll', async () => {
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.bx-bar'); await noHScroll(page, '951 overview');
-    await page.click('.bx-bar'); await page.waitForSelector('.bx'); await sheetNoHScroll(page, '951 inbox'); await noHScroll(page, '951 inbox');
+    await page.click('.bx-bar'); await noHScroll(page, '951 transactions'); await page.click('#main [data-action="ix-open"]'); await page.waitForSelector('.bx'); await sheetNoHScroll(page, '951 inbox'); await noHScroll(page, '951 inbox');
     await page.locator('.bx', { hasText: 'MYSTERY' }).locator('[data-action="ix-change"]').click();
     await page.locator('#sheet .sheet').screenshot({ path: SHOTS + '/inbox-951.png' });
     await page.emulateMedia({ colorScheme: 'dark' }); await page.waitForTimeout(200);
@@ -696,6 +704,244 @@ const splitSeed = async page => page.evaluate(() => {
   });
   assert.deepEqual(errs, [], 'page errors in landscape/offline');
   await page.context().close();
+}
+
+/* ---------- v3: tabs, Plans + Credit cards, Transactions, Latest paycheck ---------- */
+const ACC2 = { id: 'acc9', name: 'Everyday Checking', last4: '9999', institution: 'Citizens', type: 'depository' };
+const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { const t = document.querySelector('.tabs-in'); return t.scrollWidth <= t.clientWidth + 1 && [...t.children].every(a => a.scrollWidth <= a.clientWidth + 1); }), 'tab labels overflow at ' + label);
+{
+  const { page, errs } = await newPage(390, 844);
+  await seed(page);
+  await page.goto(BASE + '#overview', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
+  await step('bottom bar is Overview, Bills, Plans, Transactions, Income and fits at 390', async () => {
+    assert.deepEqual(await page.locator('.tabs a').allInnerTexts(), ['Overview', 'Bills', 'Plans', 'Transactions', 'Income']);
+    await tabsFit(page, '390'); await noHScroll(page, '390 tabs');
+    await page.click('.tabs a[href="#transactions"]'); await page.waitForSelector('.tabs a[aria-current="page"]:has-text("Transactions")');
+    assert.equal(await page.locator('.tabs a[aria-current="page"]').innerText(), 'Transactions');
+  });
+  await step('Transactions without a bank explains and links to Income', async () => {
+    assert.match(await page.locator('#main').innerText(), /Connect a bank/);
+    await page.click('#main a[href="#income"]'); await page.waitForSelector('#bankcard');
+    assert.equal(await page.locator('.tabs a[aria-current="page"]').innerText(), 'Income');
+  });
+  await step('#cards routes to Plans with Credit cards selected; switching persists', async () => {
+    await page.goto(BASE + '#cards'); await page.reload({ waitUntil: 'load' });
+    assert.equal(await page.evaluate(() => location.hash), '#plans');
+    assert.equal(await page.locator('.plans-seg [aria-pressed="true"]').innerText(), 'Credit cards');
+    assert.equal(await page.locator('.tabs a[aria-current="page"]').innerText(), 'Plans');
+    assert.match(await page.locator('#main').innerText(), /Total balance/);
+    await noHScroll(page, '390 plans credit cards');
+    await page.screenshot({ path: SHOTS + '/plans-credit-390.png' });
+    await page.click('.plans-seg [data-v="plans"]');
+    assert.match(await page.locator('#main').innerText(), /Active plans/);
+    assert.equal((await getState(page)).settings.plansView, 'plans');
+    await page.goto(BASE + '#plans'); await page.reload({ waitUntil: 'load' });
+    assert.equal(await page.locator('.plans-seg [aria-pressed="true"]').innerText(), 'Pay later');
+    await page.click('.plans-seg [data-v="cards"]'); await page.reload({ waitUntil: 'load' });
+    assert.equal((await getState(page)).settings.plansView, 'cards');
+    assert.equal(await page.locator('.plans-seg [aria-pressed="true"]').innerText(), 'Credit cards');
+    await page.click('.plans-seg [data-v="plans"]');
+  });
+  await step('ledger seeds once from inbox, history and seen entries', async () => {
+    await page.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('budtrack.v1')), tx = (id, d, desc, a) => ({ id, date: d, desc, rawDesc: desc, amount: a, status: 'posted', account: null });
+      s.imports = (s.imports || []).filter(x => x !== 'txns-seed-1'); s.bank.txns = {};
+      s.bank.inbox = [{ txn: tx('m1', '2026-11-18', 'INBOX ONE', 5), kind: 'spend', cands: [], pick: null, category: 'Other', confidence: 'low' }];
+      s.bank.history = [tx('m2', '2026-11-05', 'HIST ONE', 6)];
+      s.bank.seen = { m3: { res: 'spend', kind: 'spend', what: 'Other · SEEN ONE', date: '2026-11-10', amount: 7, desc: 'SEEN ONE', acct: 'Chime ••1234', src: 'sync', at: '2026-11-10T00:00:00Z' }, m4: { res: 'skip', src: 'csv', date: '2026-11-10', amount: 7, desc: 'CSV ONE' } };
+      for (let i = 0; i < 75; i++) s.bank.txns['bulk' + i] = tx('bulk' + i, '2026-10-' + String(1 + (i % 28)).padStart(2, '0'), 'BULK ' + i, 1 + i);
+      s.bank.txns.ancient = tx('ancient', '2025-01-01', 'OLD', 1);
+      localStorage.setItem('budtrack.v1', JSON.stringify(s));
+    });
+    await page.reload({ waitUntil: 'load' });
+    const t = (await getState(page)).bank.txns;
+    assert.ok(t.m1 && t.m2 && t.m3 && t.m3.account.institution === 'Chime' && t.m3.account.last4 === '1234', 'seeded'); assert.ok(!t.m4, 'csv-only record not seeded'); assert.ok(!t.ancient, 'older than 180 days dropped');
+    await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx');
+    assert.equal(await page.locator('.tx').count(), 60, 'first 60 rows');
+    await page.click('[data-action="tx-more"]');
+    assert.equal(await page.locator('.tx').count(), 75 + 3);
+    assert.ok(await page.locator('.tx-day').count() > 5);
+    assert.equal(await page.locator('.tx[data-id="m1"] .txc').innerText(), 'Needs review'); assert.equal(await page.locator('.tx[data-id="m2"] .txc').innerText(), 'Earlier · add by hand'); assert.equal(await page.locator('.tx[data-id="m3"] .txc').innerText(), 'Added · Other');
+  });
+  assert.deepEqual(errs, [], 'page errors in tabs/plans'); await page.context().close();
+}
+{
+  const { page, errs, mock } = await prepared(390, 844);
+  mock.txns = TXNS.concat([T('wm', '2026-11-16', 'WALMART SUPERCENTER', 42.1, { account: ACC2 }), T('pend', '2026-11-20', 'SQ *CORNER DELI 77', 9.99, { status: 'pending' })]);
+  await page.goto(BASE + '#transactions', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); return s.bank.lastSync && Object.keys(s.bank.txns).length === 9; });
+  const chip = id => page.locator(`.tx[data-id="${id}"] .txc`).innerText();
+  const row = id => page.locator(`.tx[data-id="${id}"]`);
+  const open = async id => { if (!(await row(id).evaluate(e => e.classList.contains('open')))) await row(id).locator('.tx-main').click(); };
+  await step('Transactions lists every txn by date with status chips; pending tag; money in is green +', async () => {
+    assert.equal(await page.locator('.tx').count(), 9);
+    assert.equal(await chip('pl:klarna'), 'Matched · Klarna · Nike 3 of 4'); assert.match(await chip('pl:electric'), /^Matched · /); assert.equal(await chip('pl:pay'), 'Paycheck');
+    assert.equal(await chip('pl:dd'), 'Needs review'); assert.equal(await chip('pl:wm'), 'Needs review');
+    assert.match(await row('pl:pay').innerText(), /\+\$1,500\.00/); assert.ok(await row('pl:pay').locator('.amt.in').count());
+    assert.match(await row('pl:pend').innerText(), /pending/i); assert.match(await row('pl:dd').innerText(), /Chime ••1234/);
+    const days = await page.locator('.tx-day').allInnerTexts(); assert.deepEqual(days, [...days].sort((a, b) => 0)); assert.match(days[0], /Nov 21|Nov 20/);
+    const dates = await page.evaluate(() => [...document.querySelectorAll('.tx-day')].map(e => e.textContent)); assert.equal(new Set(dates).size, dates.length);
+    await noHScroll(page, '390 transactions'); await tabsFit(page, '390 transactions');
+    await page.screenshot({ path: SHOTS + '/tx-390.png' });
+  });
+  await step('filters and search', async () => {
+    const f = v => page.click(`[data-action="tx-filter"][data-f="${v}"]`);
+    await f('review'); assert.equal(await page.locator('.tx').count(), 6);
+    await f('matched'); assert.equal(await page.locator('.tx').count(), 2);
+    await f('added'); assert.equal(await page.locator('.tx').count(), 1);
+    await f('ignored'); assert.equal(await page.locator('.tx').count(), 0); assert.match(await page.locator('#txlist').innerText(), /Nothing matches/);
+    await f('all');
+    await page.fill('#txq', 'doordash'); assert.equal(await page.locator('.tx').count(), 1);
+    assert.ok(await page.evaluate(() => document.activeElement.id === 'txq'), 'search keeps focus');
+    await page.fill('#txq', ''); assert.equal(await page.locator('.tx').count(), 9);
+    await page.selectOption('#txbank', 'Citizens ••9999'); assert.equal(await page.locator('.tx').count(), 1); assert.equal(await page.locator('.tx').first().getAttribute('data-id'), 'pl:wm');
+    await page.selectOption('#txbank', ''); assert.equal(await page.locator('.tx').count(), 9);
+  });
+  await step('Accept with a category creates the spend and learns when it differs from the guess', async () => {
+    await open('pl:dd'); await row('pl:dd').locator('[data-action="tx-cats"]').click();
+    await row('pl:dd').locator('.chip', { hasText: 'Dining Out' }).click();
+    const s = await getState(page), x = s.spends.find(z => z.bank === 'pl:dd');
+    assert.ok(x && x.category === 'Dining Out' && x.amount === 24.5 && x.via === 'Chime **1234'); assert.equal(s.bank.seen['pl:dd'].res, 'spend'); assert.ok(!s.bank.inbox.some(i => i.txn.id === 'pl:dd'));
+    assert.ok(Object.values(s.bank.rules).includes('Dining Out'));
+    assert.equal(await chip('pl:dd'), 'Added · Dining Out');
+  });
+  await step('changing the category of an added row updates the spend', async () => {
+    await open('pl:dd'); await row('pl:dd').locator('[data-action="tx-cats"]').click();
+    await row('pl:dd').locator('.chip', { hasText: 'Groceries' }).click();
+    const s = await getState(page); assert.equal(s.spends.find(z => z.bank === 'pl:dd').category, 'Groceries'); assert.equal(await chip('pl:dd'), 'Added · Groceries');
+  });
+  await step('Edit opens the spending form prefilled and saves through the same path', async () => {
+    await open('pl:amb'); await row('pl:amb').locator('[data-action="tx-edit"]').click(); await page.waitForSelector('#form[data-tx]');
+    assert.equal(await page.inputValue('#form [name=amount]'), '18.99'); assert.equal(await page.inputValue('#form [name=date]'), '2026-11-18');
+    await page.fill('#form [name=desc]', 'Mystery lunch'); await page.selectOption('#form [name=category]', 'Dining Out'); await page.click('#form button[type=submit]');
+    const s = await getState(page); const x = s.spends.find(z => z.bank === 'pl:amb'); assert.ok(x && x.desc === 'Mystery lunch' && x.category === 'Dining Out');
+    assert.equal(await chip('pl:amb'), 'Added · Dining Out'); assert.ok(await page.evaluate(() => document.querySelector('#sheet').hidden));
+  });
+  await step('Undo on a matched bill reverses it; Match then links it from the list', async () => {
+    await open('pl:electric'); await row('pl:electric').locator('[data-action="tx-undo"]').click();
+    let s = await getState(page); const ek = Object.keys(s.occ).find(k => /^b:elec:/.test(k) && s.occ[k].txn); assert.ok(!ek, 'unlinked'); assert.ok(s.bank.inbox.some(i => i.txn.id === 'pl:electric'));
+    assert.equal(await chip('pl:electric'), 'Needs review');
+    await open('pl:electric'); await row('pl:electric').locator('[data-action="tx-match"]').click(); await page.waitForSelector('.tx-cand');
+    const cands = await page.locator('.tx-cand').allInnerTexts(); assert.match(cands[0], /Electric/); assert.match(cands[0], /Bill · due Nov 21/); assert.match(cands[0], /suggested/i);
+    await sheetNoHScroll(page, '390 match sheet');
+    await page.locator('.tx-cand', { hasText: 'Electric' }).click();
+    s = await getState(page); const k2 = s.bank.seen['pl:electric'].key; assert.ok(/^b:elec:/.test(k2)); assert.equal(s.marks[k2], true); assert.equal(s.occ[k2].txn, 'pl:electric'); assert.equal(s.occ[k2].paidOn, '2026-11-20'); assert.equal(s.bank.seen['pl:electric'].res, 'bill');
+    assert.match(await chip('pl:electric'), /^Matched · Electric/);
+  });
+  await step('Match a Klarna payment to a plan from the list; screenshot of the match sheet', async () => {
+    await open('pl:klarna'); await row('pl:klarna').locator('[data-action="tx-undo"]').click();
+    let s = await getState(page); assert.ok(!(s.occ['p:k1:3'] && s.occ['p:k1:3'].txn)); assert.equal(await chip('pl:klarna'), 'Needs review');
+    await open('pl:klarna'); await row('pl:klarna').locator('[data-action="tx-match"]').click(); await page.waitForSelector('.tx-cand');
+    const cands = await page.locator('.tx-cand').allInnerTexts(); assert.match(cands[0], /Nike/); assert.match(cands[0], /Pay plan/); assert.match(cands[0], /suggested/i);
+    await page.locator('#sheet .sheet').screenshot({ path: SHOTS + '/tx-match-390.png' });
+    await page.locator('.tx-cand[data-key="p:k1:3"]').click();
+    s = await getState(page); assert.equal(s.bank.seen['pl:klarna'].res, 'match'); assert.equal(s.marks['p:k1:3'], true); assert.equal(s.occ['p:k1:3'].txn, 'pl:klarna'); assert.equal(s.occ['p:k1:3'].paidOn, '2026-11-20');
+    assert.match(await chip('pl:klarna'), /^Matched · Klarna/);
+  });
+  await step('a matched row can be undone from the list and its sheet excludes linked payments', async () => {
+    await open('pl:wm'); await row('pl:wm').locator('[data-action="tx-match"]').click(); await page.waitForSelector('#sheet:not([hidden])');
+    assert.ok(!/due Nov 20/.test(await page.locator('#sheet').innerText()), 'a payment already linked to a transaction is not offered'); await page.keyboard.press('Escape');
+  });
+  await step('Ignore and Undo', async () => {
+    await open('pl:cc'); await row('pl:cc').locator('[data-action="tx-ignore"]').click();
+    assert.equal(await chip('pl:cc'), 'Ignored'); assert.equal((await getState(page)).bank.seen['pl:cc'].res, 'skip');
+    await page.click('[data-action="tx-filter"][data-f="ignored"]'); assert.equal(await page.locator('.tx').count(), 1);
+    await open('pl:cc'); await row('pl:cc').locator('[data-action="tx-undo"]').click();
+    assert.equal(await page.locator('.tx').count(), 0); await page.click('[data-action="tx-filter"][data-f="all"]');
+    assert.equal(await chip('pl:cc'), 'Needs review'); assert.ok(!('pl:cc' in (await getState(page)).bank.seen));
+  });
+  await step('money in: Accept offers Paycheck or Refund, no Match', async () => {
+    await open('pl:pay'); await row('pl:pay').locator('[data-action="tx-undo"]').click();
+    assert.equal(await chip('pl:pay'), 'Needs review'); assert.equal((await getState(page)).income[0].perCycle['2026-11-19'], undefined);
+    await open('pl:pay'); assert.equal(await row('pl:pay').locator('[data-action="tx-match"]').count(), 0); assert.equal(await row('pl:pay').locator('[data-action="tx-edit"]').count(), 0);
+    await row('pl:pay').locator('[data-action="tx-in"]').click();
+    assert.match(await row('pl:pay').innerText(), /Paycheck/); assert.match(await row('pl:pay').innerText(), /Refund or transfer/);
+    await row('pl:pay').locator('[data-action="tx-paycheck"]').click();
+    const s = await getState(page); assert.equal(s.income[0].perCycle['2026-11-19'], 1500); assert.equal(s.bank.seen['pl:pay'].res, 'income'); assert.equal(await chip('pl:pay'), 'Paycheck');
+    await open('pl:pend'); await row('pl:pend').locator('[data-action="tx-ignore"]').click();
+  });
+  await step('Show "Review one by one" sheet and Accept all remain available on Needs review', async () => {
+    await page.click('[data-action="tx-filter"][data-f="review"]');
+    assert.ok(await page.locator('#main [data-action="ix-open"]').count()); assert.ok(await page.locator('#main [data-action="ix-all"]').count());
+    await page.click('#main [data-action="ix-all"]'); assert.ok(await page.evaluate(() => document.querySelector('#sheet').hidden), 'no sheet opens for Accept all');
+  });
+  await step('951x669 transactions: no horizontal scroll', async () => {
+    await page.setViewportSize({ width: 951, height: 669 }); await page.waitForTimeout(250);
+    await page.click('[data-action="tx-filter"][data-f="all"]'); await noHScroll(page, '951 transactions'); await tabsFit(page, '951');
+    await page.setViewportSize({ width: 390, height: 844 });
+  });
+  assert.deepEqual(errs, [], 'page errors in transactions'); await page.context().close();
+}
+{
+  const { page, errs, mock, calls } = await prepared(390, 844);
+  mock.txns = SPLIT.slice(0, 3).concat([T('odd', '2026-11-20', 'VENMO CASHOUT', -280, { account: SANT })]);
+  await splitSeed(page);
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.income[0].perCycle['2026-11-06'] = 1500; localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
+  await page.goto(BASE + '#income', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
+  await step('an unrelated $280 deposit on payday does not join the paycheck', async () => {
+    const s = await getState(page);
+    assert.equal(s.income[0].perCycle['2026-11-20'], 2273.31); assert.ok(!('pl:odd' in s.bank.seen));
+    const o = s.bank.inbox.find(i => i.txn.id === 'pl:odd'); assert.ok(o && o.kind === 'transfer' && !o.pick, JSON.stringify(o && [o.kind, o.pick]));
+  });
+  await step('Latest paycheck card: total, date, every part, source tag, next date', async () => {
+    const c = page.locator('#latestpay'); const t = await c.innerText();
+    assert.match(t, /\$2,273\.31/); assert.match(t, /Fri, Nov 20/); assert.match(t, /from your bank/i); assert.equal(await c.locator('.pc-parts').first().locator('li').count(), 3);
+    assert.match(t, /Citizens ••4417/); assert.match(t, /Santander ••6429/); assert.match(t, /Posted Nov 19/); assert.match(t, /\+\$1,873\.31/);
+    assert.match(t, /Next paycheck Fri, Dec 4 · comes in automatically from your bank/);
+    assert.ok(!/280/.test(t));
+    assert.match(t, /earlier paychecks/i); assert.match(t, /Fri, Nov 6/);
+    await c.locator('[data-action="pc-toggle"]').click(); assert.match(await page.locator('.pc-o').innerText(), /No bank deposits|\$1,500\.00/);
+    await noHScroll(page, '390 income');
+    await c.scrollIntoViewIfNeeded(); await page.screenshot({ path: SHOTS + '/income-390.png' });
+  });
+  await step('Not part of paycheck: total drops, txn returns to review as refund/transfer, and stays out after Sync now', async () => {
+    await page.locator('#latestpay .pc-part', { hasText: '$300.00' }).locator('[data-action="pc-out"]').click();
+    let s = await getState(page);
+    assert.equal(s.income[0].perCycle['2026-11-20'], 1973.31); assert.ok(!('pl:s2' in s.bank.seen)); assert.equal(s.bank.notPay['pl:s2'], true);
+    const r = s.bank.inbox.find(i => i.txn.id === 'pl:s2'); assert.ok(r && r.kind === 'transfer' && !r.pick && r.refund);
+    assert.match(await page.locator('#latestpay').innerText(), /\$1,973\.31/); assert.equal(await page.locator('#latestpay .pc-parts').first().locator('li').count(), 2);
+    await page.click('[data-action="bk-sync"]'); await page.waitForFunction(() => document.querySelector('[data-action="bk-sync"]') && !document.querySelector('[data-action="bk-sync"]').disabled);
+    await page.waitForTimeout(200);
+    s = await getState(page);
+    assert.equal(s.income[0].perCycle['2026-11-20'], 1973.31); assert.ok(!('pl:s2' in s.bank.seen)); assert.ok(s.bank.inbox.some(i => i.txn.id === 'pl:s2' && i.kind === 'transfer'));
+    await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx');
+    assert.equal(await page.locator('.tx[data-id="pl:s2"] .txc').innerText(), 'Needs review');
+    assert.equal(await page.locator('.tx[data-id="pl:s1"] .txc').innerText(), 'Paycheck');
+    await page.click('[data-action="tx-filter"][data-f="review"]');
+    assert.equal(await page.locator('#main [data-action="ix-all"]').isDisabled(), true, 'Accept all skips transfers without a target');
+    for (const id of ['pl:odd', 'pl:s2']) { await page.locator(`.tx[data-id="${id}"] .tx-main`).click(); await page.locator(`.tx[data-id="${id}"] [data-action="tx-in"]`).click(); await page.locator(`.tx[data-id="${id}"] [data-action="tx-refund"]`).click(); }
+    s = await getState(page); assert.equal(s.income[0].perCycle['2026-11-20'], 1973.31, 'strangers never join the paycheck');
+    assert.equal(s.bank.seen['pl:odd'].res, 'transfer'); assert.equal(s.bank.seen['pl:s2'].res, 'transfer');
+  });
+  await step('Edit total overrides by hand and keeps the parts', async () => {
+    await page.goto(BASE + '#income'); await page.waitForSelector('#latestpay');
+    await page.click('#latestpay [data-action="pc-edit"]'); await page.fill('#pcamt', '2000'); await page.click('#latestpay [data-action="pc-save"]');
+    const s = await getState(page); assert.equal(s.income[0].perCycle['2026-11-20'], 2000); assert.equal(s.income[0].manual['2026-11-20'], true);
+    const t = await page.locator('#latestpay').innerText(); assert.match(t, /\$2,000\.00/); assert.match(t, /edited by hand/); assert.equal(await page.locator('#latestpay .pc-parts').first().locator('li').count(), 2);
+  });
+  assert.deepEqual(errs, [], 'page errors in latest paycheck'); void calls;
+  await page.context().close();
+}
+{
+  // Hero: with a bank connected the paycheck is not asked for; without one the prompt stays.
+  const a = await prepared(390, 844); a.mock.txns = [];
+  await a.page.goto(BASE + '#overview', { waitUntil: 'load' }); await a.page.reload({ waitUntil: 'load' });
+  await step('bank connected: hero shows the passive waiting line, not the prompt; Enter by hand opens it', async () => {
+    await a.page.waitForSelector('.pay-wait');
+    assert.match(await a.page.locator('.pay-wait').innerText(), /Waiting for your paycheck from the bank/); assert.equal(await a.page.locator('.pay-ask').count(), 0);
+    await a.page.click('.pay-wait [data-action="pay-hand"]'); await a.page.waitForSelector('#payamt'); assert.equal(await a.page.locator('.pay-wait').count(), 0);
+    await a.page.fill('#payamt', '1400'); await a.page.click('[data-action="pay-set"]');
+    assert.equal((await getState(a.page)).income[0].perCycle['2026-11-19'], 1400);
+    await noHScroll(a.page, '390 hero');
+  });
+  assert.deepEqual(a.errs, [], 'page errors in hero (bank)'); await a.page.context().close();
+  const b = await newPage(390, 844); await seed(b.page);
+  await b.page.goto(BASE + '#overview', { waitUntil: 'load' }); await b.page.reload({ waitUntil: 'load' });
+  await step('no bank: hero keeps the manual paycheck prompt', async () => {
+    await b.page.waitForSelector('.pay-ask #payamt'); assert.equal(await b.page.locator('.pay-wait').count(), 0);
+  });
+  assert.deepEqual(b.errs, [], 'page errors in hero (no bank)'); await b.page.context().close();
 }
 
 await browser.close();

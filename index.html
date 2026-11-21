@@ -730,6 +730,62 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
   .ov-donut .donut-wrap { justify-items: center; }
   .ov-donut .donut-wrap svg { width: 100%; max-width: 170px; }
 }
+
+/* Plans segmented control, Transactions tab, Latest paycheck */
+.plans-seg { justify-self: start; }
+.tabs a { min-width: 0; white-space: nowrap; letter-spacing: -.01em; }
+.tx-filters { padding: 0 12px 6px; display: grid; gap: 10px; }
+.tx-chips { margin: 0; gap: 6px; }
+.tx-chips .chip { padding: 6px 11px; font-size: 13px; }
+.tx-find { display: flex; gap: 8px; min-width: 0; }
+.tx-find input, .tx-find select { min-width: 0; flex: 1 1 0; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+.tx-find select { flex: 0 1 45%; }
+.tx-list { padding: 0 0 8px; }
+.tx-day { position: sticky; top: 0; z-index: 2; padding: 6px 16px; font-size: 12px; font-weight: 600; letter-spacing: .03em; color: var(--ink-3); background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.tx { border-bottom: 1px solid var(--line); min-width: 0; }
+.tx-main { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; width: 100%; padding: 10px 16px; border: 0; background: transparent; color: inherit; text-align: left; min-width: 0; }
+.tx-l { display: grid; gap: 2px; min-width: 0; }
+.tx-l b { font-weight: 600; font-size: 14.5px; overflow-wrap: anywhere; }
+.tx-s { font-size: 12.5px; color: var(--ink-3); }
+.tx-r { display: grid; justify-items: end; gap: 4px; flex: none; max-width: 52%; }
+.tx-r .amt { font-family: var(--mono); font-size: 14px; white-space: nowrap; }
+.tx-r .amt.in, .pc-part .amt.in { color: var(--good); font-weight: 500; }
+.txc { font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 99px; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line-2); text-align: right; overflow-wrap: anywhere; line-height: 1.3; }
+.txc.k-review, .txc.k-earlier { background: color-mix(in srgb, var(--warn) 20%, var(--surface)); color: var(--ink); border-color: color-mix(in srgb, var(--warn) 55%, var(--line-2)); }
+.txc.k-spend, .txc.k-income, .txc.k-match { background: color-mix(in srgb, var(--good) 14%, var(--surface)); color: var(--ink); border-color: color-mix(in srgb, var(--good) 45%, var(--line-2)); }
+.tx.open { background: var(--surface-2); }
+.tx-p { padding: 0 16px 12px; display: grid; gap: 8px; }
+.tx-p .h { font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.tx-p .chips { margin: 0; gap: 6px; }
+.tx-p .chip { padding: 7px 11px; font-size: 13px; text-align: left; }
+.tx-more { padding: 12px 16px 4px; display: flex; justify-content: center; }
+.tx-card .bx-top { margin: 0; }
+.tx-cand { text-align: left; color: inherit; width: 100%; font: inherit; cursor: pointer; }
+.tx-cand .bm-d span { font-family: var(--mono); font-size: 13px; }
+.pay-wait { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px dashed var(--brass-hi); border-radius: 12px; font-size: 13px; color: var(--hero-ink-2); }
+.pay-wait .linkbtn { color: var(--hero-ink); }
+.pc-b { display: grid; gap: 12px; }
+.pc-tot { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.pc-big { font-family: var(--display); font-size: 40px; line-height: 1.05; letter-spacing: -.01em; }
+.pc-date { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+.pc-edit { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pc-edit .money-in { flex: 1 1 120px; }
+.pc-parts { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--line); }
+.pc-part { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 9px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+.pc-part .amt { font-family: var(--mono); font-size: 14px; }
+.pc-out { grid-column: 1 / -1; justify-self: start; font-size: 12.5px; color: var(--ink-3); }
+.pc-next { margin: 0; font-size: 13px; color: var(--ink-2); }
+.pc-h { padding: 4px 16px 0; }
+.pc-old { padding-bottom: 8px; }
+.pc-o { padding: 0 8px; }
+.pc-o + .pc-o { border-top: 1px solid var(--line); }
+.pc-o-h { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; width: 100%; border: 0; background: transparent; color: inherit; text-align: left; padding: 10px 0; }
+.pc-o-h .main { display: grid; gap: 2px; min-width: 0; }
+.pc-o-h .sub { font-size: 12.5px; color: var(--ink-3); }
+.pc-o-h .amt { font-family: var(--mono); font-size: 14px; }
+.pc-o-h .chev { transition: transform .15s; color: var(--ink-3); }
+.pc-o-h[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.pc-o .pc-parts { margin-bottom: 8px; }
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#15203a">
@@ -754,8 +810,8 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 <nav class="tabs" aria-label="Sections"><div class="tabs-in">
   <a href="#overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l6 4"/></svg>Overview</a>
   <a href="#bills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Bills</a>
-  <a href="#plans"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.5 11h-11z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg>Pay plans</a>
-  <a href="#cards"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Cards</a>
+  <a href="#plans"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.5 11h-11z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg>Plans</a>
+  <a href="#transactions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Transactions</a>
   <a href="#income"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>Income</a>
 </div></nav>
 <div id="sheet" class="sheet-wrap" hidden><div class="backdrop" data-action="close"></div><div class="sheet" role="dialog" aria-modal="true"><div id="sheetBody"></div></div></div>
@@ -1209,6 +1265,10 @@ const BT = (() => {
     return c >= Math.min(2, n);
   }
   const payerMatch = (income, desc) => !!(income && income.payer) && keyMatch(income.payer, merchantKey(desc));
+  // A deposit may only count toward a paycheck when it names the employer: the learned payer when there is one, otherwise a payroll keyword.
+  // A payroll keyword from a different payer never joins once the payer is known.
+  const isAnchor = (income, t) => income && income.payer ? payerMatch(income, t.desc) : PAYROLL_RX.test(rawText(t));
+  const notPay = (st, t) => !!(st.bank && st.bank.notPay && st.bank.notPay[t.id]);
   // Bank-sourced deposits already applied to one paycheck: [[txnId, record], ...]
   function paycheckParts(st, incomeId, date) {
     return Object.entries((st.bank && st.bank.seen) || {}).filter(([, r]) => r && r.res === 'income' && r.incomeId === incomeId && r.payDate === date);
@@ -1223,7 +1283,7 @@ const BT = (() => {
   function groupPaychecks(st, txns) {
     const by = new Map(), rest = [], groups = [];
     txns.forEach(t => {
-      if (!(t.amount < 0) || PLAN_RX.test(t.desc)) { rest.push(t); return; }
+      if (!(t.amount < 0) || PLAN_RX.test(t.desc) || notPay(st, t)) { rest.push(t); return; }
       let best = null;
       (st.income || []).forEach(i => {
         if (!i.date || i.freq === 'once') return;
@@ -1238,9 +1298,11 @@ const BT = (() => {
     });
     by.forEach(({ i, pd, ts }) => {
       const applied = paycheckParts(st, i.id, pd), appliedKeys = applied.map(([, r]) => merchantKey(r.desc));
-      const anchor = t => PAYROLL_RX.test(rawText(t)) || payerMatch(i, t.desc);
-      const anchors = ts.filter(anchor), anchorKeys = anchors.map(t => merchantKey(t.desc));
-      const member = t => anchor(t) || anchorKeys.some(k => keyMatch(k, merchantKey(t.desc))) || appliedKeys.some(k => keyMatch(k, merchantKey(t.desc)));
+      let anchors = ts.filter(t => isAnchor(i, t) && Math.abs(diffDays(pd, t.date)) <= 1);
+      // No payer learned yet: several payroll-looking deposits must share one payer with the largest one.
+      if (!i.payer && anchors.length > 1) { const lead = merchantKey(anchors.slice().sort((a, b) => a.amount - b.amount)[0].desc); anchors = anchors.filter(t => keyMatch(lead, merchantKey(t.desc))); }
+      const anchorKeys = anchors.map(t => merchantKey(t.desc));
+      const member = t => Math.abs(diffDays(pd, t.date)) <= 1 && (anchors.includes(t) || anchorKeys.some(k => keyMatch(k, merchantKey(t.desc))) || appliedKeys.some(k => keyMatch(k, merchantKey(t.desc))));
       const parts = ts.filter(member);
       if (!parts.length || (parts.length < 2 && !applied.length) || (!anchors.length && !applied.length)) { rest.push(...ts); return; }
       rest.push(...ts.filter(t => !parts.includes(t)));
@@ -1287,7 +1349,8 @@ const BT = (() => {
   const PURCHASE_RX = /\b(?:card purchase|purchase|pos|checkcard|debit card)\b/i;
   const P2P_RX = /venmo|cash ?app|zelle/i;
   const isTransfer = txn => TRANSFER_RX.test(txn.desc) || (txn.providerCategory === 'transfer' && !PURCHASE_RX.test(txn.desc));
-  function classifyTxn(st, txn, today) {
+  // Money in near a payday that does not come from the employer is a transfer or refund, never part of the paycheck.
+  function classifyTxn(st, txn, today, groupKeys) {
     const base = { txn, kind: 'spend', confidence: 'low', cands: [], pick: null, category: '', source: '' };
     if (PLAN_RX.test(txn.desc)) {
       const cands = matchPlanPayments(st, txn, today);
@@ -1295,7 +1358,13 @@ const BT = (() => {
       return Object.assign(base, { kind: 'plan', cands, pick: cands[0] || null, confidence: plans === 1 ? 'high' : plans > 1 ? 'medium' : 'low', newPlan: !cands.length });
     }
     if (txn.amount < 0) {
-      const cands = matchIncome(st, txn);
+      let cands = matchIncome(st, txn);
+      if (notPay(st, txn)) cands = [];
+      else if (cands.length) {
+        const inc = st.income.find(x => x.id === cands[0].incomeId), key = cands[0].incomeId + '|' + cands[0].date;
+        const sibling = !!(inc && (inc.payer || paycheckParts(st, inc.id, cands[0].date).length)) || !!(groupKeys && groupKeys.has(key));
+        if (sibling && !isAnchor(inc, txn)) cands = [];
+      }
       if (cands.length) {
         const c = cands[0], ref = c.current != null ? c.current : (() => { const i = st.income.find(x => x.id === c.incomeId); return i ? prevPay(i, c.date) : 0; })();
         const near = ref > 0 && Math.abs(c.amount - ref) / ref <= 0.01;
@@ -1324,7 +1393,8 @@ const BT = (() => {
     const twin = t => t.status === 'pending' && txns.some(p => p !== t && p.status !== 'pending' && p.amount === t.amount && (!t.account || !p.account || t.account === p.account)
       && Math.abs(diffDays(t.date, p.date)) <= 3 && (nameSim(t.desc, p.desc) > 0 || (!tokens(t.desc).length && !tokens(p.desc).length)));
     const pg = groupPaychecks(st, live.filter(t => !twin(t)));
-    const sugg = pg.groups.concat(pg.rest.map(t => classifyTxn(st, t, today)));
+    const gk = new Set(pg.groups.map(g => g.pick.incomeId + '|' + g.pick.date));
+    const sugg = pg.groups.concat(pg.rest.map(t => classifyTxn(st, t, today, gk)));
     const rank = { high: 0, medium: 1, low: 2 }, claimed = new Set();
     sugg.map((s, i) => [s, i]).sort((a, b) => rank[a[0].confidence] - rank[b[0].confidence] || a[1] - b[1]).forEach(([s]) => {
       if (!s.pick) return;
@@ -1342,7 +1412,7 @@ const BT = (() => {
     if (k && category) st.bank.rules[k] = category;
   }
 
-  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, guessCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
+  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
 })();
 
 
@@ -1589,6 +1659,24 @@ function normalize(s) {
   if (o.bank.balances && (typeof o.bank.balances !== 'object' || !Array.isArray(o.bank.balances.items))) o.bank.balances = null;
   if (o.bank.balances === undefined) o.bank.balances = null;
   if (!o.bank.refreshOK || typeof o.bank.refreshOK !== 'object') o.bank.refreshOK = null;
+  if (!o.bank.notPay || typeof o.bank.notPay !== 'object') o.bank.notPay = {};
+  // Ledger of every bank transaction received (last 180 days). Seeded once from what older versions kept elsewhere.
+  if (!o.bank.txns || typeof o.bank.txns !== 'object') o.bank.txns = {};
+  if (!o.imports.includes('txns-seed-1')) {
+    o.imports.push('txns-seed-1');
+    const put = t => { if (t && t.id && t.date && typeof t.amount === 'number' && !o.bank.txns[t.id]) o.bank.txns[t.id] = t; };
+    o.bank.inbox.forEach(x => (x.parts || [x.txn]).forEach(put));
+    o.bank.history.forEach(put);
+    Object.entries(o.bank.seen).forEach(([id, r]) => {
+      if (!r || !['sync', 'history'].includes(r.src)) return;
+      if (r.txn) return put(r.txn);
+      if (r.date && typeof r.amount === 'number' && r.desc) {
+        const m = String(r.acct || '').match(/^(.*?)\s*••(\d{4})$/), nm = m ? m[1] : String(r.acct || '');
+        put({ id, date: r.date, desc: r.desc, rawDesc: r.desc, amount: r.amount, status: 'posted', account: nm ? { institution: nm, name: nm, last4: m ? m[2] : '' } : null });
+      }
+    });
+  }
+  { const cut = BT.addDays(TODAY, -180); Object.keys(o.bank.txns).forEach(id => { if (!(o.bank.txns[id].date >= cut)) delete o.bank.txns[id]; }); }
   // One-time repair: a split paycheck applied as separate deposits left only the last one in perCycle.
   if (!o.imports.includes('paysplit-fix-1')) {
     o.imports.push('paysplit-fix-1');
@@ -1780,7 +1868,7 @@ function viewOverview() {
     </div>
     ${HEROUI.split && dparts.length > 1 ? `<p class="hero-split">Split: ${splitLine(dparts.map(p => ({ acct: p.acct || (p.txn ? acctDots(p.txn) : ''), amount: p.amount })))}</p>` : ''}
     ${uaTotal > 0 ? `<button class="ua-bar" data-action="allocate" data-id="${uaFirst.id}"><b>${fmt(uaTotal)} unallocated.</b> Record where it went to see your real spending this cycle.</button>` : ''}
-    ${(() => { const n = (state.bank.inbox || []).length; return n ? `<button class="ua-bar bx-bar" data-action="ix-open"><b>${n} new ${n === 1 ? 'transaction' : 'transactions'}</b> from your bank. Review</button>` : ''; })()}
+    ${(() => { const n = (state.bank.inbox || []).length; return n ? `<button class="ua-bar bx-bar" data-action="tx-review"><b>${n} new ${n === 1 ? 'transaction' : 'transactions'}</b> from your bank. Review</button>` : ''; })()}
     ${catBar()}
     <div class="meter" role="img" aria-label="${Math.round(pct)}% paid"><i style="width:${pct}%"></i></div>
     <dl class="hero-stats">
@@ -1903,7 +1991,7 @@ function viewCards() {
 
 /* ---------- Per-cycle paycheck ---------- */
 let PAY_EDIT = null;
-const HEROUI = { split: false };
+const HEROUI = { split: false, hand: false };
 const isAsk = id => { const i = state.income.find(x => x.id === id); return !!(i && i.askFrom); };
 function payPrompt(r) {
   let a = BT.payAsk(state, r)[0], cur = null;
@@ -1912,15 +2000,18 @@ function payPrompt(r) {
     if (i) { a = { ref: i.id, name: i.name, date: PAY_EDIT, prev: BT.prevPay(i, PAY_EDIT) }; cur = i.perCycle[PAY_EDIT]; }
   }
   if (!a) return '';
+  // With a bank connected the paycheck arrives by itself: no question, just a way in for people who want to type it.
+  if (bankReady() && !PAY_EDIT && !HEROUI.hand) return `<div class="pay-wait" role="status"><span>Waiting for your paycheck from the bank</span><button class="linkbtn" data-action="pay-hand">Enter by hand</button></div>`;
   const d = `data-id="${a.ref}" data-date="${a.date}"`;
   return `<div class="pay-ask"><label for="payamt"><b>${esc(a.name)} · ${lng(a.date)}</b>How much was deposited this pay cycle?</label>
     <div class="pay-row"><span class="money-in"><i>$</i><input id="payamt" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${cur === null ? '' : cur.toFixed(2)}"></span><button class="btn primary sm" data-action="pay-set" ${d}>Save</button></div>
-    <div class="pay-opts">${a.prev ? `<button class="pay-same" data-action="pay-same" ${d} data-amt="${a.prev}">Same as previous paycheck · ${fmt(a.prev)}</button>` : ''}${cur !== null ? '<button class="linkbtn" data-action="pay-cancel">Cancel</button>' : ''}</div></div>`;
+    <div class="pay-opts">${a.prev ? `<button class="pay-same" data-action="pay-same" ${d} data-amt="${a.prev}">Same as previous paycheck · ${fmt(a.prev)}</button>` : ''}${cur !== null || HEROUI.hand ? '<button class="linkbtn" data-action="pay-cancel">Cancel</button>' : ''}</div></div>`;
 }
 
 function viewIncome() {
   return `<div class="grid-2"><div class="stack">
-    <section class="card"><header class="card-h"><h2>Income</h2><button class="btn primary sm" data-action="add" data-type="income">${ICON.plus}Add income</button></header>
+    ${latestPaycheckCard()}
+    <section class="card"><header class="card-h"><h2>Other income</h2><button class="btn primary sm" data-action="add" data-type="income">${ICON.plus}Add income</button></header>
       <ul class="rows">${state.income.map(i => `<li class="row tap" data-action="edit" data-type="income" data-id="${i.id}" tabindex="0" role="button" aria-label="Edit ${esc(i.name)}">
         <span></span><div class="daybadge">${i.freq === 'biweekly' ? '2w' : i.freq === 'weekly' ? '1w' : i.freq === 'monthly' ? '1m' : '1×'}</div>
         <div class="main"><div class="nm">${esc(i.name)}${i === BT.paycheck(state) ? ' <span class="pill soft">Sets your cycle</span>' : ''}</div><div class="sub">${FREQ[i.freq]} · ${i.freq === 'once' ? lng(i.date) : 'next ' + lng(nextPay(i))}${i.askFrom ? ' · amount asked each pay cycle' : ''}</div></div>
@@ -2259,15 +2350,15 @@ function planSummary(p, curKey) {
 function openForm(type, id, extra) {
   const spec = SPECS[type], item = id ? findItem(type, id) : DEFAULTS[type](extra);
   if (!item) return;
-  const isNew = !id, inbox = type === 'extra' && extra && extra.inbox ? extra.inbox : '', hist = type === 'extra' && extra && extra.history ? extra.history : '';
-  if ((inbox || hist) && extra.prefill) Object.assign(item, extra.prefill);
+  const isNew = !id, inbox = type === 'extra' && extra && extra.inbox ? extra.inbox : '', hist = type === 'extra' && extra && extra.history ? extra.history : '', txf = type === 'extra' && extra && extra.tx ? extra.tx : '';
+  if ((inbox || hist || txf) && extra.prefill) Object.assign(item, extra.prefill);
   EDIT_AMT = item.amount || 0;
   openSheet(`<div class="sheet-h"><div><h3>${isNew ? (type === 'plan' ? 'Log a purchase' : 'Add ' + spec.title.toLowerCase()) : 'Edit ' + spec.title.toLowerCase()}</h3>
     <p class="lede">${type === 'plan' ? 'Klarna, Afterpay or PayPal. Next payments schedule themselves.' : type === 'bill' ? 'Repeats every month on the due day.' : type === 'income' ? 'Your main paycheck sets the start of every pay cycle.' : type === 'card' ? 'The minimum payment joins your cycle on its due day.' : type === 'extra' ? 'Spending outside your bills. It comes out of the pay cycle of its date.' : 'Counted once per pay cycle.'}</p></div>
     <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
-    ${isNew && !inbox && !hist && (type === 'extra' || type === 'plan') ? `<div class="seg kind-seg" role="group" aria-label="Type of spending"><button type="button" data-action="add" data-type="extra" aria-pressed="${type === 'extra'}">One-time spending</button><button type="button" data-action="add" data-type="plan" aria-pressed="${type === 'plan'}">Klarna · Afterpay · PayPal</button></div>` : ''}
+    ${isNew && !inbox && !hist && !txf && (type === 'extra' || type === 'plan') ? `<div class="seg kind-seg" role="group" aria-label="Type of spending"><button type="button" data-action="add" data-type="extra" aria-pressed="${type === 'extra'}">One-time spending</button><button type="button" data-action="add" data-type="plan" aria-pressed="${type === 'plan'}">Klarna · Afterpay · PayPal</button></div>` : ''}
     ${type === 'plan' && !isNew ? planSummary(item) : ''}
-    <form class="form" id="form" data-type="${type}" data-id="${id || ''}"${inbox ? ` data-inbox="${esc(inbox)}"` : ''}${hist ? ` data-history="${esc(hist)}"` : ''} novalidate>
+    <form class="form" id="form" data-type="${type}" data-id="${id || ''}"${inbox ? ` data-inbox="${esc(inbox)}"` : ''}${hist ? ` data-history="${esc(hist)}"` : ''}${txf ? ` data-tx="${esc(txf)}"` : ''} novalidate>
       ${spec.fields.map(f => fieldHTML(f, item[f.k], isNew)).join('')}
       ${type === 'plan' ? '<div class="preview" id="preview" aria-live="polite"></div>' : ''}
       <div class="form-err" id="ferr" role="alert"></div>
@@ -2336,6 +2427,7 @@ function planPreview() {
 function saveForm(form) {
   const type = form.dataset.type, id = form.dataset.id;
   const o = readForm(form, type); if (!o) return;
+  if (form.dataset.tx) { if (o.recurring) toast('Added once. Repeating bills are set up on the Bills tab.'); closeSheet(); return txDo(form.dataset.tx, { kind: 'spend', spend: { category: o.category, desc: o.desc, amount: o.amount, date: o.date, via: o.via, note: o.note || 'Bank sync', from: o.from } }); }
   if (form.dataset.inbox) return applyEdited(form.dataset.inbox, o);
   if (form.dataset.history) return addFromHistory(form.dataset.history, o);
   if (o.category) saveIconChoice(form, o.category);
@@ -2901,7 +2993,7 @@ function bankCard() {
         <label class="tgl"><input type="checkbox" data-action="bk-toggle" data-id="${esc(a.id)}" data-eid="${esc(e.id)}"${a.enabled ? ' checked' : ''} aria-label="Sync ${esc(a.name || 'account')}"><span aria-hidden="true"></span></label></li>`).join('') || '<li><div class="sub">No accounts found.</div></li>'}</ul></div>`).join('')
     : '<p class="bk-ok">No banks connected yet. Tap Connect a bank.</p>';
   return `<section class="card" id="bankcard">${head}<div class="card-b bk">${list}
-    <div class="bk-btns"><button class="btn primary" data-action="bk-connect"${BANKUI.busy ? ' disabled' : ''}>Connect a bank</button>${n ? `<button class="btn" data-action="ix-open">Review ${n} new</button>` : '<button class="btn" data-action="ix-open">Recently synced</button>'}<button class="btn" data-action="hx-open">Earlier transactions · ${hn}</button></div>
+    <div class="bk-btns"><button class="btn primary" data-action="bk-connect"${BANKUI.busy ? ' disabled' : ''}>Connect a bank</button>${n ? `<button class="btn" data-action="tx-review">Review ${n} new</button>` : ''}<button class="btn" data-action="ix-open">Recently synced</button><button class="btn" data-action="hx-open">Earlier transactions · ${hn}</button></div>
     <label class="bk-auto"><span>Automatic from ${esc(md(b.autoFrom))}</span><input type="date" id="bk-autofrom" value="${esc(b.autoFrom)}" aria-label="Automatic from date"></label>
     <p class="bk-err" role="alert">${esc(BANKUI.err)}</p>
     <p class="note" style="margin:0">From the automatic date on, matching bills, paychecks and Klarna, Afterpay and PayPal payments are applied for you, and anything unsure waits in your review list. Earlier ones are yours to add by hand. <button class="linkbtn" style="color:var(--ink-3)" data-action="bk-forget">Remove pairing from this phone</button></p></div></section>`;
@@ -3035,7 +3127,7 @@ async function bankSync(o) {
   if (!bankReady()) { if (!auto) toast('Connect a bank first'); return; }
   if (BANKUI.syncing) return;
   BANKUI.syncing = true; BANKUI.tried = Date.now();
-  if (currentTab() === 'income') render();
+  if (['income', 'transactions'].includes(currentTab())) render();
   try {
     let since = state.bank.historyFrom;
     if (state.bank.lastSync) { const d = BT.addDays(BT.iso(new Date(state.bank.lastSync)), -5); if (d > since) since = d; }
@@ -3047,6 +3139,10 @@ async function bankSync(o) {
     const before = new Set(state.bank.inbox.flatMap(s => (s.parts || [s.txn]).map(t => t.id)));
     const allIn = (Array.isArray(r.txns) ? r.txns : []).filter(t => t && t.id), removed = new Set((Array.isArray(r.removed) ? r.removed : []).filter(Boolean));
     const { autoFrom, historyFrom } = state.bank;
+    // Ledger: every transaction on or after historyFrom, pending replaced by posted, removed ones gone.
+    allIn.forEach(t => { if (t.date >= historyFrom) state.bank.txns[t.id] = t; if (t.pendingOf && t.pendingOf !== t.id) delete state.bank.txns[t.pendingOf]; });
+    removed.forEach(id => { delete state.bank.txns[id]; });
+    { const cut = BT.addDays(TODAY, -180); Object.keys(state.bank.txns).forEach(id => { if (!(state.bank.txns[id].date >= cut)) delete state.bank.txns[id]; }); }
     const incoming = allIn.filter(t => t.date >= autoFrom), earlier = allIn.filter(t => t.date >= historyFrom && t.date < autoFrom); // older than historyFrom: ignored
     const byId = new Map(); state.bank.inbox.forEach(s => (s.parts || [s.txn]).forEach(t => byId.set(t.id, t))); incoming.forEach(t => byId.set(t.id, t));
     const inbox = [];
@@ -3090,7 +3186,7 @@ async function bankSync(o) {
     if (errs.some(e => e.needsReconnect)) { BANKUI.enr = null; BANKUI.loadErr = ''; }
   } catch (e) { if (!auto) toast(e.message); }
   BANKUI.syncing = false;
-  if (currentTab() === 'income') render(); else if (!$('#sheet').hidden && BALUI.open) balanceSheet();
+  if (['income', 'transactions'].includes(currentTab())) render(); else if (!$('#sheet').hidden && BALUI.open) balanceSheet();
 }
 // "Sync now": ask the banks to refresh (when the plan allows it), sync right away, then once more shortly after (quietly)
 // to pick up whatever the banks answered with.
@@ -3177,13 +3273,13 @@ function applyOne(s, ch, auto) {
   return false;
 }
 const SAID = { match: 'Matched', bill: 'Marked paid', income: 'Paycheck saved', spend: 'Added', skip: 'Ignored', transfer: 'Marked' };
-function applySuggestion(s, ch) {
+function applySuggestion(s, ch, quiet) {
   let ok = false;
   absorbChange(state, () => { ok = applyOne(s, ch || {}, false); }, 'Bank sync');
   if (!ok) { toast('Pick a match or category first'); return false; }
   state.bank.inbox = state.bank.inbox.filter(x => x.txn.id !== s.txn.id);
   INBOXUI.open = null; INBOXUI.mode = '';
-  const r = state.bank.seen[s.txn.id]; commit((SAID[r.res] || 'Done') + (r.res === 'skip' ? '' : ' · ' + r.what)); inboxSheet();
+  const r = state.bank.seen[s.txn.id]; commit((SAID[r.res] || 'Done') + (r.res === 'skip' ? '' : ' · ' + r.what)); if (!quiet) inboxSheet();
   return true;
 }
 function applyEdited(id, o) {
@@ -3219,10 +3315,10 @@ function undoSuggestion(id) {
   // Undoing one part of a split paycheck undoes the whole paycheck.
   const r0 = state.bank.seen[id];
   const ids = r0 && r0.res === 'income' && r0.part ? BT.paycheckParts(state, r0.incomeId, r0.payDate).filter(([, r]) => SYNCSRC.includes(r.src)).map(([k]) => k) : [id];
-  const recs = ids.map(revertSeen).filter(Boolean); if (!recs.length) return;
+  const pairs = ids.map(k => [k, revertSeen(k)]).filter(q => q[1]), recs = pairs.map(q => q[1]); if (!recs.length) return;
   // Back to the review list so it can be sorted out again.
   const have = new Set(state.bank.inbox.flatMap(x => (x.parts || [x.txn]).map(t => t.id)));
-  const back = recs.map(r => r.txn).filter(t => t && !have.has(t.id));
+  const back = pairs.map(([k, r]) => r.txn || state.bank.txns[k]).filter(t => t && !have.has(t.id));
   if (back.length) BT.classifyBatch(state, back, TODAY).forEach(s => state.bank.inbox.push(s));
   commit('Undone'); inboxSheet();
 }
@@ -3327,7 +3423,7 @@ function inboxAct(act, a) {
       if (!bulkOk(s)) return;
       if (applyOne(s, {}, false)) { n++; state.bank.inbox = state.bank.inbox.filter(x => x.txn.id !== s.txn.id); }
     }), 'Bank sync');
-    commit(n ? n + (n === 1 ? ' transaction accepted' : ' transactions accepted') : 'Nothing to accept'); inboxSheet(); return;
+    commit(n ? n + (n === 1 ? ' transaction accepted' : ' transactions accepted') : 'Nothing to accept'); if (!a.dataset.tx) inboxSheet(); return;
   }
   const s = state.bank.inbox.find(x => x.txn.id === a.dataset.id); if (!s) return;
   switch (act) {
@@ -3393,6 +3489,226 @@ function historyAct(act, a) {
   openForm('extra', null, { history: id, prefill: { category: g.category && cats.includes(g.category) ? g.category : cats.includes('Other') ? 'Other' : cats[0], desc: cleanMerchant(t), amount: Math.abs(t.amount), date: t.date, via: acctVia(t), note: 'Bank sync' } });
 }
 
+/* ---------- Transactions tab: every bank transaction received, with what became of it ---------- */
+let TXUI = { filter: 'all', bank: '', q: '', open: null, mode: '', limit: 60 };
+let TXMATCH = new Map();
+const txnOf = id => state.bank.txns[id] || ((state.bank.seen[id] || {}).txn) || null;
+const inboxOf = id => state.bank.inbox.find(s => (s.parts || [s.txn]).some(t => t.id === id));
+function txStatus(t) {
+  const b = state.bank, r = b.seen[t.id];
+  if (inboxOf(t.id)) return { k: 'review', f: 'review', label: 'Needs review' };
+  if (b.history.some(h => h.id === t.id)) return { k: 'earlier', f: 'review', label: 'Earlier · add by hand' };
+  if (r) {
+    if (r.res === 'spend' || r.res === 'manual') { const x = state.spends.find(z => z.id === r.spendId); return { k: 'spend', f: 'added', label: 'Added · ' + (x ? x.category : String(r.what || '').split(' · ')[0]), r }; }
+    if (r.res === 'match' || r.res === 'bill' || r.res === 'new') return { k: 'match', f: 'matched', label: 'Matched · ' + String(r.what || '').replace(/ (bill|payment)$/, ''), r };
+    if (r.res === 'income') return { k: 'income', f: 'added', label: 'Paycheck', r };
+    if (r.res === 'transfer') return { k: 'transfer', f: 'added', label: 'Transfer', r };
+    if (r.res === 'skip') return { k: 'ignored', f: 'ignored', label: 'Ignored', r };
+  }
+  return { k: 'none', f: 'ignored', label: 'Not counted' };
+}
+const txBankKey = t => acctDots(t) || 'Other';
+function txList() {
+  const q = TXUI.q.trim().toLowerCase();
+  return Object.values(state.bank.txns).filter(t => t && t.date).filter(t => {
+    if (TXUI.bank && txBankKey(t) !== TXUI.bank) return false;
+    if (q && !(cleanMerchant(t) + ' ' + (t.desc || '')).toLowerCase().includes(q)) return false;
+    return TXUI.filter === 'all' || txStatus(t).f === TXUI.filter;
+  }).sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : b.amount - a.amount);
+}
+function txRow(t) {
+  const st = txStatus(t), money = t.amount < 0, open = TXUI.open === t.id, id = esc(t.id);
+  return `<div class="tx${open ? ' open' : ''}" data-id="${id}"><button class="tx-main" data-action="tx-open" data-id="${id}" aria-expanded="${open}">
+    <span class="tx-l"><b>${esc(cleanMerchant(t))}</b><span class="tx-s">${esc(acctDots(t))}${t.status === 'pending' ? ' <span class="pill soft">Pending</span>' : ''}</span></span>
+    <span class="tx-r"><span class="amt${money ? ' in' : ''}">${money ? '+' : ''}${fmt(Math.abs(t.amount))}</span><span class="txc k-${st.k}">${esc(st.label)}</span></span></button>${open ? txPanel(t, st) : ''}</div>`;
+}
+function txPanel(t, st) {
+  const id = esc(t.id), money = t.amount < 0, s = inboxOf(t.id), k = st.k;
+  if (TXUI.mode === 'cats') {
+    const cur = k === 'spend' ? ((state.spends.find(z => z.id === st.r.spendId) || {}).category) : (s && s.kind === 'spend' ? s.category : BT.guessCategory(state, t).category);
+    const sugg = s && s.pick && ['plan', 'bill', 'transfer'].includes(s.kind) && k === 'review' ? `<div class="h">Suggested</div><div class="chips"><button class="chip" data-action="tx-sugg" data-id="${id}">${guessHTML(s)}</button></div>` : '';
+    return `<div class="tx-p">${sugg}<div class="h">${k === 'spend' ? 'Change category' : 'Category'}</div><div class="chips">${allCats().map(c => `<button class="chip" data-action="tx-cat" data-id="${id}" data-cat="${esc(c)}" aria-pressed="${cur === c}">${catIcon(c)}${esc(c)}</button>`).join('')}</div><div class="bx-a"><button class="btn sm" data-action="tx-back" data-id="${id}">Back</button></div></div>`;
+  }
+  if (TXUI.mode === 'in') return `<div class="tx-p"><div class="h">Count this money in as</div><div class="chips"><button class="chip" data-action="tx-paycheck" data-id="${id}">Paycheck</button><button class="chip" data-action="tx-refund" data-id="${id}">Refund or transfer</button></div><div class="bx-a"><button class="btn sm" data-action="tx-back" data-id="${id}">Back</button></div></div>`;
+  const b = (a, l, p) => `<button class="btn sm${p ? ' primary' : ''}" data-action="${a}" data-id="${id}">${l}</button>`;
+  let acts = '', note = '';
+  if (k === 'spend') acts = b('tx-cats', 'Category') + b('tx-edit', 'Edit') + b('tx-undo', 'Undo');
+  else if (k === 'match' || k === 'income' || k === 'transfer') { acts = b('tx-undo', 'Undo'); note = esc(st.r.what || ''); }
+  else if (k === 'ignored') acts = (money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit')) + b('tx-undo', 'Undo');
+  else if (k === 'none') acts = money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit');
+  else acts = (money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit')) + b('tx-ignore', 'Ignore');
+  return `<div class="tx-p">${s && k === 'review' ? `<div class="bx-g"><span class="pill conf-${s.confidence}">${{ high: 'Sure', medium: 'Likely', low: 'Unsure' }[s.confidence]}</span><span class="g-t">${guessHTML(s)}</span></div>` : ''}${note ? `<div class="bm-m">${note}</div>` : ''}<div class="bx-a">${acts}</div></div>`;
+}
+function txListHTML() {
+  const all = txList(), shown = all.slice(0, TXUI.limit);
+  if (!shown.length) return `<div class="empty">${TXUI.q || TXUI.bank || TXUI.filter !== 'all' ? 'Nothing matches these filters.' : 'No transactions yet. They show up here after a sync.'}</div>`;
+  let day = '', out = '';
+  shown.forEach(t => { if (t.date !== day) { day = t.date; out += `<div class="tx-day">${lng(day)}</div>`; } out += txRow(t); });
+  return out + (all.length > shown.length ? `<div class="tx-more"><button class="btn" data-action="tx-more">Show more (${all.length - shown.length})</button></div>` : '');
+}
+function viewTransactions() {
+  const has = Object.keys(state.bank.txns).length > 0;
+  if (!has && !bankReady()) return `<div class="stack"><section class="card"><header class="card-h"><h2>Transactions</h2></header><div class="card-b"><div class="empty">Connect a bank and every transaction shows up here, with what BudTracks did with it. <a class="linkbtn" href="#income">Go to Income → Bank connections</a></div></div></section></div>`;
+  const cnt = f => Object.values(state.bank.txns).filter(t => txStatus(t).f === f).length;
+  const banks = [...new Set(Object.values(state.bank.txns).map(txBankKey))].sort();
+  const n = cnt('review'), ready = state.bank.inbox.filter(bulkOk).length;
+  const F = [['all', 'All'], ['review', 'Needs review' + (n ? ' · ' + n : '')], ['added', 'Added'], ['matched', 'Matched'], ['ignored', 'Ignored']];
+  return `<div class="stack"><section class="card tx-card"><header class="card-h"><div><h2>Transactions</h2><span class="meta">${bankReady() && state.bank.lastSync ? 'Last synced ' + esc(relTime(state.bank.lastSync)) : 'From your connected banks'}</span></div>${bankReady() ? `<button class="btn sm" data-action="bk-sync"${BANKUI.syncing ? ' disabled' : ''}>${BANKUI.syncing ? 'Syncing…' : 'Sync now'}</button>` : ''}</header>
+    <div class="tx-filters"><div class="chips tx-chips" role="group" aria-label="Show">${F.map(([v, l]) => `<button class="chip" data-action="tx-filter" data-f="${v}" aria-pressed="${TXUI.filter === v}">${esc(l)}</button>`).join('')}</div>
+      <div class="tx-find"><input id="txq" type="search" placeholder="Search merchant" value="${esc(TXUI.q)}" aria-label="Search transactions" autocomplete="off">${banks.length > 1 ? `<select id="txbank" aria-label="Bank filter"><option value="">All banks</option>${banks.map(b => `<option value="${esc(b)}"${TXUI.bank === b ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>` : ''}</div>
+      ${TXUI.filter === 'review' && n ? `<div class="bx-top"><button class="btn sm" data-action="ix-open">Review one by one</button><button class="btn primary sm" data-action="ix-all" data-tx="1"${ready ? '' : ' disabled'}>Accept all (${ready})</button></div>` : ''}</div>
+    <div id="txlist" class="tx-list">${txListHTML()}</div></section></div>`;
+}
+document.addEventListener('input', e => { if (e.target.id === 'txq') { TXUI.q = e.target.value; TXUI.limit = 60; const l = $('#txlist'); if (l) l.innerHTML = txListHTML(); } });
+document.addEventListener('change', e => { if (e.target.id === 'txbank') { TXUI.bank = e.target.value; TXUI.limit = 60; render(); } });
+
+// Takes one transaction out of the review list (or the earlier list) so an action can handle it alone.
+function txPull(id) {
+  const t = txnOf(id), s = inboxOf(id); let from = '';
+  if (s) {
+    from = 'inbox'; const parts = s.parts || [s.txn];
+    state.bank.inbox = state.bank.inbox.filter(x => x !== s);
+    if (parts.length > 1) BT.classifyBatch(state, parts.filter(p => p.id !== id), TODAY).forEach(n => state.bank.inbox.push(n));
+  } else if (state.bank.history.some(h => h.id === id)) { from = 'history'; dropHistory(id); }
+  return { t, s, from };
+}
+function txRequeue(t, from) {
+  if (!t) return;
+  if (from === 'history' || t.date < state.bank.autoFrom) { if (t.date >= state.bank.historyFrom) addHistory(t); return; }
+  BT.classifyBatch(state, [t], TODAY).forEach(n => state.bank.inbox.push(n));
+}
+// Applies one decision to one transaction through the same applyOne the review list uses.
+function txDo(id, ch, quietMsg) {
+  const e = txPull(id), t = e.t; if (!t) return false;
+  const s = { txn: t, kind: ch.kind || 'spend', cands: [], pick: null, category: e.s && e.s.kind === 'spend' && e.s.category ? e.s.category : BT.guessCategory(state, t).category, confidence: 'low', source: '' };
+  let ok = false;
+  absorbChange(state, () => {
+    ok = applyOne(s, ch, false);
+    if (ok) {
+      const r = state.bank.seen[id];
+      if (e.from === 'history' && r.res === 'spend') Object.assign(r, { res: 'manual', src: 'history' });
+      if (e.from === 'history' && r.res === 'skip') Object.assign(r, { what: 'Hidden', src: 'history' });
+      if (r.res === 'income') delete state.bank.notPay[id];
+    }
+  }, 'Bank sync');
+  if (!ok) { txRequeue(t, e.from); commit(); toast('That one could not be applied'); return false; }
+  TXUI.mode = ''; const r = state.bank.seen[id];
+  commit(quietMsg || (SAID[r.res] || 'Done') + (r.res === 'skip' ? '' : ' · ' + r.what)); return true;
+}
+function txUndo(id) {
+  const r0 = state.bank.seen[id];
+  const ids = r0 && r0.res === 'income' && r0.part ? BT.paycheckParts(state, r0.incomeId, r0.payDate).filter(([, r]) => SYNCSRC.includes(r.src)).map(([k]) => k) : [id];
+  const pairs = ids.map(k => [k, revertSeen(k)]).filter(q => q[1]); if (!pairs.length) return;
+  const have = new Set(state.bank.inbox.flatMap(x => (x.parts || [x.txn]).map(t => t.id)));
+  const back = pairs.map(([k, r]) => txnOf(k) || r.txn).filter(t => t && !have.has(t.id));
+  const late = back.filter(t => t.date < state.bank.autoFrom);
+  late.forEach(t => { if (t.date >= state.bank.historyFrom) addHistory(t); });
+  const rest = back.filter(t => !late.includes(t));
+  if (rest.length) BT.classifyBatch(state, rest, TODAY).forEach(n => state.bank.inbox.push(n));
+  TXUI.open = null; TXUI.mode = ''; commit('Undone');
+}
+function txSetCat(id, cat) {
+  const r = state.bank.seen[id], x = r && state.spends.find(z => z.id === r.spendId); if (!x) return;
+  if (!state.categories.includes(cat) && !(state.billCats || []).includes(cat)) state.categories.push(cat);
+  x.category = cat; r.what = cat + ' · ' + x.desc;
+  const t = txnOf(id); if (t) BT.learnRule(state, t, cat);
+  TXUI.mode = ''; commit('Category updated · ' + cat);
+}
+function txMatchSheet(id) {
+  const t = txnOf(id); if (!t) return;
+  const amt = Math.abs(t.amount), win = { start: BT.addDays(t.date, -14), end: BT.addDays(t.date, 15), view: 'biweekly' };
+  const s = inboxOf(id), sk = s && s.pick && s.pick.key && ['plan', 'bill', 'transfer'].includes(s.kind) ? s.pick.key : '';
+  let list = BT.occurrences(state, win, TODAY, true).filter(x => ['bill', 'card', 'plan', 'spend'].includes(x.kind) && !(x.paid && x.key in state.marks) && !(state.occ[x.key] && state.occ[x.key].txn) && Math.abs(BT.diffDays(x.due, t.date)) <= 14);
+  list.sort((a, b) => (b.key === sk) - (a.key === sk) || Math.abs(a.amount - amt) - Math.abs(b.amount - amt) || Math.abs(BT.diffDays(a.due, t.date)) - Math.abs(BT.diffDays(b.due, t.date)));
+  TXMATCH = new Map(list.map(x => [x.key, x]));
+  const KIND = { bill: 'Bill', card: 'Credit card', plan: 'Pay plan', spend: 'Per paycheck' };
+  openSheet(`<div class="sheet-h"><div><h3>Match to something you entered</h3><p class="lede">${esc(cleanMerchant(t))} · ${fmt(amt)} · ${md(t.date)}. Pick the charge this paid.</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    ${list.length ? `<div class="bm-list">${list.map(x => `<button class="bm tx-cand" data-action="tx-link" data-id="${esc(id)}" data-key="${esc(x.key)}"><span class="bm-d"><b>${esc(x.name)}</b><span>${fmt(x.amount)}</span></span><span class="bm-m">${KIND[x.kind]} · due ${md(x.due)}${x.kind === 'plan' ? ' · ' + esc(x.note) : ''}${x.key === sk ? ' <span class="pill brass">Suggested</span>' : ''}${Math.abs(x.amount - amt) < 0.005 ? '' : ' · ' + (x.amount > amt ? fmt(x.amount - amt) + ' more' : fmt(amt - x.amount) + ' less')}</span></button>`).join('')}</div>` : '<p class="note">Nothing you entered is due within 14 days of this transaction.</p>'}
+    <div class="actions"><div class="r"><button class="btn" data-action="close">Cancel</button></div></div>`);
+}
+function txLink(id, key) {
+  const x = TXMATCH.get(key); if (!x) return;
+  const p = x.kind === 'plan' ? state.plans.find(z => z.id === x.ref) : null;
+  const ch = x.kind === 'plan' ? { kind: 'plan', pick: { key, provider: x.provider, merchant: x.name, n: +key.split(':')[2], total: p ? p.total : 0, date: x.due } }
+    : { kind: x.kind === 'card' ? 'transfer' : 'bill', pick: { key, name: x.name, date: x.due, kind: x.kind } };
+  closeSheet(); txDo(id, ch);
+}
+function txEdit(id) {
+  const t = txnOf(id), st = t && txStatus(t); if (!t) return;
+  if (st.k === 'spend' && st.r.spendId) { openForm('extra', st.r.spendId); return; }
+  const cats = allCats(), s = inboxOf(id), g = BT.guessCategory(state, t), c = s && s.kind === 'spend' && s.category ? s.category : g.category;
+  openForm('extra', null, { tx: id, prefill: { category: cats.includes(c) ? c : cats.includes('Other') ? 'Other' : cats[0], desc: cleanMerchant(t), amount: Math.abs(t.amount), date: t.date, via: acctVia(t), note: 'Bank sync' } });
+}
+function txAct(act, a) {
+  const id = a.dataset.id;
+  switch (act) {
+    case 'tx-review': TXUI.filter = 'review'; TXUI.open = null; TXUI.mode = ''; TXUI.limit = 60; if (currentTab() === 'transactions') render(); else location.hash = '#transactions'; if (!$('#sheet').hidden) closeSheet(); break;
+    case 'tx-filter': TXUI.filter = a.dataset.f; TXUI.open = null; TXUI.mode = ''; TXUI.limit = 60; render(); break;
+    case 'tx-more': TXUI.limit += 60; { const l = $('#txlist'); if (l) l.innerHTML = txListHTML(); } break;
+    case 'tx-open': TXUI.open = TXUI.open === id ? null : id; TXUI.mode = ''; { const l = $('#txlist'); if (l) l.innerHTML = txListHTML(); } break;
+    case 'tx-back': TXUI.mode = ''; render(); break;
+    case 'tx-cats': TXUI.mode = 'cats'; render(); break;
+    case 'tx-in': TXUI.mode = 'in'; render(); break;
+    case 'tx-cat': { const st = txnOf(id) && txStatus(txnOf(id)); if (st && st.k === 'spend') txSetCat(id, a.dataset.cat); else txDo(id, { kind: 'spend', category: a.dataset.cat }); break; }
+    case 'tx-sugg': { const s = inboxOf(id); if (!s || !s.pick) break; if (s.parts && s.parts.length > 1) { applySuggestion(s, {}, true); TXUI.mode = ''; render(); } else txDo(id, { kind: s.kind, pick: s.pick }); break; }
+    case 'tx-match': txMatchSheet(id); break;
+    case 'tx-link': txLink(id, a.dataset.key); break;
+    case 'tx-edit': txEdit(id); break;
+    case 'tx-ignore': txDo(id, { kind: 'ignore' }); break;
+    case 'tx-undo': txUndo(id); break;
+    case 'tx-refund': txDo(id, { kind: 'transfer' }); break;
+    case 'tx-paycheck': {
+      const s = inboxOf(id), t = txnOf(id); if (!t) break;
+      if (s && s.kind === 'income' && s.pick && s.parts && s.parts.length > 1) { applySuggestion(s, {}, true); TXUI.mode = ''; render(); break; }
+      const c = BT.matchIncome(state, t)[0]; if (!c) { toast('Add your paycheck on the Income tab first'); break; }
+      txDo(id, { kind: 'income', pick: c }); break;
+    }
+  }
+}
+
+/* ---------- Latest paycheck (Income tab) ---------- */
+const INCUI = { edit: null, open: new Set() };
+function payDatesWithData(i) {
+  const set = new Set();
+  Object.keys(i.perCycle || {}).forEach(d => { if (typeof i.perCycle[d] === 'number' && d <= TODAY) set.add(d); });
+  Object.values(state.bank.seen).forEach(r => { if (r && r.res === 'income' && r.incomeId === i.id && r.payDate && r.payDate <= TODAY) set.add(r.payDate); });
+  return [...set].sort().reverse();
+}
+function payInfo(i, date) {
+  const parts = BT.paycheckParts(state, i.id, date).map(([id, r]) => ({ id, r, t: txnOf(id) || { id, date: r.date, desc: r.desc, amount: r.amount, account: null } }))
+    .sort((a, b) => a.t.amount - b.t.amount);
+  const sum = BT.round2(parts.reduce((a, p) => a - p.r.amount, 0)), v = (i.perCycle || {})[date];
+  return { date, parts, total: typeof v === 'number' ? v : sum, bank: parts.length > 0, manual: !!(i.manual && i.manual[date]) };
+}
+function partRow(p, removable) {
+  const t = p.t, bank = acctDots(t) || p.r.acct || 'Bank';
+  return `<li class="pc-part"><div class="main"><div class="nm">${esc(cleanMerchant(t))}</div><div class="sub">${esc(bank)} · Posted ${md(t.date)}</div></div><span class="amt in">+${fmt(Math.abs(p.r.amount))}</span>${removable ? `<button class="linkbtn pc-out" data-action="pc-out" data-id="${esc(p.id)}">Not part of paycheck</button>` : ''}</li>`;
+}
+function latestPaycheckCard() {
+  const i = BT.paycheck(state); if (!i) return '';
+  const ds = payDatesWithData(i), ready = bankReady();
+  let nx = nextPay(i); if (ds[0] && nx <= ds[0]) nx = BT.addDays(nx, i.freq === 'weekly' ? 7 : 14);
+  const nextLine = `<p class="pc-next">Next paycheck <b>${lng(nx)}</b> · ${ready ? 'comes in automatically from your bank' : 'enter it when it arrives'}</p>`;
+  if (!ds.length) return `<section class="card pc-card" id="latestpay"><header class="card-h"><h2>Latest paycheck</h2></header><div class="card-b"><div class="empty" style="padding:6px 0 10px">No paycheck recorded yet.</div>${nextLine}</div></section>`;
+  const cur = payInfo(i, ds[0]), editing = INCUI.edit === cur.date;
+  const old = ds.slice(1, 7).map(d => payInfo(i, d));
+  return `<section class="card pc-card" id="latestpay"><header class="card-h"><h2>Latest paycheck</h2><span class="pill soft">${cur.bank ? 'From your bank' : 'Entered by hand'}</span></header>
+    <div class="card-b pc-b"><div class="pc-tot"><div><div class="pc-big">${fmt(cur.total)}</div><div class="pc-date">${esc(i.name)} · ${lng(cur.date)}${cur.manual && cur.bank ? ' · total edited by hand' : ''}</div></div>${editing ? '' : `<button class="btn sm" data-action="pc-edit" data-date="${cur.date}">Edit total</button>`}</div>
+      ${editing ? `<div class="pc-edit"><span class="money-in"><i>$</i><input id="pcamt" type="text" inputmode="decimal" autocomplete="off" value="${cur.total.toFixed(2)}" aria-label="Paycheck total"></span><button class="btn primary sm" data-action="pc-save" data-date="${cur.date}">Save</button><button class="btn sm" data-action="pc-cancel">Cancel</button></div>` : ''}
+      ${cur.parts.length ? `<ul class="pc-parts">${cur.parts.map(p => partRow(p, true)).join('')}</ul>` : ''}
+      ${nextLine}</div>
+    ${old.length ? `<div class="subhead pc-h"><span>Earlier paychecks</span></div><ul class="rows pc-old">${old.map(o => { const open = INCUI.open.has(o.date); return `<li class="pc-o"><button class="pc-o-h" data-action="pc-toggle" data-date="${o.date}" aria-expanded="${open}"><span class="main"><span class="nm">${lng(o.date)}</span><span class="sub">${o.bank ? o.parts.length + (o.parts.length === 1 ? ' deposit · bank' : ' deposits · bank') : 'Entered by hand'}</span></span><span class="amt">${fmt(o.total)}</span><span class="chev" aria-hidden="true">›</span></button>${open ? (o.parts.length ? `<ul class="pc-parts">${o.parts.map(p => partRow(p, true)).join('')}</ul>` : '<p class="note" style="margin:4px 0 8px 8px">No bank deposits for this one.</p>') : ''}</li>`; }).join('')}</ul>` : ''}
+  </section>`;
+}
+// A deposit that is not part of the paycheck: reverse it and send it back to review as a refund or transfer.
+function payPartOut(id) {
+  const r = state.bank.seen[id]; if (!r || r.res !== 'income') return;
+  const t = txnOf(id);
+  absorbChange(state, () => { revertSeen(id); state.bank.notPay[id] = true; }, 'Bank sync');
+  if (t) { if (t.date < state.bank.autoFrom) { if (t.date >= state.bank.historyFrom) addHistory(t); } else BT.classifyBatch(state, [t], TODAY).forEach(n => { if (!inboxOf(n.txn.id)) state.bank.inbox.push(n); }); }
+  commit('Moved to review · not part of the paycheck');
+}
+
 /* ---------- Events ---------- */
 document.addEventListener('click', async e => {
   const a = e.target.closest('[data-action]'); if (!a) return;
@@ -3401,6 +3717,7 @@ document.addEventListener('click', async e => {
   if (act === 'pick-cat') { e.stopPropagation(); openCategory(a.dataset.id); return; }
   if (a.tagName === 'BUTTON' || act !== 'close') e.preventDefault();
   switch (act) {
+    case 'plans-view': state.settings.plansView = a.dataset.v === 'cards' ? 'cards' : 'plans'; commit(); break;
     case 'view': state.settings.view = a.dataset.view; offset = 0; commit(); break;
     case 'prev': offset--; render(); break;
     case 'next': offset++; render(); break;
@@ -3491,6 +3808,18 @@ document.addEventListener('click', async e => {
     case 'bank-import': openBank(); break;
     case 'bk-sync': case 'bk-connect': case 'bk-reconnect': case 'bk-toggle': case 'bk-disc': case 'bk-forget': bankCardAct(act, a); break;
     case 'ix-open': case 'ix-accept': case 'ix-change': case 'ix-pick': case 'ix-cat': case 'ix-cats': case 'ix-new': case 'ix-edit': case 'ix-skip': case 'ix-all': case 'ix-undo': inboxAct(act, a); break;
+    case 'tx-review': case 'tx-filter': case 'tx-more': case 'tx-open': case 'tx-back': case 'tx-cats': case 'tx-in': case 'tx-cat': case 'tx-sugg': case 'tx-match': case 'tx-link': case 'tx-edit': case 'tx-ignore': case 'tx-undo': case 'tx-refund': case 'tx-paycheck': txAct(act, a); break;
+    case 'pc-out': payPartOut(a.dataset.id); break;
+    case 'pc-edit': INCUI.edit = a.dataset.date; render(); setTimeout(() => { const f = $('#pcamt'); if (f) { f.focus(); f.select(); } }, 30); break;
+    case 'pc-cancel': INCUI.edit = null; render(); break;
+    case 'pc-toggle': if (INCUI.open.has(a.dataset.date)) INCUI.open.delete(a.dataset.date); else INCUI.open.add(a.dataset.date); render(); break;
+    case 'pc-save': {
+      const i = BT.paycheck(state), v = parseFloat(String(($('#pcamt') || {}).value || '').replace(/[$,\s]/g, ''));
+      if (!i || !(v >= 0)) { toast('Enter the paycheck total'); break; }
+      i.perCycle = i.perCycle || {}; i.perCycle[a.dataset.date] = BT.round2(v); i.manual = i.manual || {}; i.manual[a.dataset.date] = true; INCUI.edit = null;
+      commit('Paycheck total saved · ' + fmt(v)); break;
+    }
+    case 'pay-hand': HEROUI.hand = true; render(); setTimeout(() => { const f = $('#payamt'); if (f) f.focus(); }, 30); break;
     case 'hx-open': case 'hx-add': case 'hx-hide': case 'hx-undo': historyAct(act, a); break;
     case 'bank-read': case 'bank-ok': case 'bank-new': case 'bank-back': case 'bank-skip': case 'bank-pick': bankAct(act, a); break;
     case 'copy-backup': backupSheet('copy'); break;
@@ -3500,11 +3829,11 @@ document.addEventListener('click', async e => {
       const raw = a.dataset.action === 'pay-same' ? a.dataset.amt : (($('#payamt') || {}).value || '');
       const v = parseFloat(String(raw).replace(/[$,\s]/g, ''));
       if (!(v >= 0)) { toast('Enter the paycheck amount'); const f = $('#payamt'); if (f) f.focus(); break; }
-      i.perCycle = i.perCycle || {}; i.perCycle[a.dataset.date] = BT.round2(v); PAY_EDIT = null;
+      i.perCycle = i.perCycle || {}; i.perCycle[a.dataset.date] = BT.round2(v); PAY_EDIT = null; HEROUI.hand = false;
       commit('Paycheck saved · ' + fmt(v)); break;
     }
     case 'pay-edit': PAY_EDIT = a.dataset.date; render(); setTimeout(() => { const f = $('#payamt'); if (f) { f.focus(); f.select(); } }, 30); break;
-    case 'pay-cancel': PAY_EDIT = null; render(); break;
+    case 'pay-cancel': PAY_EDIT = null; HEROUI.hand = false; render(); break;
     case 'do-copy': try { await navigator.clipboard.writeText($('#bk').value); toast('Backup copied'); } catch (err) { $('#bk').select(); $('#ferr').textContent = 'Copy was blocked. The text is selected, so copy it by hand.'; } break;
     case 'do-restore': try { const s = normalize(JSON.parse($('#bk').value)); if (!Array.isArray(s.bills)) throw 0; state = s; closeSheet(); commit('Backup restored'); } catch (err) { $('#ferr').textContent = 'That text is not a BudTrack backup. Paste the full backup and try again.'; } break;
     case 'reset': if (!a.classList.contains('arm')) { a.classList.add('arm'); a.textContent = 'Tap again to reset'; } else { state = normalize(clone(SEED)); offset = 0; commit('Starting data restored'); } break;
@@ -3614,9 +3943,14 @@ document.addEventListener('mouseout', e => {
 window.addEventListener('scroll', () => { if (!budHover) $('#bud').classList.remove('on'); }, { passive: true });
 
 /* ---------- Render ---------- */
-const TABS = { overview: viewOverview, bills: viewBills, plans: viewPlans, cards: viewCards, income: viewIncome };
-function currentTab() { const h = location.hash.slice(1); return TABS[h] ? h : 'overview'; }
+function viewPlansTab() {
+  const v = state.settings.plansView === 'cards' ? 'cards' : 'plans';
+  return `<div class="stack"><div class="seg plans-seg" role="group" aria-label="Plans view"><button data-action="plans-view" data-v="plans" aria-pressed="${v === 'plans'}">Pay later</button><button data-action="plans-view" data-v="cards" aria-pressed="${v === 'cards'}">Credit cards</button></div>${v === 'cards' ? viewCards() : viewPlans()}</div>`;
+}
+const TABS = { overview: viewOverview, bills: viewBills, plans: viewPlansTab, transactions: viewTransactions, income: viewIncome };
+function currentTab() { const h = location.hash.slice(1); return h === 'cards' ? 'plans' : TABS[h] ? h : 'overview'; }
 function render() {
+  if (location.hash === '#cards') { state.settings.plansView = 'cards'; try { history.replaceState(null, '', '#plans'); localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} }
   const tab = currentTab();
   document.querySelectorAll('#viewSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === state.settings.view));
   $('#viewSeg').hidden = tab !== 'overview';

@@ -243,3 +243,38 @@ test('late part: a deposit that shows up after the paycheck was applied joins it
   const far = BT.classifyBatch(st, [P('far', '2026-11-23', 'STAT DELIVERY SE', -50)], TODAY);
   assert.ok(!far[0].join);
 });
+
+/* ---------- Grouping guard: only the employer's deposits join a paycheck ---------- */
+test('guard: an unrelated $280 deposit on payday never joins (same batch) and is never an income suggestion', () => {
+  const st = splitIncome();
+  const odd = P('odd', '2026-11-20', 'VENMO CASHOUT', -280, acctOf('Santander', '6429'));
+  const out = BT.classifyBatch(st, trio().concat([odd]), TODAY);
+  const grp = out.find(s => s.parts && s.parts.length > 1);
+  assert.deepEqual(grp.parts.map(p => p.id).sort(), ['p1', 'p2', 'p3']); assert.equal(grp.amount, 2273.31);
+  const o = out.find(s => s.txn.id === 'odd');
+  assert.equal(o.kind, 'transfer'); assert.equal(o.pick, null); assert.ok(!o.parts);
+});
+test('guard: after the payer is learned, a payroll keyword from ANOTHER payer does not join or count', () => {
+  const st = splitIncome(); BT.learnPayer(st, 'pay', trio());
+  const other = P('o2', '2026-11-20', 'ACME CORP PAYROLL', -280), mate = P('m1', '2026-11-20', 'STAT DELIVERY SE', -400);
+  const out = BT.classifyBatch(st, [other, mate, P('m2', '2026-11-19', 'STAT DELIVERY SE', -100)], TODAY);
+  const grp = out.find(s => s.parts); assert.equal(grp.amount, 500); assert.ok(!grp.parts.some(p => p.id === 'o2'));
+  const o = out.find(s => s.txn.id === 'o2'); assert.equal(o.kind, 'transfer'); assert.equal(o.pick, null);
+});
+test('guard: a later sync with parts already applied keeps the stranger out', () => {
+  const st = splitIncome(); BT.learnPayer(st, 'pay', trio()); st.income[0].perCycle['2026-11-20'] = 2273.31;
+  trio().forEach(t => { st.bank.seen[t.id] = { res: 'income', incomeId: 'pay', payDate: '2026-11-20', date: t.date, amount: t.amount, desc: t.desc, part: true, prev: null, src: 'sync', at: '2026-11-20T10:00:00Z' }; });
+  const out = BT.classifyBatch(st, [P('odd', '2026-11-20', 'ZELLE FROM BOB', -280)], TODAY);
+  assert.equal(out[0].kind, 'transfer'); assert.ok(!out[0].join && !out[0].parts);
+});
+test('guard: deposits more than a day from payday do not group even with the right payer', () => {
+  const st = splitIncome(); BT.learnPayer(st, 'pay', trio());
+  const out = BT.classifyBatch(st, [P('a', '2026-11-20', 'STAT DELIVERY SE', -100), P('b', '2026-11-22', 'STAT DELIVERY SE', -300)], TODAY);
+  assert.ok(!out.some(s => s.parts && s.parts.some(p => p.id === 'b')));
+});
+test('guard: a part removed from the paycheck (notPay) comes back as transfer or refund, not income', () => {
+  const st = splitIncome(); BT.learnPayer(st, 'pay', trio()); st.bank.notPay = { p2: true };
+  const out = BT.classifyBatch(st, trio(), TODAY);
+  assert.deepEqual(out.find(s => s.parts).parts.map(p => p.id).sort(), ['p1', 'p3']);
+  const s2 = out.find(s => s.txn.id === 'p2'); assert.equal(s2.kind, 'transfer'); assert.equal(s2.pick, null);
+});
