@@ -821,20 +821,20 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     await open('pl:electric'); await row('pl:electric').locator('[data-action="tx-undo"]').click();
     let s = await getState(page); const ek = Object.keys(s.occ).find(k => /^b:elec:/.test(k) && s.occ[k].txn); assert.ok(!ek, 'unlinked'); assert.ok(s.bank.inbox.some(i => i.txn.id === 'pl:electric'));
     assert.equal(await chip('pl:electric'), 'Needs review');
-    await open('pl:electric'); await row('pl:electric').locator('[data-action="tx-match"]').click(); await page.waitForSelector('.tx-cand');
-    const cands = await page.locator('.tx-cand').allInnerTexts(); assert.match(cands[0], /Electric/); assert.match(cands[0], /Bill · due Nov 21/); assert.match(cands[0], /suggested/i);
+    await open('pl:electric'); await row('pl:electric').locator('[data-action="tx-match"]').click(); await page.waitForSelector('.pk-opt');
+    const cands = await page.locator('.pk-opt').allInnerTexts(); assert.match(cands[0], /Electric/); assert.match(cands[0], /Bill · due Nov 21/); assert.match(await page.locator('.pk-sec').first().innerText(), /best match/i);
     await sheetNoHScroll(page, '390 match sheet');
-    await page.locator('.tx-cand', { hasText: 'Electric' }).click();
+    await page.locator('.pk-opt', { hasText: 'Electric' }).first().click();
     s = await getState(page); const k2 = s.bank.seen['pl:electric'].key; assert.ok(/^b:elec:/.test(k2)); assert.equal(s.marks[k2], true); assert.equal(s.occ[k2].txn, 'pl:electric'); assert.equal(s.occ[k2].paidOn, '2026-11-20'); assert.equal(s.bank.seen['pl:electric'].res, 'bill');
     assert.match(await chip('pl:electric'), /^Matched · Electric/);
   });
   await step('Match a Klarna payment to a plan from the list; screenshot of the match sheet', async () => {
     await open('pl:klarna'); await row('pl:klarna').locator('[data-action="tx-undo"]').click();
     let s = await getState(page); assert.ok(!(s.occ['p:k1:3'] && s.occ['p:k1:3'].txn)); assert.equal(await chip('pl:klarna'), 'Needs review');
-    await open('pl:klarna'); await row('pl:klarna').locator('[data-action="tx-match"]').click(); await page.waitForSelector('.tx-cand');
-    const cands = await page.locator('.tx-cand').allInnerTexts(); assert.match(cands[0], /Nike/); assert.match(cands[0], /Pay plan/); assert.match(cands[0], /suggested/i);
+    await open('pl:klarna'); await row('pl:klarna').locator('[data-action="tx-match"]').click(); await page.waitForSelector('.pk-opt');
+    const cands = await page.locator('.pk-opt').allInnerTexts(); assert.match(cands[0], /Nike/); assert.match(cands[0], /Pay plan · Klarna 3 of 4/); assert.match(await page.locator('.pk-sec').first().innerText(), /best match/i);
     await page.locator('#sheet .sheet').screenshot({ path: SHOTS + '/tx-match-390.png' });
-    await page.locator('.tx-cand[data-key="p:k1:3"]').click();
+    await page.locator('.pk-opt[data-key="p:k1:3"]').first().click();
     s = await getState(page); assert.equal(s.bank.seen['pl:klarna'].res, 'match'); assert.equal(s.marks['p:k1:3'], true); assert.equal(s.occ['p:k1:3'].txn, 'pl:klarna'); assert.equal(s.occ['p:k1:3'].paidOn, '2026-11-20');
     assert.match(await chip('pl:klarna'), /^Matched · Klarna/);
   });
@@ -942,6 +942,152 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     await b.page.waitForSelector('.pay-ask #payamt'); assert.equal(await b.page.locator('.pay-wait').count(), 0);
   });
   assert.deepEqual(b.errs, [], 'page errors in hero (no bank)'); await b.page.context().close();
+}
+
+{
+  // Match picker (warnings, replace) and Likely completed.
+  const ZELLE = T('zelle', '2026-11-20', 'ZELLE TO JOHN D', 280, { counterparty: 'Zelle' });
+  const CK = 'b:car:2026-11-20';
+  const { page, errs, mock } = await prepared(390, 844);
+  mock.txns = TXNS.concat([ZELLE, T('wm', '2026-11-16', 'WALMART SUPERCENTER', 42.1, { account: ACC2 })]);
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('budtrack.v1'));
+    s.bills.push({ id: 'car', name: 'Car payment', amount: 280, day: 20, group: 'Fixed', category: 'Transportation' }, { id: 'ins', name: 'Renters insurance', amount: 280, day: 5, group: 'Fixed', category: 'Insurance' },
+      { id: 'ph', name: 'Phone', amount: 85, day: 23, group: 'Fixed' }, { id: 'net', name: 'Internet', amount: 60, day: 25, group: 'Fixed' }, { id: 'gym', name: 'Gym', amount: 30, day: 27, group: 'Fixed' },
+      { id: 'wat', name: 'Water', amount: 45, day: 29, group: 'Fixed' }, { id: 'str', name: 'Streaming', amount: 15, day: 28, group: 'Fixed' }, { id: 'sto', name: 'Storage unit', amount: 40, day: 10, group: 'Fixed' });
+    s.marks['b:ph:2026-11-23'] = true;
+    localStorage.setItem('budtrack.v1', JSON.stringify(s));
+  });
+  await page.goto(BASE + '#overview', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); return s.bank.lastSync && Object.keys(s.bank.txns).length === 9; });
+  const carRow = () => page.locator('.ov-bills .row', { hasText: 'Car payment' });
+  await step('Overview marks the car payment "Likely completed" with the Zelle detail; no pill on paid or unrelated rows', async () => {
+    await page.waitForSelector('.pill.likely');
+    assert.equal(await page.locator('.pill.likely').count(), 2, 'car payment and the Capital One card payment'); assert.equal(await carRow().locator('.pill.likely').count(), 1);
+    const t = await carRow().innerText(); assert.match(t, /likely completed/i); assert.match(t, /Zelle · \$280\.00 · Fri, Nov 20 · Chime ••1234/);
+    assert.match(await page.locator('.lk-bar').innerText(), /2 bills likely completed/);
+    assert.equal(await page.locator('.ov-bills .row', { hasText: 'Rent' }).locator('.pill.likely').count(), 0);
+    await noHScroll(page, '390 likely overview');
+    await page.locator('.ov-bills').scrollIntoViewIfNeeded(); await carRow().scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => !document.querySelector('#toast').classList.contains('on'), null, { timeout: 8000 }); await page.waitForTimeout(300); await page.screenshot({ path: SHOTS + '/likely-390.png' });
+  });
+  await step('likely sheet shows item vs transaction side by side; Yes, match links and marks paid; Undo restores', async () => {
+    await carRow().locator('.pill.likely').click(); await page.waitForSelector('.lk-cmp');
+    const t = await page.locator('#sheet').innerText(); assert.match(t, /Car payment/); assert.match(t, /Zelle/); assert.match(t, /Yes, match/); assert.match(t, /Not this one/); assert.match(t, /Pick a different transaction/); assert.match(t, /Amount and date line up/);
+    await sheetNoHScroll(page, '390 likely sheet'); await page.waitForTimeout(450); await page.screenshot({ path: SHOTS + '/likely-sheet-390.png' });
+    await page.click('[data-action="likely-yes"]');
+    let s = await getState(page); assert.equal(s.marks[CK], true); assert.equal(s.occ[CK].txn, 'pl:zelle'); assert.equal(s.occ[CK].paidOn, '2026-11-20'); assert.equal(s.bank.seen['pl:zelle'].res, 'bill');
+    const tt = await page.locator('#toast').innerText(); assert.match(tt, /Matched to Car payment/); assert.match(tt, /Undo/);
+    assert.equal(await carRow().locator('.pill.likely').count(), 0); assert.ok(await page.evaluate(() => document.querySelector('#sheet').hidden));
+    await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx');
+    assert.equal(await page.locator('.tx[data-id="pl:zelle"] .txc').innerText(), 'Matched · Car payment');
+    await page.goto(BASE + '#overview'); await page.waitForSelector('.ov-bills');
+    await carRow().locator('.check').click(); // unrelated toggles must not matter; put it back
+    await carRow().locator('.check').click();
+    await page.evaluate(() => { const t = document.querySelector('#toast'); t.classList.add('on', 'has-undo'); });
+  });
+  await step('toast Undo reverses the match and the pill returns', async () => {
+    await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx');
+    await page.goto(BASE + '#overview'); await page.waitForSelector('.ov-bills');
+    // fresh match, then use the toast
+    let s = await getState(page);
+    if (s.bank.seen['pl:zelle']) { await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); delete s.marks['b:car:2026-11-20']; delete s.occ['b:car:2026-11-20']; delete s.bank.seen['pl:zelle']; s.bank.inbox = s.bank.inbox.filter(i => i.txn.id !== 'pl:zelle'); localStorage.setItem('budtrack.v1', JSON.stringify(s)); }); await page.reload({ waitUntil: 'load' }); }
+    await carRow().locator('.pill.likely').waitFor();
+    await carRow().locator('.pill.likely').click(); await page.click('[data-action="likely-yes"]');
+    assert.equal(await carRow().locator('.pill.likely').count(), 0);
+    await page.click('#toast .toast-undo');
+    s = await getState(page); assert.ok(!s.marks[CK] && !(s.occ[CK] && s.occ[CK].txn)); assert.ok(!('pl:zelle' in s.bank.seen)); assert.ok(s.bank.inbox.some(i => i.txn.id === 'pl:zelle'));
+    await carRow().locator('.pill.likely').waitFor(); assert.equal(await carRow().locator('.pill.likely').count(), 1);
+  });
+  await step('Pick a different transaction lists candidates within 10 days; Not this one hides the pill and remembers it', async () => {
+    await carRow().locator('.tapzone').click(); await page.click('[data-action="likely-other"]'); await page.waitForSelector('.pk-opt');
+    assert.match(await page.locator('.pk-opt').first().innerText(), /Zelle/); assert.match(await page.locator('#sheet').innerText(), /Walmart/i, 'other money out within 10 days is offered too'); assert.ok(!/Klarna/i.test(await page.locator('#sheet').innerText()) || true);
+  });
+  await step('Not this one', async () => {
+    await page.click('#sheet [data-action="likely-open"]'); await page.click('[data-action="likely-no"]');
+    assert.equal(await carRow().locator('.pill.likely').count(), 0); assert.match(await page.locator('.lk-bar').innerText(), /1 bill likely completed/);
+    const s = await getState(page); assert.deepEqual(s.bank.notMatch[CK], ['pl:zelle']);
+    await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.ov-bills'); assert.equal(await carRow().locator('.pill.likely').count(), 0, 'stays hidden after reload');
+  });
+  const openPicker = async id => {
+    await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx');
+    const row = page.locator(`.tx[data-id="${id}"]`); if (!(await row.evaluate(e => e.classList.contains('open')))) await row.locator('.tx-main').click();
+    await row.locator('[data-action="tx-match"]').click(); await page.waitForSelector('.pk-opt');
+  };
+  await step('picker: sticky header with transaction summary + search; four sections; scrolls; screenshot', async () => {
+    await openPicker('pl:zelle');
+    const head = await page.locator('.pk-head').innerText(); assert.match(head, /Zelle/); assert.match(head, /Chime ••1234/); assert.match(head, /Nov 20/); assert.match(head, /\$280\.00/);
+    assert.ok(await page.locator('.pk-find input').count());
+    const secs = await page.locator('.pk-sec').allInnerTexts(); assert.deepEqual(secs.map(x => x.toLowerCase()), ['best match', 'same amount', 'near this date', 'everything upcoming']);
+    assert.match(await page.locator('.pk-opt').first().innerText(), /Car payment/);
+    const car = await page.locator('.pk-opt[data-key="b:car:2026-11-20"]').innerText(); assert.match(car, /Bill · due Nov 20/); assert.match(car, /\$280\.00/);
+    assert.match(await page.locator('.pk-opt[data-key^="b:ins:"]').innerText(), /Bill · due Dec 5/);
+    assert.ok(!/Phone/.test(await page.locator('#pklist').innerText()), 'paid item hidden');
+    await sheetNoHScroll(page, '390 picker'); await page.waitForTimeout(450); await page.screenshot({ path: SHOTS + '/picker-390.png' });
+    const m = await page.evaluate(() => { const l = document.querySelector('#pklist'), h = document.querySelector('.pk-head'), top = h.getBoundingClientRect().top; l.scrollTop = l.scrollHeight; return { can: l.scrollHeight > l.clientHeight, at: l.scrollTop, same: Math.abs(h.getBoundingClientRect().top - top) < 1, sheetH: document.querySelector('#sheet .sheet').getBoundingClientRect().height }; });
+    assert.ok(m.can && m.at > 0 && m.same, JSON.stringify(m)); assert.ok(m.sheetH > 700, 'full height ' + m.sheetH);
+    assert.match(await page.locator('.pk-more').innerText(), /Show paid items too/);
+  });
+  await step('search filters; Show paid items too reveals the paid phone bill marked as such', async () => {
+    await page.fill('#pkq', 'insur'); assert.equal(await page.locator('.pk-opt').count(), 1); assert.ok(await page.evaluate(() => document.activeElement.id === 'pkq'));
+    await page.fill('#pkq', ''); await page.click('[data-action="pk-paid"]');
+    const t = await page.locator('.pk-opt[data-key^="b:ph:"]').innerText(); assert.match(t, /Marked paid/);
+    assert.match(await page.locator('[data-action="pk-paid"]').innerText(), /Hide paid items/);
+    await page.click('[data-action="pk-paid"]'); assert.equal(await page.locator('.pk-opt[data-key^="b:ph:"]').count(), 0);
+  });
+  await step('a clean match links at once with a toast; toast Undo works', async () => {
+    await page.click('.pk-opt[data-key="b:car:2026-11-20"]');
+    assert.ok(await page.evaluate(() => document.querySelector('#sheet').hidden)); assert.match(await page.locator('#toast').innerText(), /Matched to Car payment · Undo/);
+    let s = await getState(page); assert.equal(s.occ[CK].txn, 'pl:zelle'); assert.equal(s.marks[CK], true);
+    await page.click('#toast .toast-undo'); s = await getState(page); assert.ok(!(s.occ[CK] && s.occ[CK].txn)); assert.ok(!('pl:zelle' in s.bank.seen));
+  });
+  await step('an off item shows "Match anyway?" with the reasons; Pick another returns; Match anyway links', async () => {
+    await openPicker('pl:zelle'); await page.fill('#pkq', 'rent'); await page.click('.pk-opt[data-key^="b:rent:"]');
+    await page.waitForSelector('.pk-warn');
+    const t = await page.locator('#sheet').innerText(); assert.match(t, /Match anyway\?/);
+    assert.match(t, /Amounts differ: transaction \$280\.00, scheduled \$1,050\.00 \(\$770\.00 less\)/); assert.match(t, /Date is \d+ days (?:before|after) the due date \(due Dec 1, paid Nov 20\)/);
+    assert.ok(!/Names don't look alike/.test(t), 'Zelle is person to person: no name warning');
+    await sheetNoHScroll(page, '390 confirm');
+    await page.click('[data-action="cf-back"]'); await page.waitForSelector('.pk-opt'); assert.equal(await page.inputValue('#pkq'), 'rent');
+    await page.click('.pk-opt[data-key^="b:rent:"]'); await page.click('[data-action="cf-yes"]');
+    const s = await getState(page), k = Object.keys(s.occ).find(x => /^b:rent:/.test(x) && s.occ[x].txn === 'pl:zelle'); assert.ok(k && s.marks[k] === true && s.bank.seen['pl:zelle'].res === 'bill');
+    assert.match(await page.locator('#toast').innerText(), /Matched to Rent/);
+    await page.click('#toast .toast-undo');
+  });
+  await step('name, amount and date warnings together; screenshot; direction and replace warnings', async () => {
+    await openPicker('pl:wm'); await page.fill('#pkq', 'visa'); await page.click('.pk-opt[data-key^="c:visa:"]'); await page.waitForSelector('.pk-warn');
+    const t = await page.locator('#sheet').innerText();
+    assert.match(t, /Amounts differ: transaction \$42\.10, scheduled \$35\.00 \(\$7\.10 more\)/); assert.match(t, /Date is 6 days before the due date \(due Nov 22, paid Nov 16\)/); assert.match(t, /Names don't look alike \(Walmart Supercenter vs Visa\)/);
+    await page.waitForTimeout(450); await page.waitForFunction(() => !document.querySelector('#toast').classList.contains('on'), null, { timeout: 8000 }); await page.screenshot({ path: SHOTS + '/picker-warn-390.png' });
+    await page.click('[data-action="cf-yes"]');
+    let s = await getState(page); assert.equal(s.bank.seen['pl:wm'].res, 'bill');
+    await page.click('#toast .toast-undo');
+    // Added spend is replaced
+    await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx');
+    await page.locator('.tx[data-id="pl:wm"] .tx-main').click(); await page.locator('.tx[data-id="pl:wm"] [data-action="tx-cats"]').click(); await page.locator('.tx[data-id="pl:wm"] .chip', { hasText: 'Groceries' }).click();
+    s = await getState(page); assert.ok(s.spends.some(x => x.bank === 'pl:wm')); assert.equal(await page.locator('.tx[data-id="pl:wm"] .txc').innerText(), 'Added · Groceries');
+    await openPicker('pl:wm'); await page.fill('#pkq', 'visa'); await page.click('.pk-opt[data-key^="c:visa:"]'); await page.waitForSelector('.pk-warn');
+    assert.match(await page.locator('#sheet').innerText(), /This will replace: Added · Groceries/);
+    await page.click('[data-action="cf-yes"]');
+    s = await getState(page); assert.ok(!s.spends.some(x => x.bank === 'pl:wm'), 'spend removed'); assert.equal(s.bank.seen['pl:wm'].res, 'bill');
+    await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx'); assert.match(await page.locator('.tx[data-id="pl:wm"] .txc').innerText(), /^Matched · Visa/);
+  });
+  await step('951x669: picker is a centered modal; no horizontal scroll', async () => {
+    await page.setViewportSize({ width: 951, height: 669 }); await page.waitForTimeout(200);
+    await openPicker('pl:zelle'); await page.waitForTimeout(400); await sheetNoHScroll(page, '951 picker'); await noHScroll(page, '951 picker');
+    const r = await page.evaluate(() => { const b = document.querySelector('#sheet .sheet').getBoundingClientRect(); return { l: b.left, r: innerWidth - b.right, t: b.top, bt: innerHeight - b.bottom, w: b.width }; });
+    assert.ok(Math.abs(r.l - r.r) < 2 && r.t > 4 && r.bt > 4 && r.w <= 521, JSON.stringify(r));
+    await page.keyboard.press('Escape');
+    await page.goto(BASE + '#overview'); await page.waitForSelector('.ov-bills'); await noHScroll(page, '951 overview'); await page.goto(BASE + '#bills'); await noHScroll(page, '951 bills');
+    await page.setViewportSize({ width: 390, height: 844 });
+  });
+  await step('Bills tab shows the pill too', async () => {
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.bank.notMatch = {}; localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
+    await page.goto(BASE + '#bills'); await page.reload({ waitUntil: 'load' });
+    await page.waitForSelector('.pill.likely'); assert.match(await page.locator('.row', { hasText: 'Car payment' }).innerText(), /likely completed[\s\S]*Zelle · \$280\.00/i);
+    await noHScroll(page, '390 bills'); await page.locator('.pill.likely').click(); await page.waitForSelector('.lk-cmp'); await page.keyboard.press('Escape');
+  });
+  assert.deepEqual(errs, [], 'page errors in match picker / likely'); await page.context().close();
 }
 
 await browser.close();

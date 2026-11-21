@@ -248,6 +248,8 @@ textarea { width: 100%; min-height: 120px; border-radius: 10px; border: 1px soli
 .tip.on { opacity: 1; transform: none; }
 .toast { position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%); z-index: 70; background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 99px; font-size: 13.5px; box-shadow: var(--shadow); opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.on { opacity: 1; }
+.toast.has-undo { pointer-events: auto; }
+.toast-undo { background: none; border: 0; padding: 0 0 0 2px; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .note { font-size: 13px; color: var(--ink-2); line-height: 1.5; }
 .note b { color: var(--ink); font-weight: 600; }
 
@@ -760,6 +762,46 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 .tx-p .chip { padding: 7px 11px; font-size: 13px; text-align: left; }
 .tx-more { padding: 12px 16px 4px; display: flex; justify-content: center; }
 .tx-card .bx-top { margin: 0; }
+/* Match picker + Likely completed */
+.sheet:has(.pk) { display: flex; flex-direction: column; height: calc(100% - 12px); overflow: hidden; padding-bottom: 0; }
+.sheet:has(.pk) #sheetBody { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+@media (min-width: 700px) { .sheet:has(.pk) { height: min(760px, calc(100% - 32px)); } }
+.pk { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.pk-head { flex: none; display: grid; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.pk-head h3 { font-size: 24px; }
+.pk-sum { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 9px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); min-width: 0; }
+.pk-sum b { overflow-wrap: anywhere; min-width: 0; }
+.pk-sum small { display: block; font-size: 12.5px; color: var(--ink-3); font-weight: 400; }
+.pk-sum .amt { font-family: var(--mono); font-size: 15px; white-space: nowrap; }
+.pk-find input { width: 100%; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface-2); font-size: 16px; }
+.pk-list { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 4px 2px calc(16px + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+.pk-sec { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); margin: 14px 0 6px; }
+.pk-grp { display: grid; gap: 8px; }
+.pk-opt { text-align: left; color: inherit; width: 100%; font: inherit; cursor: pointer; gap: 3px; padding: 10px 12px; }
+.pk-opt:hover, .pk-opt:focus-visible { border-color: var(--brass); }
+.pk-r1 { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; min-width: 0; }
+.pk-r1 b { font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+.pk-r1 .amt { font-family: var(--mono); font-size: 13px; white-space: nowrap; }
+.pk-r2 { font-size: 13px; color: var(--ink-2); }
+.pk-r3 { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.pk-h { font-size: 12px; color: var(--ink-2); padding: 1px 8px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line); }
+.pk-h.warn { color: var(--ink); border-color: color-mix(in srgb, var(--warn) 55%, var(--line-2)); background: color-mix(in srgb, var(--warn) 16%, var(--surface)); }
+.pk-more { display: flex; justify-content: center; margin: 14px 0 4px; }
+.pk-warn { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
+.pk-warn li { position: relative; padding: 9px 12px 9px 34px; border-radius: 12px; font-size: 13.5px; line-height: 1.4; background: color-mix(in srgb, var(--warn) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line-2)); overflow-wrap: anywhere; }
+.pk-warn li::before { content: "!"; position: absolute; left: 12px; top: 9px; width: 16px; height: 16px; border-radius: 50%; background: var(--warn); color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; line-height: 1; }
+.lk-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
+.lk-c { border: 1px solid var(--line-2); border-radius: 14px; padding: 10px 12px; display: grid; gap: 3px; min-width: 0; align-content: start; background: var(--surface); }
+.lk-k { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.lk-c b { font-weight: 600; overflow-wrap: anywhere; }
+.lk-a { font-family: var(--mono); font-size: 16px; }
+.lk-m { font-size: 12.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+.lk-btns { display: grid; gap: 8px; }
+.lk-btns .btn { justify-content: center; padding: 11px 12px; }
+.lk-btns .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.pill.likely { border: 1px solid color-mix(in srgb, var(--good) 50%, var(--line-2)); background: color-mix(in srgb, var(--good) 18%, var(--surface)); color: var(--ink); font-family: inherit; cursor: pointer; }
+.lk-d { color: var(--ink-2); font-size: 12.5px; }
+.lk-bar b { color: var(--brass-hi); }
 .tx-cand { text-align: left; color: inherit; width: 100%; font: inherit; cursor: pointer; }
 .tx-cand .bm-d span { font-family: var(--mono); font-size: 13px; }
 .pay-wait { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px dashed var(--brass-hi); border-radius: 12px; font-size: 13px; color: var(--hero-ink-2); }
@@ -1405,6 +1447,43 @@ const BT = (() => {
     });
     return sugg.sort((a, b) => a.txn.date < b.txn.date ? -1 : a.txn.date > b.txn.date ? 1 : 0);
   }
+  // ---- Likely completed: unpaid scheduled items that a bank line probably paid (never applied automatically) ----
+  const LINKED_RES = new Set(['match', 'bill', 'new', 'income', 'skip']);
+  const linkedTxnIds = st => { const s = new Set(); Object.values(st.occ || {}).forEach(o => { if (o && o.txn) s.add(o.txn); }); return s; };
+  // A bank line another decision already owns: linked to a schedule, a paycheck part or ignored. Lines handled as spending stay available (ranked lower).
+  const txnTaken = (st, t, linked) => { const r = (st.bank && st.bank.seen || {})[t.id]; return linked.has(t.id) || !!(r && LINKED_RES.has(r.res)); };
+  // Score of one bank line against one item, or null when it cannot be the payment: money out, due within 4 days, amount within max($1, 2%).
+  function likelyScore(st, item, t) {
+    if (!(t.amount > 0) || !t.date) return null;
+    const tol = Math.max(1, item.amount * 0.02), diff = Math.abs(item.amount - t.amount), dist = Math.abs(diffDays(t.date, item.due || item.date));
+    if (diff > tol + 0.004 || dist > 4) return null;
+    const p2p = P2P_RX.test(rawText(t)), sim = nameSim(t.desc || t.rawDesc, item.name), exact = diff < 0.005;
+    if (!p2p && sim === 0 && !exact) return null; // an unrelated name needs the exact cents to count
+    const r = ((st.bank && st.bank.seen) || {})[t.id], spend = !!(r && (r.res === 'spend' || r.res === 'manual' || r.res === 'transfer'));
+    return round2(0.45 * (exact ? 1 : 0.8 * (1 - diff / tol)) + 0.3 * (1 - dist / 5) + 0.25 * (p2p ? 0.6 : sim) - (spend ? 0.15 : 0));
+  }
+  function likelyPairs(st, item, txns, linked) {
+    if (!item || item.paid || item.kind === 'extra' || item.kind === 'unalloc') return [];
+    const o = (st.occ || {})[item.key], nm = ((st.bank && st.bank.notMatch) || {})[item.key] || [];
+    if (o && (o.txn || o.skip)) return [];
+    const out = [];
+    txns.forEach(t => { if (!t || nm.includes(t.id) || txnTaken(st, t, linked)) return; const score = likelyScore(st, item, t); if (score !== null) out.push({ item, txn: t, score }); });
+    return out;
+  }
+  // Best bank line that probably paid this one item (null when none).
+  function likelyPaid(st, item, txns, today) {
+    const l = likelyPairs(st, item, txns, linkedTxnIds(st)).sort((a, b) => b.score - a.score || (a.txn.date < b.txn.date ? -1 : 1));
+    return l.length ? l[0].txn : null;
+  }
+  // Greedy over every item: the strongest pairs first, so one bank line is proposed for one item only. Map key -> { txn, score }.
+  function likelyPaidAll(st, items, txns, today) {
+    const linked = linkedTxnIds(st), pairs = [], out = new Map(), used = new Set();
+    items.forEach(it => pairs.push(...likelyPairs(st, it, txns, linked)));
+    pairs.sort((a, b) => b.score - a.score || (a.item.due < b.item.due ? -1 : a.item.due > b.item.due ? 1 : 0) || (a.item.key < b.item.key ? -1 : 1));
+    pairs.forEach(p => { if (out.has(p.item.key) || used.has(p.txn.id)) return; out.set(p.item.key, { txn: p.txn, score: p.score }); used.add(p.txn.id); });
+    return out;
+  }
+
   function learnRule(st, txn, category) {
     if (!st.bank) st.bank = { seen: {} };
     if (!st.bank.rules) st.bank.rules = {};
@@ -1412,7 +1491,7 @@ const BT = (() => {
     if (k && category) st.bank.rules[k] = category;
   }
 
-  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
+  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
 })();
 
 
@@ -1660,6 +1739,7 @@ function normalize(s) {
   if (o.bank.balances === undefined) o.bank.balances = null;
   if (!o.bank.refreshOK || typeof o.bank.refreshOK !== 'object') o.bank.refreshOK = null;
   if (!o.bank.notPay || typeof o.bank.notPay !== 'object') o.bank.notPay = {};
+  if (!o.bank.notMatch || typeof o.bank.notMatch !== 'object') o.bank.notMatch = {};
   // Ledger of every bank transaction received (last 180 days). Seeded once from what older versions kept elsewhere.
   if (!o.bank.txns || typeof o.bank.txns !== 'object') o.bank.txns = {};
   if (!o.imports.includes('txns-seed-1')) {
@@ -1770,9 +1850,10 @@ async function connect() {
 }
 
 /* ---------- Helpers ---------- */
-function toast(msg) {
-  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
-  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2200);
+function toast(msg, undo) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on'); t.classList.toggle('has-undo', !!undo); toast.undo = undo || null;
+  if (undo) { t.append(' · '); const b = document.createElement('button'); b.type = 'button'; b.className = 'toast-undo'; b.dataset.action = 'toast-undo'; b.textContent = 'Undo'; t.append(b); }
+  clearTimeout(toast.t); toast.t = setTimeout(() => { t.classList.remove('on', 'has-undo'); toast.undo = null; }, undo ? 7000 : 2200);
 }
 const listOf = type => ({ bill: 'bills', spend: 'perPeriod', income: 'income', plan: 'plans', card: 'cards', extra: 'spends' }[type]);
 const findItem = (type, id) => state[listOf(type)].find(x => x.id === id);
@@ -1798,6 +1879,23 @@ function pausedHTML(r) {
   const l = pausedIn(r); if (!l.length) return '';
   return `<div class="subhead paused-h"><span>Paused · ${l.length}</span></div><ul class="rows paused">${l.map(z => `<li class="row paused-row"><div class="daybadge">${BT.parse(z.date).getDate()}</div><div class="main"><div class="nm">${esc(z.name)}</div><div class="sub">Skipped for this month</div></div><div class="amt">${fmt(z.amount)}</div><button type="button" class="btn sm" data-action="resume" data-key="${esc(z.key)}">Resume</button></li>`).join('')}</ul>`;
 }
+// Bank lines that probably paid an unpaid item of the current cycle. Computed once per render, never applied on its own.
+let LIKELY = null;
+const SEL = new Map(); // key -> scheduled item, for the match sheets
+function likelyMap() {
+  if (LIKELY) return LIKELY;
+  LIKELY = new Map();
+  try {
+    const txns = Object.values((state.bank && state.bank.txns) || {}); if (!txns.length) return LIKELY;
+    const items = BT.occurrences(state, BT.periodRange(state, state.settings.view, 0, TODAY), TODAY).filter(x => !x.paid && ['bill', 'card', 'plan', 'spend'].includes(x.kind));
+    LIKELY = BT.likelyPaidAll(state, items, txns, TODAY);
+    LIKELY.forEach((e, k) => { e.item = items.find(x => x.key === k); SEL.set(k, e.item); });
+  } catch (e) { LIKELY = new Map(); }
+  return LIKELY;
+}
+const likelyPill = key => likelyMap().has(key) ? ` <button type="button" class="pill likely" data-action="likely-open" data-key="${esc(key)}">Likely completed</button>` : '';
+const likelyKeyFor = (kind, ref) => { let k = ''; likelyMap().forEach((e, key) => { if (!k && e.item && e.item.kind === kind && e.item.ref === ref) k = key; }); return k; };
+const likelyDetail = key => { const e = likelyMap().get(key); if (!e) return ''; const t = e.txn; return `<div class="sub lk-d">${esc(cleanMerchant(t))} · ${fmt(t.amount)} · ${lng(t.date)}${acctDots(t) ? ' · ' + esc(acctDots(t)) : ''}</div>`; };
 function viewOverview() {
   const view = state.settings.view;
   const r = BT.periodRange(state, view, offset, TODAY);
@@ -1820,19 +1918,19 @@ function viewOverview() {
   const amtBtn = x => x.kind === 'extra'
     ? `<button class="amt amt-btn" data-action="edit" data-type="extra" data-id="${x.ref}" aria-label="Edit ${esc(x.name)}: ${fmt(x.amount)}">${fmt(x.amount)}</button>`
     : `<button class="amt amt-btn${x.edited ? ' edited' : ''}" data-action="occ" data-key="${esc(x.key)}" aria-label="Edit ${esc(x.name)}: ${fmt(x.amount)}">${fmt(x.amount)}</button>`;
-  const tapAttrs = x => x.kind === 'extra' ? `data-action="edit" data-type="extra" data-id="${x.ref}"` : `data-action="occ" data-key="${esc(x.key)}"`;
+  const tapAttrs = x => x.kind === 'extra' ? `data-action="edit" data-type="extra" data-id="${x.ref}"` : !x.paid && likelyMap().has(x.key) ? `data-action="likely-open" data-key="${esc(x.key)}"` : `data-action="occ" data-key="${esc(x.key)}"`;
   const rowDated = x => {
     const late = !x.paid && x.date < TODAY, d = BT.parse(x.date), isNext = x.key === nextKey;
     const sub = x.kind === 'extra' ? `<span class="tag cat">${catIcon(x.category)}${esc(x.category)}</span>${x.via ? ' <span class="tag via">via ' + esc(viaText(x.via)) + '</span>' : ''}${x.note.includes(' · ') ? esc(x.note.slice(x.note.indexOf(' · '))) : ''}`
       : `${SUB_GROUPS.includes(x.group) && !x.category ? catIcon('Subscriptions') + '<span class="bcat">Subscriptions</span>' + (x.group === 'Apple Subscriptions' ? ' · Apple' : '') + (x.note ? ' · ' + esc(x.note) : '') : (x.category ? catIcon(x.category) + '<span class="bcat">' + esc(x.category) + '</span> · ' : '<span class="dot" style="--c:' + gc(x.group) + '"></span>') + esc(x.note || x.group)}${x.via ? ' <span class="tag via">via ' + esc(viaText(x.via)) + '</span>' : ''}${x.edited ? ' · usually ' + fmt(x.base) : ''}`;
     return `<li class="row${x.paid ? ' is-paid' : ''}${isNext ? ' is-next' : ''}">${check(x)}
       <div class="date" aria-hidden="true"><span class="dow">${DOW[d.getDay()]}</span><span class="dd">${d.getDate()}</span></div>
-      <div class="main tapzone" ${tapAttrs(x)}><div class="nm">${esc(x.name)}${isNext ? ' <span class="pill brass">Up next</span>' : ''}${late ? ' <span class="pill soft warn">Past due</span>' : ''}</div>
-      <div class="sub">${sub}<span class="sr">${md(x.date)}</span></div></div>${amtBtn(x)}</li>`;
+      <div class="main tapzone" ${tapAttrs(x)}><div class="nm">${esc(x.name)}${isNext ? ' <span class="pill brass">Up next</span>' : ''}${late ? ' <span class="pill soft warn">Past due</span>' : ''}${x.paid ? '' : likelyPill(x.key)}</div>
+      <div class="sub">${sub}<span class="sr">${md(x.date)}</span></div>${x.paid ? '' : likelyDetail(x.key)}</div>${amtBtn(x)}</li>`;
   };
   const rowLiving = x => { const d = BT.parse(shown(x)); return `<li class="row${x.paid ? ' is-paid' : ''}">${check(x)}
       <div class="date" aria-hidden="true"><span class="dow">${DOW[d.getDay()]}</span><span class="dd">${d.getDate()}</span></div>
-      <div class="main tapzone" ${tapAttrs(x)}><div class="nm">${esc(x.name)}</div><div class="sub">${x.category ? catIcon(x.category) + '<span class="bcat">' + esc(x.category) + '</span> · ' : '<span class="dot" style="--c:' + gc(x.group) + '"></span>'}Living expense${x.via ? ' <span class="tag via">via ' + esc(viaText(x.via)) + '</span>' : ''}${x.edited ? ' · usually ' + fmt(x.base) : ''}</div></div>${amtBtn(x)}</li>`; };
+      <div class="main tapzone" ${tapAttrs(x)}><div class="nm">${esc(x.name)}${x.paid ? '' : likelyPill(x.key)}</div><div class="sub">${x.category ? catIcon(x.category) + '<span class="bcat">' + esc(x.category) + '</span> · ' : '<span class="dot" style="--c:' + gc(x.group) + '"></span>'}Living expense${x.via ? ' <span class="tag via">via ' + esc(viaText(x.via)) + '</span>' : ''}${x.edited ? ' · usually ' + fmt(x.base) : ''}</div>${x.paid ? '' : likelyDetail(x.key)}</div>${amtBtn(x)}</li>`; };
   const rowUnalloc = x => `<li class="row unalloc" data-action="allocate" data-id="${x.ref}" tabindex="0" role="button" aria-label="Sort out ${fmt(x.amount)} unallocated spending">
       <span class="ua-ico" aria-hidden="true">?</span><div class="date" aria-hidden="true"><span class="dow">Found</span><span class="dd">${BT.parse(x.date).getDate()}</span></div>
       <div class="main"><div class="nm">Unallocated spending</div><div class="sub">Tap to record where it went</div></div><div class="amt">${fmt(x.amount)}</div></li>`;
@@ -1869,6 +1967,7 @@ function viewOverview() {
     ${HEROUI.split && dparts.length > 1 ? `<p class="hero-split">Split: ${splitLine(dparts.map(p => ({ acct: p.acct || (p.txn ? acctDots(p.txn) : ''), amount: p.amount })))}</p>` : ''}
     ${uaTotal > 0 ? `<button class="ua-bar" data-action="allocate" data-id="${uaFirst.id}"><b>${fmt(uaTotal)} unallocated.</b> Record where it went to see your real spending this cycle.</button>` : ''}
     ${(() => { const n = (state.bank.inbox || []).length; return n ? `<button class="ua-bar bx-bar" data-action="tx-review"><b>${n} new ${n === 1 ? 'transaction' : 'transactions'}</b> from your bank. Review</button>` : ''; })()}
+    ${(() => { const n = s.items.filter(x => !x.paid && likelyMap().has(x.key)).length; return n ? `<button class="ua-bar lk-bar" data-action="likely-first"><b>${n} ${n === 1 ? 'bill' : 'bills'} likely completed.</b> Review</button>` : ''; })()}
     ${catBar()}
     <div class="meter" role="img" aria-label="${Math.round(pct)}% paid"><i style="width:${pct}%"></i></div>
     <dl class="hero-stats">
@@ -1906,7 +2005,7 @@ function viewBills() {
     return `<section class="card"><header class="card-h"><div><h2><span class="dot" style="--c:${gc(g)};display:inline-block;margin-right:8px"></span>${g}</h2></div>
       <div class="r"><span class="meta">${fmt(monthlyTotal(list))}/mo</span><button class="icon-btn" data-action="add" data-type="bill" data-group="${g}" aria-label="Add to ${g}">${ICON.plus}</button></div></header>
       ${list.length ? `<ul class="rows">${list.map(b => `<li class="row tap" data-action="edit" data-type="bill" data-id="${b.id}" tabindex="0" role="button" aria-label="Edit ${esc(b.name)}">
-        <span></span><div class="daybadge">${ord(b.day)}</div><div class="main"><div class="nm">${esc(b.name)}${b.active === false ? ' <span class="pill soft">Paused</span>' : ''}</div><div class="sub">${b.category ? catIcon(b.category) + '<span class="bcat">' + esc(b.category) + '</span> · ' : ''}${b.note ? esc(b.note) + ' · ' : ''}Due the ${ord(b.day)}${b.via ? ' <span class="tag via">via ' + esc(viaText(b.via)) + '</span>' : ''}</div></div><div class="amt">${fmt(b.amount)}</div></li>`).join('')}</ul>` : '<div class="empty">No items yet.</div>'}
+        <span></span><div class="daybadge">${ord(b.day)}</div><div class="main"><div class="nm">${esc(b.name)}${b.active === false ? ' <span class="pill soft">Paused</span>' : ''}${(() => { const k = likelyKeyFor('bill', b.id); return k ? likelyPill(k) : ''; })()}</div><div class="sub">${b.category ? catIcon(b.category) + '<span class="bcat">' + esc(b.category) + '</span> · ' : ''}${b.note ? esc(b.note) + ' · ' : ''}Due the ${ord(b.day)}${b.via ? ' <span class="tag via">via ' + esc(viaText(b.via)) + '</span>' : ''}</div>${(() => { const k = likelyKeyFor('bill', b.id); return k ? likelyDetail(k) : ''; })()}</div><div class="amt">${fmt(b.amount)}</div></li>`).join('')}</ul>` : '<div class="empty">No items yet.</div>'}
     </section>`;
   });
   return `<div class="stack">
@@ -3186,7 +3285,8 @@ async function bankSync(o) {
     if (errs.some(e => e.needsReconnect)) { BANKUI.enr = null; BANKUI.loadErr = ''; }
   } catch (e) { if (!auto) toast(e.message); }
   BANKUI.syncing = false;
-  if (['income', 'transactions'].includes(currentTab())) render(); else if (!$('#sheet').hidden && BALUI.open) balanceSheet();
+  if (['income', 'transactions', 'overview', 'bills'].includes(currentTab())) render();
+  if (!$('#sheet').hidden && BALUI.open) balanceSheet();
 }
 // "Sync now": ask the banks to refresh (when the plan allows it), sync right away, then once more shortly after (quietly)
 // to pick up whatever the banks answered with.
@@ -3491,7 +3591,6 @@ function historyAct(act, a) {
 
 /* ---------- Transactions tab: every bank transaction received, with what became of it ---------- */
 let TXUI = { filter: 'all', bank: '', q: '', open: null, mode: '', limit: 60 };
-let TXMATCH = new Map();
 const txnOf = id => state.bank.txns[id] || ((state.bank.seen[id] || {}).txn) || null;
 const inboxOf = id => state.bank.inbox.find(s => (s.parts || [s.txn]).some(t => t.id === id));
 function txStatus(t) {
@@ -3532,8 +3631,8 @@ function txPanel(t, st) {
   if (TXUI.mode === 'in') return `<div class="tx-p"><div class="h">Count this money in as</div><div class="chips"><button class="chip" data-action="tx-paycheck" data-id="${id}">Paycheck</button><button class="chip" data-action="tx-refund" data-id="${id}">Refund or transfer</button></div><div class="bx-a"><button class="btn sm" data-action="tx-back" data-id="${id}">Back</button></div></div>`;
   const b = (a, l, p) => `<button class="btn sm${p ? ' primary' : ''}" data-action="${a}" data-id="${id}">${l}</button>`;
   let acts = '', note = '';
-  if (k === 'spend') acts = b('tx-cats', 'Category') + b('tx-edit', 'Edit') + b('tx-undo', 'Undo');
-  else if (k === 'match' || k === 'income' || k === 'transfer') { acts = b('tx-undo', 'Undo'); note = esc(st.r.what || ''); }
+  if (k === 'spend') acts = b('tx-cats', 'Category') + b('tx-match', 'Match') + b('tx-edit', 'Edit') + b('tx-undo', 'Undo');
+  else if (k === 'match' || k === 'income' || k === 'transfer') { acts = (k === 'match' && !money ? b('tx-match', 'Match') : '') + b('tx-undo', 'Undo'); note = esc(st.r.what || ''); }
   else if (k === 'ignored') acts = (money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit')) + b('tx-undo', 'Undo');
   else if (k === 'none') acts = money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit');
   else acts = (money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit')) + b('tx-ignore', 'Ignore');
@@ -3578,7 +3677,7 @@ function txRequeue(t, from) {
   BT.classifyBatch(state, [t], TODAY).forEach(n => state.bank.inbox.push(n));
 }
 // Applies one decision to one transaction through the same applyOne the review list uses.
-function txDo(id, ch, quietMsg) {
+function txDo(id, ch, quietMsg, silent) {
   const e = txPull(id), t = e.t; if (!t) return false;
   const s = { txn: t, kind: ch.kind || 'spend', cands: [], pick: null, category: e.s && e.s.kind === 'spend' && e.s.category ? e.s.category : BT.guessCategory(state, t).category, confidence: 'low', source: '' };
   let ok = false;
@@ -3593,7 +3692,7 @@ function txDo(id, ch, quietMsg) {
   }, 'Bank sync');
   if (!ok) { txRequeue(t, e.from); commit(); toast('That one could not be applied'); return false; }
   TXUI.mode = ''; const r = state.bank.seen[id];
-  commit(quietMsg || (SAID[r.res] || 'Done') + (r.res === 'skip' ? '' : ' · ' + r.what)); return true;
+  commit(silent ? '' : quietMsg || (SAID[r.res] || 'Done') + (r.res === 'skip' ? '' : ' · ' + r.what)); return true;
 }
 function txUndo(id) {
   const r0 = state.bank.seen[id];
@@ -3614,24 +3713,145 @@ function txSetCat(id, cat) {
   const t = txnOf(id); if (t) BT.learnRule(state, t, cat);
   TXUI.mode = ''; commit('Category updated · ' + cat);
 }
+/* ---------- Match picker, warnings, and Likely completed ---------- */
+const P2PTXT = /venmo|cash ?app|zelle/i;
+let PICK = { id: '', q: '', paid: false, conf: null };
+const KINDLBL = { bill: 'Bill', card: 'Credit card payment', plan: 'Pay plan', spend: 'Per paycheck' };
+function kindText(x) { return x.kind === 'plan' ? 'Pay plan · ' + String(x.note || '').replace(' · ', ' ') : KINDLBL[x.kind] || 'Item'; }
+const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+// One plain sentence per reason a match looks off. Empty list: nothing looks off.
+function matchIssues(t, x) {
+  const out = [], amt = Math.abs(t.amount), diff = BT.round2(amt - x.amount), tol = Math.max(1, Math.abs(x.amount) * 0.02);
+  const dd = BT.diffDays(x.due, t.date), exact = Math.abs(diff) < 0.005;
+  if (Math.abs(diff) > tol + 0.004) out.push(`Amounts differ: transaction ${fmt(amt)}, scheduled ${fmt(x.amount)} (${fmt(Math.abs(diff))} ${diff < 0 ? 'less' : 'more'})`);
+  if (Math.abs(dd) > 3) out.push(`Date is ${plural(Math.abs(dd), 'day')} ${dd > 0 ? 'after' : 'before'} the due date (due ${md(x.due)}, paid ${md(t.date)})`);
+  if (t.amount < 0) out.push('This is money coming in, but the item is a payment');
+  if (x.paid && (x.key in state.marks ? state.marks[x.key] : !x.auto)) out.push('This item is already marked paid');
+  if (BT.nameSim(t.desc || t.rawDesc, x.name) === 0 && !P2PTXT.test([t.desc, t.rawDesc, t.counterparty].join(' ')) && !(exact && Math.abs(dd) <= 3)) out.push(`Names don't look alike (${cleanMerchant(t)} vs ${x.name})`);
+  const st = txStatus(t);
+  if (['spend', 'match', 'income', 'transfer'].includes(st.k)) out.push('This will replace: ' + st.label);
+  return out;
+}
+// Strength of a pairing for ordering lists: amount, date and name, 0..1.
+function pairScore(t, x) {
+  const amt = Math.abs(t.amount), diff = Math.abs(amt - x.amount), dd = Math.abs(BT.diffDays(x.due, t.date));
+  const sim = BT.nameSim(t.desc || t.rawDesc, x.name), p2p = P2PTXT.test([t.desc, t.rawDesc].join(' '));
+  return 0.4 * Math.max(0, 1 - diff / Math.max(1, 0.25 * x.amount)) + 0.3 * Math.max(0, 1 - dd / 14) + 0.3 * (p2p ? 0.5 : sim);
+}
+const sumHTML = t => `<div class="pk-sum"><div><b>${esc(cleanMerchant(t))}</b><small>${esc([acctDots(t), lng(t.date)].filter(Boolean).join(' · '))}</small></div><span class="amt${t.amount < 0 ? ' in' : ''}">${t.amount < 0 ? '+' : ''}${fmt(Math.abs(t.amount))}</span></div>`;
+const closeBtn = `<button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button>`;
+
+const suggestedKey = t => { const ib = inboxOf(t.id); return ib && ib.pick && ib.pick.key && ['plan', 'bill', 'transfer'].includes(ib.kind) ? ib.pick.key : ''; };
+function pickUniverse(t) {
+  const c0 = BT.periodRange(state, 'biweekly', 0, TODAY), c1 = BT.periodRange(state, 'biweekly', 1, TODAY);
+  const lo = [BT.addDays(t.date, -14), c0.start].sort()[0], hi = [BT.addDays(t.date, 15), c1.end].sort().reverse()[0];
+  const list = BT.occurrences(state, { start: lo, end: hi, view: 'biweekly' }, TODAY, true).filter(x => ['bill', 'card', 'plan', 'spend'].includes(x.kind) && x.due >= lo && x.due < hi && !(state.occ[x.key] && state.occ[x.key].txn) && (PICK.paid || !x.paid || x.key === suggestedKey(t)));
+  return { list, c0, c1 };
+}
+function pkOpt(x, t) {
+  const amt = Math.abs(t.amount), diff = BT.round2(x.amount - amt), dd = BT.diffDays(x.due, t.date), tol = Math.max(1, x.amount * 0.02);
+  const h = [];
+  if (Math.abs(diff) >= 0.005) h.push(`<span class="pk-h${Math.abs(diff) > tol ? ' warn' : ''}">${fmt(Math.abs(diff))} ${diff > 0 ? 'more' : 'less'}</span>`);
+  if (dd) h.push(`<span class="pk-h${Math.abs(dd) > 3 ? ' warn' : ''}">${plural(Math.abs(dd), 'day')} ${dd > 0 ? 'late' : 'early'}</span>`);
+  if (x.paid) h.push(`<span class="pk-h warn">${x.key in state.marks ? 'Marked paid' : 'Assumed paid'}</span>`);
+  return `<button type="button" class="bm pk-opt" data-action="pk-pick" data-key="${esc(x.key)}"><span class="pk-r1"><b>${esc(x.name)}</b><span class="amt">${fmt(x.amount)}</span></span><span class="pk-r2">${esc(kindText(x))} · due ${md(x.due)}</span>${h.length ? `<span class="pk-r3">${h.join('')}</span>` : ''}</button>`;
+}
+function pkListHTML() {
+  const t = txnOf(PICK.id); if (!t) return '';
+  const { list, c0, c1 } = pickUniverse(t), amt = Math.abs(t.amount), q = PICK.q.trim().toLowerCase();
+  list.forEach(x => SEL.set(x.key, x));
+  const hay = x => [x.name, x.note, kindText(x), x.category, fmt(x.amount), x.amount.toFixed(2)].join(' ').toLowerCase();
+  const rows = list.filter(x => !q || hay(x).includes(q)).map(x => ({ x, sc: pairScore(t, x), dd: Math.abs(BT.diffDays(x.due, t.date)), tol: Math.max(1, x.amount * 0.02) }));
+  const sk = suggestedKey(t);
+  const used = new Set(), take = (arr, n) => { const o = arr.filter(r => !used.has(r.x.key)).slice(0, n); o.forEach(r => used.add(r.x.key)); return o; };
+  const by = (a, b) => a.x.due < b.x.due ? -1 : a.x.due > b.x.due ? 1 : 0;
+  const best = take(rows.filter(r => r.x.key === sk || (r.sc >= 0.6 && !r.x.paid)).sort((a, b) => (b.x.key === sk) - (a.x.key === sk) || b.sc - a.sc), 3);
+  const same = take(rows.filter(r => Math.abs(r.x.amount - amt) <= r.tol + 0.004).sort((a, b) => a.dd - b.dd), 99);
+  const near = take(rows.filter(r => r.dd <= 14).sort((a, b) => a.dd - b.dd || b.sc - a.sc), 99);
+  const up = take(rows.filter(r => !r.x.paid && r.x.due >= c0.start && r.x.due < c1.end).sort(by), 99);
+  const sec = (title, arr) => arr.length ? `<div class="pk-sec">${title}</div><div class="pk-grp">${arr.map(r => pkOpt(r.x, t)).join('')}</div>` : '';
+  const body = sec('Best match', best) + sec('Same amount', same) + sec('Near this date', near) + sec('Everything upcoming', up);
+  return (body || `<p class="note" style="margin-top:14px">${q ? 'Nothing matches that search.' : 'Nothing you entered is waiting for a payment around this date.'}</p>`)
+    + `<div class="pk-more"><button type="button" class="linkbtn" data-action="pk-paid">${PICK.paid ? 'Hide paid items' : 'Show paid items too'}</button></div>`;
+}
 function txMatchSheet(id) {
   const t = txnOf(id); if (!t) return;
-  const amt = Math.abs(t.amount), win = { start: BT.addDays(t.date, -14), end: BT.addDays(t.date, 15), view: 'biweekly' };
-  const s = inboxOf(id), sk = s && s.pick && s.pick.key && ['plan', 'bill', 'transfer'].includes(s.kind) ? s.pick.key : '';
-  let list = BT.occurrences(state, win, TODAY, true).filter(x => ['bill', 'card', 'plan', 'spend'].includes(x.kind) && !(x.paid && x.key in state.marks) && !(state.occ[x.key] && state.occ[x.key].txn) && Math.abs(BT.diffDays(x.due, t.date)) <= 14);
-  list.sort((a, b) => (b.key === sk) - (a.key === sk) || Math.abs(a.amount - amt) - Math.abs(b.amount - amt) || Math.abs(BT.diffDays(a.due, t.date)) - Math.abs(BT.diffDays(b.due, t.date)));
-  TXMATCH = new Map(list.map(x => [x.key, x]));
-  const KIND = { bill: 'Bill', card: 'Credit card', plan: 'Pay plan', spend: 'Per paycheck' };
-  openSheet(`<div class="sheet-h"><div><h3>Match to something you entered</h3><p class="lede">${esc(cleanMerchant(t))} · ${fmt(amt)} · ${md(t.date)}. Pick the charge this paid.</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
-    ${list.length ? `<div class="bm-list">${list.map(x => `<button class="bm tx-cand" data-action="tx-link" data-id="${esc(id)}" data-key="${esc(x.key)}"><span class="bm-d"><b>${esc(x.name)}</b><span>${fmt(x.amount)}</span></span><span class="bm-m">${KIND[x.kind]} · due ${md(x.due)}${x.kind === 'plan' ? ' · ' + esc(x.note) : ''}${x.key === sk ? ' <span class="pill brass">Suggested</span>' : ''}${Math.abs(x.amount - amt) < 0.005 ? '' : ' · ' + (x.amount > amt ? fmt(x.amount - amt) + ' more' : fmt(amt - x.amount) + ' less')}</span></button>`).join('')}</div>` : '<p class="note">Nothing you entered is due within 14 days of this transaction.</p>'}
-    <div class="actions"><div class="r"><button class="btn" data-action="close">Cancel</button></div></div>`);
+  PICK = { id, q: '', paid: false, conf: null }; pickerSheet();
 }
-function txLink(id, key) {
-  const x = TXMATCH.get(key); if (!x) return;
+function pickerSheet() {
+  const t = txnOf(PICK.id); if (!t) return;
+  bankSheet(`<div class="pk"><div class="pk-head"><div class="sheet-h"><div><h3>Match to a bill or plan</h3></div>${closeBtn}</div>${sumHTML(t)}
+    <div class="pk-find"><input id="pkq" type="search" placeholder="Search name or amount" aria-label="Search scheduled items" autocomplete="off" value="${esc(PICK.q)}"></div></div>
+    <div class="pk-list" id="pklist">${pkListHTML()}</div></div>`);
+}
+document.addEventListener('input', e => { if (e.target.id === 'pkq') { PICK.q = e.target.value; const l = $('#pklist'); if (l) { l.innerHTML = pkListHTML(); l.scrollTop = 0; } } });
+
+// The "Match anyway?" step lives inside the same sheet.
+function confirmSheet() {
+  const c = PICK.conf, t = c && txnOf(c.tid), x = c && SEL.get(c.key); if (!t || !x) { closeSheet(); return; }
+  const iss = matchIssues(t, x);
+  bankSheet(`<div class="sheet-h"><div><h3>Match anyway?</h3><p class="lede">This does not look like a clean match.</p></div>${closeBtn}</div>
+    ${cmpHTML(t, x)}<ul class="pk-warn">${iss.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
+    <div class="actions"><div class="r"><button class="btn" data-action="cf-back">Pick another</button><button class="btn primary" data-action="cf-yes">Match anyway</button></div></div>`);
+}
+function cmpHTML(t, x) {
+  return `<div class="lk-cmp"><div class="lk-c"><span class="lk-k">Scheduled</span><b>${esc(x.name)}</b><span class="lk-a">${fmt(x.amount)}</span><span class="lk-m">${esc(kindText(x))}<br>Due ${lng(x.due)}</span></div>
+    <div class="lk-c"><span class="lk-k">Bank transaction</span><b>${esc(cleanMerchant(t))}</b><span class="lk-a">${t.amount < 0 ? '+' : ''}${fmt(Math.abs(t.amount))}</span><span class="lk-m">${lng(t.date)}${acctDots(t) ? '<br>' + esc(acctDots(t)) : ''}</span></div></div>`;
+}
+// Links one bank line to one scheduled item exactly like the picker always did, replacing whatever was decided for the line before.
+function doMatch(id, x) {
+  const t = txnOf(id); if (!t || !x) return false;
   const p = x.kind === 'plan' ? state.plans.find(z => z.id === x.ref) : null;
-  const ch = x.kind === 'plan' ? { kind: 'plan', pick: { key, provider: x.provider, merchant: x.name, n: +key.split(':')[2], total: p ? p.total : 0, date: x.due } }
-    : { kind: x.kind === 'card' ? 'transfer' : 'bill', pick: { key, name: x.name, date: x.due, kind: x.kind } };
-  closeSheet(); txDo(id, ch);
+  const ch = x.kind === 'plan' ? { kind: 'plan', pick: { key: x.key, provider: x.provider, merchant: x.name, n: +x.key.split(':')[2], total: p ? p.total : 0, date: x.due } }
+    : { kind: x.kind === 'card' ? 'transfer' : 'bill', pick: { key: x.key, name: x.name, date: x.due, kind: x.kind } };
+  if (linkedElsewhere(x.key, t)) { toast('That item already has a transaction'); return false; }
+  if (state.bank.seen[id]) absorbChange(state, () => revertSeen(id), 'Bank sync');
+  closeSheet();
+  const ok = txDo(id, ch, '', true);
+  if (ok) toast('Matched to ' + x.name, () => txUndo(id));
+  return ok;
+}
+function pickItem(tid, key, back) {
+  const t = txnOf(tid), x = SEL.get(key); if (!t || !x) return;
+  if (!matchIssues(t, x).length) { doMatch(tid, x); return; }
+  PICK.conf = { tid, key, back }; confirmSheet();
+}
+
+function likelySheet(key) {
+  const e = likelyMap().get(key); if (!e || !e.item) return;
+  const x = e.item, t = e.txn, iss = matchIssues(t, x);
+  bankSheet(`<div class="sheet-h"><div><h3>Likely completed</h3><p class="lede">This bank transaction looks like the payment for ${esc(x.name)}.</p></div>${closeBtn}</div>
+    ${cmpHTML(t, x)}${iss.length ? `<ul class="pk-warn">${iss.map(i => `<li>${esc(i)}</li>`).join('')}</ul>` : '<p class="note" style="margin:0 0 14px">Amount and date line up.</p>'}
+    <div class="lk-btns"><button class="btn primary" data-action="likely-yes" data-key="${esc(key)}">Yes, match</button><button class="btn" data-action="likely-no" data-key="${esc(key)}">Not this one</button><button class="btn" data-action="likely-other" data-key="${esc(key)}">Pick a different transaction</button><button class="btn" data-action="close">Close</button></div>`);
+}
+// Other money-out lines within 10 days of the due date, best first.
+function likelyTxnSheet(key) {
+  const x = SEL.get(key); if (!x) { closeSheet(); return; }
+  const linked = BT.linkedTxnIds(state);
+  const list = Object.values(state.bank.txns).filter(t => t && t.date && t.amount > 0 && Math.abs(BT.diffDays(x.due, t.date)) <= 10 && !BT.txnTaken(state, t, linked))
+    .map(t => ({ t, sc: pairScore(t, x) })).sort((a, b) => b.sc - a.sc).slice(0, 25);
+  const opt = ({ t }) => { const diff = BT.round2(t.amount - x.amount), dd = BT.diffDays(x.due, t.date), st = txStatus(t);
+    const h = [Math.abs(diff) >= 0.005 ? `<span class="pk-h${Math.abs(diff) > Math.max(1, x.amount * 0.02) ? ' warn' : ''}">${fmt(Math.abs(diff))} ${diff > 0 ? 'more' : 'less'} than scheduled</span>` : '', dd ? `<span class="pk-h${Math.abs(dd) > 3 ? ' warn' : ''}">${plural(Math.abs(dd), 'day')} ${dd > 0 ? 'after' : 'before'} due</span>` : '', st.k === 'spend' ? `<span class="pk-h">${esc(st.label)}</span>` : ''].filter(Boolean).join('');
+    return `<button type="button" class="bm pk-opt" data-action="lk-pick" data-id="${esc(t.id)}" data-key="${esc(key)}"><span class="pk-r1"><b>${esc(cleanMerchant(t))}</b><span class="amt">${fmt(t.amount)}</span></span><span class="pk-r2">${lng(t.date)}${acctDots(t) ? ' · ' + esc(acctDots(t)) : ''}</span>${h ? `<span class="pk-r3">${h}</span>` : ''}</button>`; };
+  bankSheet(`<div class="sheet-h"><div><h3>Pick a transaction</h3><p class="lede">For ${esc(x.name)} · ${fmt(x.amount)} · due ${md(x.due)}. Money out within 10 days.</p></div>${closeBtn}</div>
+    ${list.length ? `<div class="bm-list">${list.map(opt).join('')}</div>` : '<p class="note">No unmatched bank transactions within 10 days of the due date.</p>'}
+    <div class="actions"><div class="r"><button class="btn" data-action="likely-open" data-key="${esc(key)}">Back</button></div></div>`);
+}
+function likelyAct(act, a) {
+  const key = a.dataset.key;
+  switch (act) {
+    case 'likely-open': likelySheet(key); break;
+    case 'likely-first': { const first = [...likelyMap().keys()].find(k => { const e = likelyMap().get(k); return e.item && !e.item.paid; }); if (first) likelySheet(first); break; }
+    case 'likely-yes': { const e = likelyMap().get(key); if (e) doMatch(e.txn.id, e.item); break; }
+    case 'likely-no': { const e = likelyMap().get(key); if (!e) break; const nm = state.bank.notMatch[key] || (state.bank.notMatch[key] = []); nm.push(e.txn.id); closeSheet(); commit('Okay, not that one'); break; }
+    case 'likely-other': likelyTxnSheet(key); break;
+    case 'lk-pick': { const t = txnOf(a.dataset.id), x = SEL.get(key); if (!t || !x) break; pickItem(t.id, key, 'lk'); break; }
+    case 'pk-pick': pickItem(PICK.id, key, 'pk'); break;
+    case 'pk-paid': PICK.paid = !PICK.paid; pickerSheet(); { const l = $('#pklist'); if (l && PICK.paid) l.scrollTop = l.scrollHeight; } break;
+    case 'cf-yes': { const c = PICK.conf; if (c) doMatch(c.tid, SEL.get(c.key)); break; }
+    case 'cf-back': { const c = PICK.conf; if (c && c.back === 'lk') likelyTxnSheet(c.key); else pickerSheet(); break; }
+    case 'toast-undo': { const f = toast.undo; toast.undo = null; $('#toast').classList.remove('on', 'has-undo'); if (f) f(); break; }
+  }
 }
 function txEdit(id) {
   const t = txnOf(id), st = t && txStatus(t); if (!t) return;
@@ -3652,7 +3872,6 @@ function txAct(act, a) {
     case 'tx-cat': { const st = txnOf(id) && txStatus(txnOf(id)); if (st && st.k === 'spend') txSetCat(id, a.dataset.cat); else txDo(id, { kind: 'spend', category: a.dataset.cat }); break; }
     case 'tx-sugg': { const s = inboxOf(id); if (!s || !s.pick) break; if (s.parts && s.parts.length > 1) { applySuggestion(s, {}, true); TXUI.mode = ''; render(); } else txDo(id, { kind: s.kind, pick: s.pick }); break; }
     case 'tx-match': txMatchSheet(id); break;
-    case 'tx-link': txLink(id, a.dataset.key); break;
     case 'tx-edit': txEdit(id); break;
     case 'tx-ignore': txDo(id, { kind: 'ignore' }); break;
     case 'tx-undo': txUndo(id); break;
@@ -3808,7 +4027,7 @@ document.addEventListener('click', async e => {
     case 'bank-import': openBank(); break;
     case 'bk-sync': case 'bk-connect': case 'bk-reconnect': case 'bk-toggle': case 'bk-disc': case 'bk-forget': bankCardAct(act, a); break;
     case 'ix-open': case 'ix-accept': case 'ix-change': case 'ix-pick': case 'ix-cat': case 'ix-cats': case 'ix-new': case 'ix-edit': case 'ix-skip': case 'ix-all': case 'ix-undo': inboxAct(act, a); break;
-    case 'tx-review': case 'tx-filter': case 'tx-more': case 'tx-open': case 'tx-back': case 'tx-cats': case 'tx-in': case 'tx-cat': case 'tx-sugg': case 'tx-match': case 'tx-link': case 'tx-edit': case 'tx-ignore': case 'tx-undo': case 'tx-refund': case 'tx-paycheck': txAct(act, a); break;
+    case 'tx-review': case 'tx-filter': case 'tx-more': case 'tx-open': case 'tx-back': case 'tx-cats': case 'tx-in': case 'tx-cat': case 'tx-sugg': case 'tx-match': case 'tx-edit': case 'tx-ignore': case 'tx-undo': case 'tx-refund': case 'tx-paycheck': txAct(act, a); break;
     case 'pc-out': payPartOut(a.dataset.id); break;
     case 'pc-edit': INCUI.edit = a.dataset.date; render(); setTimeout(() => { const f = $('#pcamt'); if (f) { f.focus(); f.select(); } }, 30); break;
     case 'pc-cancel': INCUI.edit = null; render(); break;
@@ -3820,6 +4039,7 @@ document.addEventListener('click', async e => {
       commit('Paycheck total saved · ' + fmt(v)); break;
     }
     case 'pay-hand': HEROUI.hand = true; render(); setTimeout(() => { const f = $('#payamt'); if (f) f.focus(); }, 30); break;
+    case 'likely-open': case 'likely-first': case 'likely-yes': case 'likely-no': case 'likely-other': case 'lk-pick': case 'pk-pick': case 'pk-paid': case 'cf-yes': case 'cf-back': case 'toast-undo': likelyAct(act, a); break;
     case 'hx-open': case 'hx-add': case 'hx-hide': case 'hx-undo': historyAct(act, a); break;
     case 'bank-read': case 'bank-ok': case 'bank-new': case 'bank-back': case 'bank-skip': case 'bank-pick': bankAct(act, a); break;
     case 'copy-backup': backupSheet('copy'); break;
@@ -3950,6 +4170,7 @@ function viewPlansTab() {
 const TABS = { overview: viewOverview, bills: viewBills, plans: viewPlansTab, transactions: viewTransactions, income: viewIncome };
 function currentTab() { const h = location.hash.slice(1); return h === 'cards' ? 'plans' : TABS[h] ? h : 'overview'; }
 function render() {
+  LIKELY = null;
   if (location.hash === '#cards') { state.settings.plansView = 'cards'; try { history.replaceState(null, '', '#plans'); localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} }
   const tab = currentTab();
   document.querySelectorAll('#viewSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === state.settings.view));

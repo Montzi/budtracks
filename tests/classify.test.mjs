@@ -278,3 +278,68 @@ test('guard: a part removed from the paycheck (notPay) comes back as transfer or
   assert.deepEqual(out.find(s => s.parts).parts.map(p => p.id).sort(), ['p1', 'p3']);
   const s2 = out.find(s => s.txn.id === 'p2'); assert.equal(s2.kind, 'transfer'); assert.equal(s2.pick, null);
 });
+
+/* ---- Likely completed ---- */
+function carFixture() {
+  const st = fixture();
+  st.bills.push({ id: 'car', name: 'Car payment', amount: 280, day: 20, group: 'Fixed', category: 'Transportation' });
+  st.bank.txns = {}; st.bank.notMatch = {};
+  return st;
+}
+const carItem = st => BT.occurrences(st, { start: '2026-11-15', end: '2026-11-29', view: 'biweekly' }, TODAY).find(x => x.key === 'b:car:2026-11-20');
+const addTx = (st, o) => { const t = T(Object.assign({ date: '2026-11-20', desc: 'Zelle payment to John D', amount: 280 }, o)); st.bank.txns[t.id] = t; return t; };
+const txs = st => Object.values(st.bank.txns);
+test('likelyPaid: Zelle $280 near the car payment due date matches', () => {
+  const st = carFixture(), t = addTx(st, { id: 'z1', date: '2026-11-21' });
+  assert.equal(BT.likelyPaid(st, carItem(st), txs(st), TODAY).id, t.id);
+});
+test('likelyPaid: $280 ten days away does not match', () => {
+  const st = carFixture(); addTx(st, { id: 'z1', date: '2026-11-30' });
+  assert.equal(BT.likelyPaid(st, carItem(st), txs(st), TODAY), null);
+});
+test('likelyPaid: amount off by $30 does not match', () => {
+  const st = carFixture(); addTx(st, { id: 'z1', amount: 310 });
+  assert.equal(BT.likelyPaid(st, carItem(st), txs(st), TODAY), null);
+});
+test('likelyPaid: money in, paid items and linked or ignored lines never match', () => {
+  const st = carFixture(); addTx(st, { id: 'in', amount: -280 }); addTx(st, { id: 'm', desc: 'Zelle' }); addTx(st, { id: 'sk', desc: 'Zelle' });
+  st.occ['b:other:2026-11-20'] = { txn: 'm' }; st.bank.seen.sk = { res: 'skip' };
+  assert.equal(BT.likelyPaid(st, carItem(st), txs(st), TODAY), null);
+  addTx(st, { id: 'ok' }); const it = carItem(st);
+  assert.equal(BT.likelyPaid(st, it, txs(st), TODAY).id, 'ok');
+  assert.equal(BT.likelyPaid(st, Object.assign({}, it, { paid: true }), txs(st), TODAY), null);
+});
+test('likelyPaid: a line dismissed for that item is excluded', () => {
+  const st = carFixture(); addTx(st, { id: 'z1' }); const t2 = addTx(st, { id: 'z2', date: '2026-11-18' });
+  assert.equal(BT.likelyPaid(st, carItem(st), txs(st), TODAY).id, 'z1');
+  st.bank.notMatch['b:car:2026-11-20'] = ['z1'];
+  assert.equal(BT.likelyPaid(st, carItem(st), txs(st), TODAY).id, t2.id);
+  st.bank.notMatch['b:car:2026-11-20'] = ['z1', 'z2'];
+  assert.equal(BT.likelyPaid(st, carItem(st), txs(st), TODAY), null);
+});
+test('likelyPaidAll: one bank line is proposed for one item only', () => {
+  const st = carFixture(); st.bills.push({ id: 'loan', name: 'Loan', amount: 280, day: 20, group: 'Fixed', category: 'Loans' });
+  addTx(st, { id: 'z1' });
+  const items = BT.occurrences(st, { start: '2026-11-15', end: '2026-11-29', view: 'biweekly' }, TODAY).filter(x => x.date === '2026-11-20' && x.amount === 280);
+  assert.equal(items.length, 2);
+  const m = BT.likelyPaidAll(st, items, txs(st), TODAY);
+  assert.equal(m.size, 1); assert.equal([...m.values()][0].txn.id, 'z1');
+  addTx(st, { id: 'z2', date: '2026-11-19' });
+  assert.equal(BT.likelyPaidAll(st, items, txs(st), TODAY).size, 2);
+});
+test('likelyPaid: a line handled as spending is allowed but ranks below an unhandled one', () => {
+  const st = carFixture(), sp = addTx(st, { id: 'sp' }); st.bank.seen.sp = { res: 'spend', src: 'sync' };
+  assert.equal(BT.likelyPaid(st, carItem(st), txs(st), TODAY).id, 'sp');
+  addTx(st, { id: 'free', date: '2026-11-19' });
+  assert.equal(BT.likelyPaid(st, carItem(st), txs(st), TODAY).id, 'free');
+  const m = BT.likelyPaidAll(st, [carItem(st)], txs(st), TODAY); assert.equal(m.get('b:car:2026-11-20').txn.id, 'free');
+  void sp;
+});
+test('likelyPaid: exact cents beat near amounts; unrelated name needs the exact amount', () => {
+  const st = carFixture(); addTx(st, { id: 'near', amount: 281.5 }); addTx(st, { id: 'exact' });
+  assert.equal(BT.likelyPaid(st, carItem(st), txs(st), TODAY).id, 'exact');
+  const s2 = carFixture(); addTx(s2, { id: 'g', desc: 'WALMART SUPERCENTER', amount: 281.5 });
+  assert.equal(BT.likelyPaid(s2, carItem(s2), txs(s2), TODAY), null);
+  addTx(s2, { id: 'g2', desc: 'WALMART SUPERCENTER' });
+  assert.equal(BT.likelyPaid(s2, carItem(s2), txs(s2), TODAY).id, 'g2');
+});
