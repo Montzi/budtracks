@@ -12,11 +12,12 @@
    Bold moment: the navy "cycle card" with a serif figure. Everything else stays quiet. */
 :root {
   --bg: #eceef2; --surface: #ffffff; --surface-2: #f5f6f9; --line: #e0e3e9; --line-2: #c9ced8;
-  --ink: #111726; --ink-2: #454f62; --ink-3: #6f7789;
+  /* Light: muted text, brass, good and crit are dark enough for 4.5:1 on --bg and --surface-2. */
+  --ink: #111726; --ink-2: #454f62; --ink-3: #5d6577;
   --hero: #15203a; --hero-2: #22305180; --hero-ink: #f5f1e7; --hero-ink-2: #b7bdcb; --hero-line: #2c3a5a;
-  --brass: #9a6d22; --brass-hi: #d8b26a;
+  --brass: #845c1a; --brass-hi: #d8b26a;
   --accent: #1d3a72; --accent-ink: #ffffff; --accent-soft: #e5ebf6;
-  --good: #0ca30c; --warn: #fab219; --crit: #d03b3b;
+  --good: #0a7f0a; --warn: #fab219; --crit: #b8322f; --on-brass: #ffffff;
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948; --s9: #0e8fa3; --s10: #a0527c; --s11: #6b7280; --s12: #8bb12a;
   --display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
   --body: 'Geist', -apple-system, 'Segoe UI', system-ui, sans-serif;
@@ -27,8 +28,8 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0c0f15; --surface: #151a23; --surface-2: #1b212c; --line: #252c39; --line-2: #343d4d;
-    --ink: #eef0f4; --ink-2: #b5bbc7; --ink-3: #8a91a0;
-    --hero: #18243f; --hero-line: #2d3c5e; --brass: #d8b26a; --brass-hi: #e6c88d;
+    --ink: #eef0f4; --ink-2: #b5bbc7; --ink-3: #969dac;
+    --hero: #18243f; --hero-line: #2d3c5e; --brass: #d8b26a; --brass-hi: #e6c88d; --good: #0ca30c; --crit: #e86a6a; --on-brass: #1a1408;
     --accent: #8fb0ee; --accent-ink: #0c1424; --accent-soft: #1d2840;
     --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #0ca30c; --s7: #9085e9; --s8: #e66767; --s9: #2aa8bd; --s10: #c36a9a; --s11: #8b93a1; --s12: #9cc83a;
     --shadow: 0 1px 2px #0006, 0 8px 24px -12px #0009;
@@ -37,8 +38,8 @@
 }
 :root[data-theme="dark"] {
   --bg: #0c0f15; --surface: #151a23; --surface-2: #1b212c; --line: #252c39; --line-2: #343d4d;
-  --ink: #eef0f4; --ink-2: #b5bbc7; --ink-3: #8a91a0;
-  --hero: #18243f; --hero-line: #2d3c5e; --brass: #d8b26a; --brass-hi: #e6c88d;
+  --ink: #eef0f4; --ink-2: #b5bbc7; --ink-3: #969dac;
+  --hero: #18243f; --hero-line: #2d3c5e; --brass: #d8b26a; --brass-hi: #e6c88d; --good: #0ca30c; --crit: #e86a6a; --on-brass: #1a1408;
   --accent: #8fb0ee; --accent-ink: #0c1424; --accent-soft: #1d2840;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #0ca30c; --s7: #9085e9; --s8: #e66767; --s9: #2aa8bd; --s10: #c36a9a; --s11: #8b93a1; --s12: #9cc83a;
   --shadow: 0 1px 2px #0006, 0 8px 24px -12px #0009;
@@ -88,15 +89,17 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .hero-num .cap { font-size: 13px; color: var(--hero-ink-2); }
 .meter { height: 6px; border-radius: 99px; background: #ffffff1a; margin: 14px 2px 12px; overflow: hidden; }
 .meter i { display: block; height: 100%; border-radius: 99px; background: var(--brass-hi); }
-.hero-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
-.hero-stats div { min-width: 0; }
+/* Same tracks as the ladder above (margin -6px, no gap, 6px cell padding, centered) so each stat sits under its sum. */
+.hero-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 0; row-gap: 8px; margin: 0 -6px; text-align: center; container-type: inline-size; }
+.hero-stats > div { min-width: 0; padding: 0 6px; }
 .hero-stats dt { font-size: 11px; color: var(--hero-ink-2); }
-.hero-stats dd { margin: 2px 0 0; font-family: var(--mono); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hero-stats dd { margin: 2px 0 0; font-family: var(--mono); font-size: clamp(12px, 4.4cqi, 14px); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hero-stats .neg { color: #ff9d9d; }
 
 .hero-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--hero-line); font-size: 13px; color: var(--hero-ink-2); }
 .hero-foot b { color: var(--hero-ink); font-family: var(--mono); font-weight: 500; }
-.linkbtn { background: none; border: 0; padding: 0; color: var(--brass-hi); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--brass); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+.hero .linkbtn { color: var(--brass-hi); }
 .cta { display: block; width: 100%; margin-top: 12px; text-align: left; background: #ffffff0f; border: 1px dashed var(--brass-hi); color: var(--hero-ink); border-radius: 12px; padding: 10px 12px; font-size: 13px; }
 
 /* Cards */
@@ -140,7 +143,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: none; }
 .amt { font-size: 14px; text-align: right; white-space: nowrap; }
 .pill { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; border-radius: 99px; background: var(--ink); color: var(--bg); }
-.pill.brass { background: var(--brass); color: #fff; }
+.pill.brass { background: var(--brass); color: var(--on-brass); }
 .pill.soft { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); }
 .pill.warn::before { content: "! "; color: var(--warn); }
 .empty { padding: 18px 16px 22px; color: var(--ink-3); font-size: 14px; display: grid; gap: 10px; justify-items: start; }
@@ -276,15 +279,8 @@ textarea { width: 100%; min-height: 120px; border-radius: 10px; border: 1px soli
 .tapzone { cursor: pointer; }
 .fld input:disabled { opacity: .5; }
 
-.hero-split { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; align-items: end; margin: 18px 0 4px; }
-.hero-split > div { display: grid; gap: 3px; min-width: 0; }
 .hs-r { text-align: right; justify-items: end; padding-left: 14px; border-left: 1px solid var(--hero-line); }
 .hs-k { font-size: 11.5px; color: var(--hero-ink-2); letter-spacing: .02em; }
-.hero-split .big { font-family: var(--display); font-size: clamp(40px, 11vw, 60px); line-height: .95; letter-spacing: -0.02em; white-space: nowrap; }
-.hero-split .big small { font-size: .5em; vertical-align: .62em; margin-right: 1px; color: var(--hero-ink-2); }
-.hero-split .big.neg { color: #ff9d9d; }
-.hero-split .big.dim { opacity: .45; }
-.hero-split .mid { font-family: var(--display); font-size: clamp(24px, 6.4vw, 32px); line-height: 1; white-space: nowrap; color: var(--hero-ink); }
 .hs-s { font-size: 12px; color: var(--hero-ink-2); font-family: var(--mono); line-height: 1.4; }
 
 /* Three sums on one grid: every column shares the same label, value and subline rows (subgrid), so nothing steps down. */
@@ -296,7 +292,20 @@ textarea { width: 100%; min-height: 120px; border-radius: 10px; border: 1px soli
 .lad .v.neg { color: #ff9d9d; }
 .lad .v.dim { opacity: .45; }
 .lad .v.set { font-family: var(--body); font-size: 15px; font-weight: 500; color: var(--brass-hi); text-decoration: underline; text-underline-offset: 3px; }
-.lad .hs-s { font-size: 11px; align-self: start; }
+.lad .hs-s { font-size: 11px; line-height: 1.4; align-self: start; width: 100%; min-width: 0; }
+.lad .fl { display: block; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: center; }
+button.lad.l1 { border-left: 0; }
+.greet { display: flex; flex-wrap: wrap; justify-content: center; column-gap: 0; row-gap: 1px; width: 100%; margin: 0 0 10px; padding: 2px 4px; background: none; border: 0; border-radius: 8px; color: var(--hero-ink-2); font-size: 12.5px; line-height: 1.35; text-align: center; min-width: 0; }
+.greet span { overflow-wrap: anywhere; min-width: 0; }
+.greet span:first-child { color: var(--hero-ink); font-weight: 500; }
+.greet i { font-style: normal; white-space: pre; }
+.greet:hover span:first-child, .greet:focus-visible span:first-child { color: var(--brass-hi); }
+.theme-seg { align-self: start; }
+.pc-sheet-acts { margin-top: 14px; }
+.pc-none { margin: 6px 0 0; }
+.btn .spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .btn .spin { animation-duration: 2.4s; } }
 button.lad:hover .v, button.lad:focus-visible .v { color: var(--brass-hi); }
 .lad-tools { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin: 10px 0 0; min-height: 28px; }
 .lad-tools .eye { width: 28px; height: 28px; border-radius: 8px; background: transparent; border-color: var(--hero-line); color: var(--hero-ink-2); }
@@ -323,7 +332,7 @@ button.lad:hover .v, button.lad:focus-visible .v { color: var(--brass-hi); }
 .row.unalloc + .row { border-top-color: transparent; }
 .row.unalloc .nm { color: var(--ink); }
 .row.unalloc .sub { color: var(--brass); font-weight: 500; }
-.ua-ico { width: 26px; height: 26px; border-radius: 50%; background: var(--brass); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+.ua-ico { width: 26px; height: 26px; border-radius: 50%; background: var(--brass); color: var(--on-brass); display: grid; place-items: center; font-weight: 700; font-size: 14px; }
 .calc { grid-column: span 2; display: flex; justify-content: space-between; align-items: baseline; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
 .calc b { font-family: var(--mono); font-weight: 500; }
 .preview[hidden] { display: none; }
@@ -587,14 +596,14 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .ua-break{border:1px solid var(--line,rgba(127,127,127,.25));border-radius:14px;padding:10px 14px;margin:0 0 14px;font-size:13px}
 .ua-break>div{display:flex;justify-content:space-between;gap:12px;padding:4px 0}
 .ua-break b{font-family:var(--mono,ui-monospace,monospace);white-space:nowrap}
-.ua-break .ok{color:#8fd19e}
+.ua-break .ok{color:var(--good)}
 .ua-break .rest{border-top:1px solid var(--line,rgba(127,127,127,.25));margin-top:4px;padding-top:8px;font-weight:700}
 
-.hero-stats .ss-sub{display:block;font-size:11px;opacity:.7;margin-top:2px;white-space:nowrap}
+.hero-stats .ss-sub{display:block;font-size:11px;line-height:1.3;opacity:.7;margin-top:2px;overflow-wrap:anywhere}
 /* Spent so far and Still due open a list: the whole tile is the button, a small chevron says so. */
 .hero-stats .hs-tap{position:relative;border-radius:8px}
 .hero-stats .hs-tap dt::after{content:"›";display:inline-block;margin-left:4px;opacity:.65;font-size:13px;line-height:1;transform:translateY(1px)}
-.hs-hit{position:absolute;inset:-4px -6px;border:0;background:transparent;border-radius:8px;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
+.hs-hit{position:absolute;inset:-4px 0;border:0;background:transparent;border-radius:8px;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
 .hs-hit:hover,.hs-hit:active{background:rgba(255,255,255,.07)}
 .hs-hit:focus-visible{outline:2px solid var(--brass-hi);outline-offset:0}
 .hl-total{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 14px;margin:12px 0 4px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);font-size:13px;color:var(--ink-2)}
@@ -640,8 +649,8 @@ details.skipped[open] > summary .chev { transform: rotate(90deg); }
 .sv-tx li { display: grid; grid-template-columns: 56px 1fr auto 28px; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
 .sv-tx .sv-d { color: var(--ink-2); font-family: var(--mono); font-size: 12px; }
 .sv-tx b { font-family: var(--mono); font-weight: 500; }
-.sv-tx b.pos { color: var(--good, #2f8f5b); }
-.sv-tx b.neg { color: var(--warn, #c2532f); }
+.sv-tx b.pos { color: var(--good); }
+.sv-tx b.neg { color: var(--crit); }
 .sv-tx .x { background: none; border: 0; color: var(--ink-2); cursor: pointer; padding: 4px; border-radius: 8px; }
 .btn.sm { padding: 6px 12px; font-size: 12.5px; }
 .sub .tag { max-width: 100%; }
@@ -655,7 +664,7 @@ h3 > .icon-pick { display: inline-grid; vertical-align: middle; width: 38px; hei
 .cat-scroll { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 6px 0; -webkit-overflow-scrolling: touch; border-top: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent); mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent); }
 .cat-scroll::-webkit-scrollbar { display: none; }
 
-.cs-chip { flex: none; scroll-snap-align: center; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink); font: inherit; font-size: 13px; opacity: .55; transition: opacity .15s, transform .15s, border-color .15s; cursor: pointer; }
+.cs-chip { flex: none; scroll-snap-align: center; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink); font: inherit; font-size: 13px; opacity: .72; transition: opacity .15s, transform .15s, border-color .15s; cursor: pointer; }
 .cs-chip .cico { width: 15px; height: 15px; }
 .cs-chip b { font-family: var(--mono); font-weight: 500; font-size: 12.5px; }
 .cs-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c); flex: none; }
@@ -765,7 +774,6 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 .pay-same { background: none; border: 1px solid var(--brass-hi); color: var(--brass-hi); border-radius: 99px; padding: 7px 12px; font-size: 13px; font-weight: 500; }
 .pay-same:hover { background: #ffffff10; }
 .bx-split { color: var(--ink-2); font-size: 12px; opacity: .85; overflow-wrap: anywhere; }
-.hero-split { margin: 6px 0 0; font-size: 12px; font-family: var(--mono); color: var(--hero-ink-2); text-align: center; overflow-wrap: anywhere; }
 .bal-total { display: grid; gap: 2px; margin: 6px 0 8px; }
 .bal-total b { font-family: var(--display); font-size: 38px; line-height: 1; letter-spacing: -0.02em; }
 .bal-total span { font-size: 13px; color: var(--ink-2); }
@@ -776,7 +784,6 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 .bal-acc .nm { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
 .bal-acc .sub { font-size: 13px; color: var(--ink-2); }
 .bal-acc .mask { color: var(--ink-2); font-weight: 400; }
-.pay-edit { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
 /* iPhone Duo and notched phones: the camera can sit on a side edge, with different insets on each side.
    Keep sheets, toasts and floating bubbles inside the safe area. */
 .sheet-wrap { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
@@ -960,7 +967,8 @@ body.dragging-bank { cursor: grabbing; -webkit-user-select: none; user-select: n
 .ch-range .seg button { padding: 5px 12px; font-size: 12.5px; }
 </style>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#15203a">
+<meta name="theme-color" content="#eceef2">
+<script>try { var t = (JSON.parse(localStorage.getItem('budtrack.v1') || '{}').settings || {}).theme; if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; if (t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) document.querySelector('meta[name="theme-color"]').content = '#0c0f15'; } catch (e) {}</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BudTracks">
@@ -2290,7 +2298,7 @@ function viewOverview() {
   const s = BT.summary(state, r, TODAY);
   const ns = BT.summary(state, BT.periodRange(state, view, offset + 1, TODAY), TODAY);
   const isNow = offset === 0;
-  const label = isNow ? 'Up next · this ' + VIEWNAME[view] : (offset > 0 ? 'Upcoming ' : 'Past ') + VIEWNAME[view];
+  const label = isNow ? VIEWNAME[view][0].toUpperCase() + VIEWNAME[view].slice(1) : (offset > 0 ? 'Upcoming ' : 'Past ') + VIEWNAME[view];
   const pct = s.needed ? Math.min(100, (s.paid / s.needed) * 100) : 0;
   const pc = BT.paycheck(state);
   const shown = x => x.kind === 'spend' && x.paid && x.checkedOn ? x.checkedOn : x.date;
@@ -2303,8 +2311,16 @@ function viewOverview() {
   const uaOpen = state.unalloc.filter(u => BT.unallocLeft(state, u) > 0.004);
   const uaTotal = BT.round2(uaOpen.reduce((a, u) => a + BT.unallocLeft(state, u), 0)), uaFirst = uaOpen[0];
   const big = n => { const a = Math.abs(n), d = Math.floor(a), c = String(Math.round((a - d) * 100)).padStart(2, '0'); return `${n < 0 ? '−' : ''}<small>$</small>${d.toLocaleString('en-US')}<small>.${c}</small>`; };
-  const chipHTML = state.savings.on && bt === null ? `<br><span class="sv-chip">Savings: ${hide ? MASK : fmt0(BT.savingsBalance(state))}</span>` : '';
-  const dep = s.inc[0], dparts = dep ? BT.paycheckParts(state, dep.ref, dep.date).map(([, r]) => r) : [];
+  const chipHTML = state.savings.on && bt === null ? `<span class="sv-chip">Savings: ${hide ? MASK : fmt0(BT.savingsBalance(state))}</span>` : '';
+  const dep = s.inc[0];
+  // Sublines under the three sums: at most two short lines each; fitLines() swaps in shorter wording when a line would not fit.
+  const fitLine = vs => `<span class="fl" data-fit="${esc(JSON.stringify(vs))}">${esc(vs[0])}</span>`;
+  const acctLines = () => {
+    const at = state.bank.balances.at, d = at ? BT.iso(new Date(at)) : TODAY, t = clockTime(at);
+    const when = d === TODAY ? [t] : d === BT.addDays(TODAY, -1) ? ['yesterday'] : [md(d)];
+    const n = state.bank.balances.items.reduce((a, it) => a + it.accounts.filter(x => countedAcct(x) && balOf(x) !== null).length, 0);
+    return fitLine(['Updated ' + when[0], 'Upd. ' + when[0], when[0][0].toUpperCase() + when[0].slice(1)]) + fitLine(n === 1 ? ['1 account', '1 acct'] : [n + ' accounts', n + ' accts']);
+  };
   const check = x => `<button class="check" data-action="toggle" data-key="${esc(x.key)}" data-auto="${x.auto ? 1 : 0}" aria-pressed="${x.paid}" aria-label="${x.paid ? 'Mark unpaid' : 'Mark paid'}: ${esc(x.name)}">${ICON.check}</button>`;
   const amtBtn = x => x.kind === 'extra'
     ? `<button class="amt amt-btn" data-action="edit" data-type="extra" data-id="${x.ref}" aria-label="Edit ${esc(x.name)}: ${fmt(x.amount)}">${fmt(x.amount)}</button>`
@@ -2347,6 +2363,7 @@ function viewOverview() {
   return `<div class="ov">
   <section class="hero" aria-label="Pay cycle summary">
     <div class="hero-brand">${logo()}</div>
+    ${greetHTML()}
     <div class="hero-top">
       <button class="navbtn" data-action="prev" aria-label="Previous ${VIEWNAME[view]}">${ICON.prev}</button>
       <div class="lbl"><div class="eyebrow">${label}</div><div class="range">${rangeLabel(r)}</div></div>
@@ -2354,12 +2371,10 @@ function viewOverview() {
     </div>
     <div class="lad-tools${hide ? ' hid' : ''}">${hide ? `<span class="lt-msg">Balances hidden<i aria-hidden="true"> · </i><button type="button" class="linkbtn" data-action="hide-bal">Show</button></span>` : ''}<button type="button" class="icon-btn eye" data-action="hide-bal" aria-pressed="${hide}" aria-label="${hide ? 'Show balances' : 'Hide balances'}">${hide ? ICON.eyeoff : ICON.eye}</button></div>
     ${hide ? '' : `<div class="ladder">
-      <div class="lad l1"><span class="hs-k">Left in paycheck</span>
-        ${s.income > 0 ? `<span class="v${remain < 0 ? ' neg' : ''}">${big(remain)}</span><span class="hs-s">${dep && isAsk(dep.ref) ? `<button class="pay-edit" data-action="pay-edit" data-date="${dep.date}">of ${fmt(s.income)}</button>` : 'of ' + fmt(s.income)}${dep ? '<br>' + lng(dep.date) : ''}${dparts.length > 1 ? ` · <button class="pay-edit" data-action="pay-split" aria-expanded="${HEROUI.split}">split</button>` : ''}</span>` : `<span class="v dim">${big(0)}</span><span class="hs-s">Paycheck not set</span>`}</div>
-      <div class="lad l2"><span class="hs-k">${{ weekly: 'Week', biweekly: 'Cycle', monthly: 'Month' }[view]} needs</span><span class="v">${big(s.needed)}</span><span class="hs-s">${Math.round(pct)}% paid</span></div>
-      <button class="lad l3" data-action="account"><span class="hs-k">In account</span>${bt !== null ? `<span class="v${bt < 0 ? ' neg' : ''}">${big(bt)}</span><span class="hs-s">Live from ${bankCountedBanks()} ${bankCountedBanks() === 1 ? 'bank' : 'banks'} · updated ${esc(clockTime(state.bank.balances.at))}</span>` : acct === null ? '<span class="v set">Set</span><span class="hs-s">Tap to add${chipHTML}</span>' : `<span class="v${acct < 0 ? ' neg' : ''}">${big(acct)}</span><span class="hs-s">${split(acct).prev > 0.004 ? 'incl. ' + fmt0(split(acct).prev) + ' carried' : state.account.auto ? 'Estimated' : 'Today'}${chipHTML}</span>`}</button>
+      ${s.income > 0 ? `<button type="button" class="lad l1" data-action="pay-sheet"><span class="hs-k">Left in paycheck</span><span class="v${remain < 0 ? ' neg' : ''}">${big(remain)}</span><span class="hs-s">${fitLine(['of ' + fmt(s.income)])}</span></button>` : `<div class="lad l1"><span class="hs-k">Left in paycheck</span><span class="v dim">${big(0)}</span><span class="hs-s">${fitLine(['Paycheck', 'Pay'])}${fitLine(['not set'])}</span></div>`}
+      <div class="lad l2"><span class="hs-k">${{ weekly: 'Week', biweekly: 'Cycle', monthly: 'Month' }[view]} needs</span><span class="v">${big(s.needed)}</span><span class="hs-s">${fitLine([Math.round(pct) + '% paid'])}</span></div>
+      <button class="lad l3" data-action="account"><span class="hs-k">In account</span>${bt !== null ? `<span class="v${bt < 0 ? ' neg' : ''}">${big(bt)}</span><span class="hs-s">${acctLines()}</span>` : acct === null ? `<span class="v set">Set</span><span class="hs-s">${fitLine(['Tap to add'])}${chipHTML}</span>` : `<span class="v${acct < 0 ? ' neg' : ''}">${big(acct)}</span><span class="hs-s">${split(acct).prev > 0.004 ? fitLine(['incl. ' + fmt0(split(acct).prev) + ' carried', fmt0(split(acct).prev) + ' carried', '+' + fmt0(split(acct).prev)]) : fitLine([state.account.auto ? 'Estimated' : 'Today'])}${chipHTML}</span>`}</button>
     </div>`}
-    ${!hide && HEROUI.split && dparts.length > 1 ? `<p class="hero-split">Split: ${splitLine(dparts.map(p => ({ acct: p.acct || (p.txn ? acctDots(p.txn) : ''), amount: p.amount })))}</p>` : ''}
     ${uaTotal > 0 ? `<button class="ua-bar" data-action="allocate" data-id="${uaFirst.id}"><b>${hm(uaTotal)} unallocated.</b> Record where it went to see your real spending this cycle.</button>` : ''}
     ${(() => { const n = (state.bank.inbox || []).length; return n ? `<button class="ua-bar bx-bar" data-action="tx-review"><b>${n} new ${n === 1 ? 'transaction' : 'transactions'}</b> from your bank. Review</button>` : ''; })()}
     ${(() => { const n = s.items.filter(x => !x.paid && likelyMap().has(x.key)).length; return n ? `<button class="ua-bar lk-bar" data-action="likely-first"><b>${n} ${n === 1 ? 'bill' : 'bills'} likely completed.</b> Review</button>` : ''; })()}
@@ -2505,23 +2520,85 @@ function viewCards() {
     </section></div>`;
 }
 
+/* ---------- Greeting, appearance, fitted sublines ---------- */
+// "Welcome, <name> · Today is Saturday, November 22". The name and the word "Welcome" are the user's own (settings), never built in.
+function greetHTML() {
+  const st = state.settings, name = String(st.displayName || '').slice(0, 40), g = String(st.greeting || '').slice(0, 40) || 'Welcome';
+  const day = BT.parse(TODAY).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  return `<button type="button" class="greet" data-action="greet" title="Edit greeting"><span>${esc(g)}${name ? ', ' + esc(name) : ''}</span><i aria-hidden="true"> · </i><span>Today is ${day}</span></button>`;
+}
+const THEMES = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
+const themeSeg = () => { const t = THEMES.some(x => x[0] === state.settings.theme) ? state.settings.theme : 'auto';
+  return `<div class="seg theme-seg" role="group" aria-label="Appearance">${THEMES.map(([v, l]) => `<button type="button" data-action="theme" data-t="${v}" aria-pressed="${v === t}">${l}</button>`).join('')}</div>`; };
+function greetSheet() {
+  const st = state.settings;
+  openSheet(`<div class="sheet-h"><div><h3>Greeting</h3><p class="lede">Shown at the top of your pay cycle card.</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    <form class="form" id="greetform" novalidate>
+      <label class="fld" for="g-name"><span>Your name <em>optional</em></span><input id="g-name" name="name" value="${esc(st.displayName || '')}" maxlength="40" autocomplete="given-name" placeholder="Name"></label>
+      <label class="fld" for="g-text"><span>Greeting</span><input id="g-text" name="greeting" value="${esc(st.greeting || 'Welcome')}" maxlength="40" autocomplete="off"></label>
+      <div class="fld"><span>Appearance</span>${themeSeg()}</div>
+      <div class="actions"><div class="r"><button type="button" class="btn" data-action="close">Cancel</button><button type="submit" class="btn primary">Save</button></div></div>
+    </form>`);
+}
+// Auto follows the phone; Light and Dark set data-theme on <html>. The browser bar color follows the resolved theme.
+const darkMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+function applyTheme() {
+  const t = state && state.settings && ['light', 'dark'].includes(state.settings.theme) ? state.settings.theme : '';
+  const el = document.documentElement;
+  if (t) el.dataset.theme = t; else delete el.dataset.theme;
+  const dark = t ? t === 'dark' : !!(darkMQ && darkMQ.matches), m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute('content', dark ? '#0c0f15' : '#eceef2');
+}
+if (darkMQ) { const f = () => applyTheme(); if (darkMQ.addEventListener) darkMQ.addEventListener('change', f); else if (darkMQ.addListener) darkMQ.addListener(f); }
+function setTheme(t) {
+  state.settings.theme = ['light', 'dark'].includes(t) ? t : 'auto';
+  commit();
+  document.querySelectorAll('.theme-seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.t === state.settings.theme));
+}
+// Each fitted line keeps the first wording that fits on one line in its column.
+function fitLines(root) {
+  (root || document).querySelectorAll('.fl[data-fit]').forEach(el => {
+    let vs; try { vs = JSON.parse(el.dataset.fit); } catch (e) { return; }
+    if (!Array.isArray(vs) || !vs.length) return;
+    for (let i = 0; i < vs.length; i++) { el.textContent = vs[i]; if (el.scrollWidth <= el.clientWidth) break; }
+  });
+}
+let fitRO = null;
+function watchFit() {
+  const l = document.querySelector('.ladder'); if (!l) return;
+  fitLines(l);
+  if (!window.ResizeObserver) return;
+  if (!fitRO) fitRO = new ResizeObserver(es => es.forEach(e => fitLines(e.target)));
+  fitRO.disconnect(); fitRO.observe(l);
+}
+addEventListener('resize', () => fitLines());
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitLines());
+
+/* ---------- This paycheck (read-only, from the hero) ---------- */
+function paycheckSheet() {
+  const view = state.settings.view, r = BT.periodRange(state, view, offset, TODAY), s = BT.summary(state, r, TODAY), dep = s.inc[0];
+  const i = dep ? state.income.find(x => x.id === dep.ref) : null;
+  const info = i ? payInfo(i, dep.date) : null, total = s.income;
+  const rows = info && info.parts.length ? `<ul class="pc-parts">${info.parts.map(p => { const t = p.t, bank = acctDots(t) || p.r.acct || 'Bank';
+    return `<li class="pc-part"><div class="main"><div class="nm">${esc(bank)}</div><div class="sub">${esc(cleanMerchant(t))} · ${md(t.date)}</div></div><span class="amt in">+${fmt(Math.abs(p.r.amount))}</span></li>`; }).join('')}</ul>`
+    : `<p class="note pc-none">${i && info && !info.bank && dep ? 'Entered by hand. No bank deposits for this paycheck.' : 'No bank deposits for this paycheck yet.'}</p>`;
+  openSheet(`<div class="sheet-h"><div><h3>This paycheck</h3><p class="lede">${i ? esc(i.name) + ' · ' : ''}${dep ? lng(dep.date) : rangeLabel(r)}</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    <div class="hl-total pc-total"><span>${info && info.parts.length > 1 ? 'Split across ' + info.parts.length + ' deposits' : 'Total'}</span><b>${fmt(total)}</b></div>
+    ${rows}
+    <div class="actions pc-sheet-acts"><button type="button" class="linkbtn" data-action="pay-to-income">Change in Income tab</button></div>`);
+}
+
 /* ---------- Per-cycle paycheck ---------- */
-let PAY_EDIT = null;
-const HEROUI = { split: false, hand: false };
-const isAsk = id => { const i = state.income.find(x => x.id === id); return !!(i && i.askFrom); };
+const HEROUI = { hand: false };
 function payPrompt(r) {
-  let a = BT.payAsk(state, r)[0], cur = null;
-  if (!a && PAY_EDIT) {
-    const i = state.income.find(x => x.askFrom && x.perCycle && typeof x.perCycle[PAY_EDIT] === 'number' && PAY_EDIT >= r.start && PAY_EDIT < r.end);
-    if (i) { a = { ref: i.id, name: i.name, date: PAY_EDIT, prev: BT.prevPay(i, PAY_EDIT) }; cur = i.perCycle[PAY_EDIT]; }
-  }
+  const a = BT.payAsk(state, r)[0];
   if (!a) return '';
   // With a bank connected the paycheck arrives by itself: no question, just a way in for people who want to type it.
-  if (bankReady() && !PAY_EDIT && !HEROUI.hand) return `<div class="pay-wait" role="status"><span>Waiting for your paycheck from the bank</span><button class="linkbtn" data-action="pay-hand">Enter by hand</button></div>`;
+  if (bankReady() && !HEROUI.hand) return `<div class="pay-wait" role="status"><span>Waiting for your paycheck from the bank</span><button class="linkbtn" data-action="pay-hand">Enter by hand</button></div>`;
   const d = `data-id="${a.ref}" data-date="${a.date}"`;
   return `<div class="pay-ask"><label for="payamt"><b>${esc(a.name)} · ${lng(a.date)}</b>How much was deposited this pay cycle?</label>
-    <div class="pay-row"><span class="money-in"><i>$</i><input id="payamt" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${cur === null ? '' : cur.toFixed(2)}"></span><button class="btn primary sm" data-action="pay-set" ${d}>Save</button></div>
-    <div class="pay-opts">${a.prev ? `<button class="pay-same" data-action="pay-same" ${d} data-amt="${a.prev}">Same as previous paycheck · ${hm(a.prev)}</button>` : ''}${cur !== null || HEROUI.hand ? '<button class="linkbtn" data-action="pay-cancel">Cancel</button>' : ''}</div></div>`;
+    <div class="pay-row"><span class="money-in"><i>$</i><input id="payamt" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></span><button class="btn primary sm" data-action="pay-set" ${d}>Save</button></div>
+    <div class="pay-opts">${a.prev ? `<button class="pay-same" data-action="pay-same" ${d} data-amt="${a.prev}">Same as previous paycheck · ${hm(a.prev)}</button>` : ''}${HEROUI.hand ? '<button class="linkbtn" data-action="pay-cancel">Cancel</button>' : ''}</div></div>`;
 }
 
 function otherIncomeHTML() {
@@ -2545,6 +2622,7 @@ function viewIncome() {
   ${catManager()}
   ${viaManager()}
   ${bankCard()}
+  <section class="card appear"><header class="card-h"><div><h2>Appearance</h2><span class="meta">Auto follows your phone</span></div>${themeSeg()}</header></section>
   <section class="card"><header class="card-h"><h2>Your data</h2></header>
     <div class="card-b" style="display:grid;gap:12px">
       <p class="note" style="margin:0">Copy a backup before big changes. It also moves your data into the future web app.</p>
@@ -2882,7 +2960,7 @@ function periodBars(view) {
   const hasInc = data.some(d => d.any); periodBars.inc = hasInc; periodBars.est = data.some(d => d.any && d.est);
   const W = 360, H = 236, L = 38, B = 36, T = 40, Rr = 4;
   // Four even steps on round numbers ($600, $1.2k...).
-  const top = Math.max(1, ...data.map(d => Math.max(d.needed, d.income))) * 1.05 / 4, p10 = Math.pow(10, Math.floor(Math.log10(top)));
+  const top = Math.max(100, ...data.map(d => Math.max(d.needed, d.income))) * 1.05 / 4, p10 = Math.pow(10, Math.floor(Math.log10(top)));
   const max = 4 * p10 * [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find(m => m * p10 >= top);
   const y = v => T + (H - T - B) * (1 - v / max);
   const slot = (W - L - Rr) / data.length, bw = Math.min(30, slot * 0.5), cx = i => L + slot * i + slot / 2;
@@ -3313,12 +3391,12 @@ function balanceSheet() {
     <div class="sh-btns"><button type="button" class="icon-btn${busy ? ' spinning' : ''}" data-action="bal-refresh" aria-label="Refresh balances"${busy ? ' disabled aria-busy="true"' : ''}>${ICON.refresh}</button><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div></div>
     ${multi ? `<div class="bal-tools"><button type="button" class="linkbtn" data-action="bal-edit" aria-pressed="${edit}">${edit ? 'Done' : 'Edit order'}</button></div>` : ''}
     <div class="bal-banks" id="balbanks">${rows}</div>${owedHTML}
-    <div class="actions"><button type="button" class="btn" data-action="bal-hand">Set balance by hand</button><button type="button" class="btn" data-action="sv-add">Add to savings</button><div class="r"><button type="button" class="btn primary" data-action="bal-sync"${BANKUI.syncing ? ' disabled' : ''}>${BANKUI.syncing ? 'Syncing…' : 'Sync now'}</button></div></div>`);
+    <div class="actions"><button type="button" class="btn" data-action="bal-hand">Set balance by hand</button><button type="button" class="btn" data-action="sv-add">Add to savings</button><div class="r">${syncBtnHTML('Sync now', 'class="btn primary" data-action="bal-sync"')}</div></div>`);
   BALUI.open = true;
 }
 // Refresh icon: ask every bank for new activity (when the plan allows it), sync, and say how it went.
 async function balRefresh() {
-  if (!bankReady() || BALUI.busy || BANKUI.syncing) return;
+  if (!bankReady() || BALUI.busy || BANKUI.syncing || BANKUI.now) return;
   BALUI.busy = true; BANKUI.syncErr = ''; if (BALUI.open && !$('#sheet').hidden) balanceSheet();
   try { await bankSyncNow(true); } catch (e) { BANKUI.syncErr = e.message; }
   BALUI.busy = false;
@@ -3770,7 +3848,7 @@ function loadPlaid() {
 function bankCard() {
   const b = state.bank, ready = bankReady(), n = (b.inbox || []).length, hn = (b.history || []).length;
   const head = `<header class="card-h"><div><h2>Bank connections · via Plaid</h2>${ready ? `<span class="meta">${b.lastSync ? 'Last synced ' + esc(relTime(b.lastSync)) : 'Not synced yet'}</span>` : ''}</div>
-    ${ready ? `<button class="btn sm" data-action="bk-sync"${BANKUI.syncing || BANKUI.rowBusy ? ' disabled' : ''}>${BANKUI.syncing && !BANKUI.rowBusy ? 'Refreshing…' : 'Refresh all'}</button>` : ''}</header>`;
+    ${ready ? syncBtnHTML('Refresh all', 'class="btn sm" data-action="bk-sync"') : ''}</header>`;
   if (!ready) return `<section class="card" id="bankcard">${head}<div class="card-b bk">
     <p class="note" style="margin:0">Pull in transactions from your banks automatically. Paste the address of your BudTracks bank service. The first time, this phone is paired with it. Your budget stays on this phone.</p>
     <form id="bankconn" class="bk-form" novalidate><label class="fld" for="bk-url"><span>Bank service address</span><input id="bk-url" name="url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://budtracks-bank.example.workers.dev" value="${esc(BANKUI.url)}"></label>
@@ -3778,7 +3856,7 @@ function bankCard() {
     <p class="bk-err" role="alert">${esc(BANKUI.err)}</p></div></section>`;
   const enr = BANKUI.enr;
   const list = enr === null ? (BANKUI.loadErr ? `<p class="bk-err" role="alert">${esc(BANKUI.loadErr)}</p>` : '<p class="bk-ok">Loading your banks…</p>')
-    : enr.length ? orderBanks(enr, e => e.id).map(e => `<div class="bk-enr"><div class="bk-eh"><b>${esc(e.institution || 'Bank')}</b>${e.needsReconnect ? '<span class="pill soft warn">Needs reconnect</span>' : ''}<span class="bk-sp"></span>${e.needsReconnect ? `<button class="btn sm" data-action="bk-reconnect" data-id="${esc(e.id)}">Reconnect</button>` : `<button class="btn sm" data-action="bk-item-sync" data-id="${esc(e.id)}" aria-label="Sync ${esc(e.institution || 'bank')}"${BANKUI.syncing || BANKUI.rowBusy ? ' disabled' : ''}${BANKUI.rowBusy === e.id ? ' aria-busy="true"' : ''}>${BANKUI.rowBusy === e.id ? '<span class="spin" aria-hidden="true"></span>Syncing…' : 'Sync'}</button>`}<button class="btn sm danger" data-action="bk-disc" data-id="${esc(e.id)}">Disconnect</button></div>
+    : enr.length ? orderBanks(enr, e => e.id).map(e => `<div class="bk-enr"><div class="bk-eh"><b>${esc(e.institution || 'Bank')}</b>${e.needsReconnect ? '<span class="pill soft warn">Needs reconnect</span>' : ''}<span class="bk-sp"></span>${e.needsReconnect ? `<button class="btn sm" data-action="bk-reconnect" data-id="${esc(e.id)}">Reconnect</button>` : `<button class="btn sm" data-action="bk-item-sync" data-id="${esc(e.id)}" aria-label="Sync ${esc(e.institution || 'bank')}"${BANKUI.syncing || BANKUI.now || BANKUI.rowBusy ? ' disabled' : ''}${BANKUI.rowBusy === e.id ? ' aria-busy="true"' : ''}>${BANKUI.rowBusy === e.id ? '<span class="spin" aria-hidden="true"></span>Syncing…' : 'Sync'}</button>`}<button class="btn sm danger" data-action="bk-disc" data-id="${esc(e.id)}">Disconnect</button></div>
       <ul class="bk-acc">${(e.accounts || []).map(a => `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}</div><div class="sub">${esc([a.subtype || a.type, a.last_four ? '··' + a.last_four : ''].filter(Boolean).join(' · '))}</div></div>
         <label class="tgl"><input type="checkbox" data-action="bk-toggle" data-id="${esc(a.id)}" data-eid="${esc(e.id)}"${a.enabled ? ' checked' : ''} aria-label="Sync ${esc(a.name || 'account')}"><span aria-hidden="true"></span></label></li>`).join('') || '<li><div class="sub">No accounts found.</div></li>'}</ul></div>`).join('')
     : '<p class="bk-ok">No banks connected yet. Tap Connect a bank.</p>';
@@ -3907,7 +3985,7 @@ async function bankDisconnect(id) {
 /* Sync + classify */
 function saveQuiet() { try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} clearTimeout(timer); timer = setTimeout(flush, 600); render(); }
 function bankAutoSync() {
-  if (!bankReady() || BANKUI.syncing) return;
+  if (!bankReady() || BANKUI.syncing || BANKUI.now) return;
   const ls = state.bank.lastSync ? new Date(state.bank.lastSync).getTime() : 0;
   if (Date.now() - ls < 30 * 60000 || Date.now() - BANKUI.tried < 5 * 60000) return;
   bankSync({ auto: true });
@@ -3966,10 +4044,11 @@ document.addEventListener('change', e => { if (e.target.id === 'bk-autofrom') se
 async function bankSync(o) {
   const auto = !!(o && o.auto);
   if (!bankReady()) { if (!auto) toast('Connect a bank first'); return; }
-  if (BANKUI.syncing) return;
+  if (BANKUI.syncing || (BANKUI.now && !(o && o.now))) return; // a manual "Sync now" owns the run while it is going
   BANKUI.syncing = true; BANKUI.tried = Date.now();
   if (['income', 'transactions'].includes(currentTab())) render();
   try {
+    const known = new Set(Object.keys(state.bank.txns));
     let since = state.bank.historyFrom;
     if (state.bank.lastSync) { const d = BT.addDays(BT.iso(new Date(state.bank.lastSync)), -5); if (d > since) since = d; }
     // Two-phase cursor: ack the previous response (it reached us and was saved), so the Worker commits its cursor.
@@ -4025,7 +4104,10 @@ async function bankSync(o) {
     const em = errs.length ? errs.map(e => (e.institution ? e.institution + ': ' : '') + (e.needsReconnect ? 'needs reconnect' : e.message || e.error || e.code || 'could not sync')).join('. ') : '';
     const one = !!(o && o.item), asked = o && o.refreshed && !one ? 'Asked your banks for new activity' : '';
     const news = applied || fresh || dropped ? [applied ? applied + ' matched automatically' : '', fresh ? fresh + ' to review' : '', dropped ? dropped + ' updated by your bank' : ''].filter(Boolean).join(', ') : '';
-    const msg = em || (one && !auto ? [(o.label || 'Bank') + ' refreshed', news].filter(Boolean).join(' · ') : [news, asked].filter(Boolean).join(' · ') || (auto ? '' : 'Up to date'));
+    // New = not in the ledger before this sync (a posted copy of a pending charge we already had does not count).
+    const newN = allIn.filter(t => t.date >= historyFrom && !known.has(t.id) && !(t.pendingOf && known.has(t.pendingOf))).length;
+    const count = newN ? newN + (newN === 1 ? ' new transaction' : ' new transactions') : 'No new transactions';
+    const msg = em || (one && !auto ? [(o.label || 'Bank') + ' refreshed', news].filter(Boolean).join(' · ') : auto ? news : [count, news, asked].filter(Boolean).join(' · '));
     if (applied || fresh || dropped || !auto) commit(msg); else saveQuiet();
     if (em) BANKUI.syncErr = em;
     if (em && (applied || fresh || dropped || auto)) toast(em);
@@ -4047,18 +4129,27 @@ async function bankRefresh(force) {
     return !!r.refreshed;
   } catch (e) { return false; }
 }
+// BANKUI.now holds the whole run (refresh + sync) so every Sync button shows a spinner from the tap until the toast.
+// It used to only re-render the Income tab while /refresh ran (which can take many seconds), so on Transactions
+// and Overview the tap looked dead, and a second tap was dropped silently.
+function syncPaint() { render(); if (BALUI.open && !$('#sheet').hidden) balanceSheet(); }
+const syncBusy = () => !!(BANKUI.now || (BANKUI.syncing && !BANKUI.rowBusy));
+const syncBtnHTML = (label, attrs) => `<button type="button" ${attrs}${syncBusy() || BANKUI.rowBusy ? ' disabled' : ''}${syncBusy() ? ' aria-busy="true"' : ''}>${syncBusy() ? '<i class="spin" aria-hidden="true"></i>Syncing…' : label}</button>`;
 async function bankSyncNow(force) {
-  if (!bankReady() || BANKUI.syncing) return;
-  BANKUI.syncing = true; if (currentTab() === 'income') render(); if (BALUI.open && !$('#sheet').hidden) balanceSheet();
-  let refreshed = false;
-  try { refreshed = await bankRefresh(force === true); } finally { BANKUI.syncing = false; }
-  await bankSync({ auto: false, refreshed });
+  if (!bankReady()) { toast('Connect a bank first'); return; }
+  if (BANKUI.now) return;
+  BANKUI.now = true; syncPaint();
+  try {
+    while (BANKUI.syncing) await new Promise(r => setTimeout(r, 120)); // an automatic sync was already running: let it land, then sync again
+    const refreshed = await bankRefresh(force === true);
+    await bankSync({ auto: false, refreshed, now: true });
+  } finally { BANKUI.now = false; syncPaint(); }
   clearTimeout(BANKUI.follow);
   BANKUI.follow = setTimeout(() => { if (document.visibilityState === 'visible') bankSync({ auto: true }); }, window.BT_FOLLOWUP_MS || 45000);
 }
 // "Sync" on one bank: ask Plaid about just that bank, sync just that bank, then once more shortly after (quietly).
 async function bankItemSync(id) {
-  if (!bankReady() || BANKUI.syncing || BANKUI.rowBusy) return;
+  if (!bankReady() || BANKUI.syncing || BANKUI.now || BANKUI.rowBusy) return;
   const e = (BANKUI.enr || []).find(x => x.id === id), label = (e && e.institution) || 'Bank';
   BANKUI.rowBusy = id; BANKUI.syncing = true; render();
   let refreshed = false, failed = '';
@@ -4479,7 +4570,7 @@ function viewTransactions() {
   const banks = [...new Set(Object.values(state.bank.txns).map(txBankKey))].sort((a, b) => bankRank(a) - bankRank(b) || a.localeCompare(b));
   const n = cnt('review'), ready = state.bank.inbox.filter(bulkOk).length;
   const F = [['all', 'All'], ['review', 'Needs review' + (n ? ' · ' + n : '')], ['added', 'Added'], ['matched', 'Matched'], ['ignored', 'Ignored']];
-  return `<div class="stack"><section class="card tx-card"><header class="card-h"><div><h2>Transactions</h2><span class="meta">${bankReady() && state.bank.lastSync ? 'Last synced ' + esc(relTime(state.bank.lastSync)) : 'From your connected banks'}</span></div>${bankReady() ? `<button class="btn sm" data-action="bk-sync"${BANKUI.syncing ? ' disabled' : ''}>${BANKUI.syncing ? 'Syncing…' : 'Sync now'}</button>` : ''}</header>
+  return `<div class="stack"><section class="card tx-card"><header class="card-h"><div><h2>Transactions</h2><span class="meta">${bankReady() && state.bank.lastSync ? 'Last synced ' + esc(relTime(state.bank.lastSync)) : 'From your connected banks'}</span></div>${bankReady() ? syncBtnHTML('Sync now', 'class="btn sm" data-action="bk-sync"') : ''}</header>
     <div class="tx-filters"><div class="chips tx-chips" role="group" aria-label="Show">${F.map(([v, l]) => `<button class="chip" data-action="tx-filter" data-f="${v}" aria-pressed="${TXUI.filter === v}">${esc(l)}</button>`).join('')}</div>
       <div class="tx-find"><input id="txq" type="search" placeholder="Search merchant" value="${esc(TXUI.q)}" aria-label="Search transactions" autocomplete="off">${banks.length > 1 ? `<select id="txbank" aria-label="Bank filter"><option value="">All banks</option>${banks.map(b => `<option value="${esc(b)}"${TXUI.bank === b ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>` : ''}</div>
       ${TXUI.filter === 'review' && n ? `<div class="bx-top"><button class="btn sm" data-action="ix-open">Review one by one</button><button class="btn primary sm" data-action="ix-all" data-tx="1"${ready ? '' : ' disabled'}>Accept all (${ready})</button></div>` : ''}</div>
@@ -4839,7 +4930,10 @@ document.addEventListener('click', async e => {
     case 'bal-sync': bankSyncNow(); break;
     case 'bal-hand': accountSheet(true); break;
     case 'bal-live': state.bank.useBankBalance = true; commit('Using the live bank balance'); accountSheet(); break;
-    case 'pay-split': HEROUI.split = !HEROUI.split; render(); break;
+    case 'pay-sheet': paycheckSheet(); break;
+    case 'pay-to-income': INCOPEN.pay = true; try { localStorage.setItem('budtrack.incopen', JSON.stringify(INCOPEN)); } catch (e) {} closeSheet(); if (currentTab() === 'income') render(); else location.hash = '#income'; setTimeout(() => { const c = $('#latestpay'); if (c) c.scrollIntoView({ block: 'start' }); }, 60); break;
+    case 'greet': greetSheet(); break;
+    case 'theme': setTheme(a.dataset.t); break;
     case 'sv-add': savingsAddSheet(); break;
     case 'sv-on': state.savings.on = true; commit('Savings on'); accountSheet(true); break;
     case 'sv-off': state.savings.on = false; commit('Savings hidden. Your entries are kept.'); accountSheet(true); break;
@@ -4953,11 +5047,10 @@ document.addEventListener('click', async e => {
       const raw = a.dataset.action === 'pay-same' ? a.dataset.amt : (($('#payamt') || {}).value || '');
       const v = parseFloat(String(raw).replace(/[$,\s]/g, ''));
       if (!(v >= 0)) { toast('Enter the paycheck amount'); const f = $('#payamt'); if (f) f.focus(); break; }
-      i.perCycle = i.perCycle || {}; i.perCycle[a.dataset.date] = BT.round2(v); PAY_EDIT = null; HEROUI.hand = false;
+      i.perCycle = i.perCycle || {}; i.perCycle[a.dataset.date] = BT.round2(v); HEROUI.hand = false;
       commit('Paycheck saved · ' + fmt(v)); break;
     }
-    case 'pay-edit': PAY_EDIT = a.dataset.date; render(); setTimeout(() => { const f = $('#payamt'); if (f) { f.focus(); f.select(); } }, 30); break;
-    case 'pay-cancel': PAY_EDIT = null; HEROUI.hand = false; render(); break;
+    case 'pay-cancel': HEROUI.hand = false; render(); break;
     case 'do-copy': try { await navigator.clipboard.writeText($('#bk').value); toast('Backup copied'); } catch (err) { $('#bk').select(); $('#ferr').textContent = 'Copy was blocked. The text is selected, so copy it by hand.'; } break;
     case 'do-restore': try { const s = normalize(JSON.parse($('#bk').value)); if (!Array.isArray(s.bills)) throw 0; state = s; closeSheet(); commit('Backup restored'); } catch (err) { $('#ferr').textContent = 'That text is not a BudTrack backup. Paste the full backup and try again.'; } break;
     case 'reset': if (!a.classList.contains('arm')) { a.classList.add('arm'); a.textContent = 'Tap again to reset'; } else { state = normalize(clone(SEED)); offset = 0; commit('Starting data restored'); } break;
@@ -4974,6 +5067,10 @@ document.addEventListener('submit', e => {
   if (e.target.id === 'bankplan') saveBankPlan(e.target);
   if (e.target.id === 'bankconn') bankConnectSetup(e.target);
   if (e.target.id === 'allocform') saveAlloc(false);
+  if (e.target.id === 'greetform') {
+    const f = e.target, name = f.elements.name.value.replace(/\s+/g, ' ').trim().slice(0, 40), g = f.elements.greeting.value.replace(/\s+/g, ' ').trim().slice(0, 40);
+    state.settings.displayName = name; state.settings.greeting = g && g !== 'Welcome' ? g : ''; closeSheet(); commit('Greeting saved'); return;
+  }
   if (e.target.id === 'viaform') {
     const f = e.target, bank = f.elements.bank.value.trim().slice(0, 30), last4 = f.elements.last4.value.trim();
     if (!bank) { $('#ferr').textContent = 'Enter the bank or app name.'; return; }
@@ -5077,6 +5174,7 @@ const TABS = { overview: viewOverview, transactions: viewTransactions, bills: vi
 function currentTab() { const h = location.hash.slice(1); return h === 'cards' ? 'plans' : TABS[h] ? h : 'overview'; }
 function render() {
   LIKELY = null;
+  applyTheme();
   if (location.hash === '#cards') { state.settings.plansView = 'cards'; try { history.replaceState(null, '', '#plans'); localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} }
   const tab = currentTab();
   document.querySelectorAll('#viewSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === state.settings.view));
@@ -5089,6 +5187,7 @@ function render() {
   $('#logoOut').innerHTML = logo();
   buildMarks();
   initCatScroll();
+  watchFit();
 }
 window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
 render();

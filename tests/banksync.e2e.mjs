@@ -533,12 +533,12 @@ const splitSeed = async page => page.evaluate(() => {
     assert.deepEqual(s.bank.inbox.map(x => x.txn.id), ['pl:z1']);
     assert.match(await page.locator('.lad.l1').innerText(), /2,273\.31/);
   });
-  await step('left in paycheck "split" reveals the per-account split', async () => {
-    await page.click('[data-action="pay-split"]');
-    const t = await page.locator('.hero-split').innerText();
-    assert.match(t, /Santander ••6429 \$100\.00/); assert.match(t, /Santander ••6429 \$300\.00/); assert.match(t, /Citizens ••4417 \$1,873\.31/);
+  await step('tapping Left in paycheck opens "This paycheck" with the per-account split', async () => {
+    await page.click('.lad.l1'); await page.waitForSelector('#sheet .pc-part');
+    const rows = (await page.locator('#sheet .pc-part').allInnerTexts()).map(r => r.replace(/\s+/g, ' '));
+    assert.ok(rows.some(r => /Santander ••6429/.test(r) && /\$100\.00/.test(r)), rows.join('|')); assert.ok(rows.some(r => /Santander ••6429/.test(r) && /\$300\.00/.test(r))); assert.ok(rows.some(r => /Citizens ••4417/.test(r) && /\$1,873\.31/.test(r)));
     await noHScroll(page, '390 overview with split');
-    await page.click('[data-action="pay-split"]');
+    await page.keyboard.press('Escape'); await page.waitForFunction(() => document.querySelector('#sheet').hidden);
   });
   await step('recently synced shows one Paycheck row with the split line', async () => {
     await page.click('.bx-bar'); await page.click('#main [data-action="ix-open"]'); await page.waitForSelector('.bx-rec');
@@ -619,7 +619,7 @@ const splitSeed = async page => page.evaluate(() => {
   await page.waitForFunction(() => { const b = JSON.parse(localStorage.getItem('budtrack.v1')).bank; return b.balances && b.balances.items.length; });
   await step('hero In account is the live total of checking + savings (credit not counted)', async () => {
     const t = await page.locator('.lad.l3').innerText();
-    assert.match(t, /2,300/); assert.match(t, /Live from 2 banks/); assert.match(t, /updated \d{1,2}:\d{2}/);
+    assert.match(t, /2,300/); assert.match(t, /3 accounts/); assert.match(t, /(Updated|Upd\.) \d{1,2}:\d{2}/);
     await noHScroll(page, '390 hero live balance');
   });
   await step('balance sheet: total, accounts, owed card, toggle changes total', async () => {
@@ -675,14 +675,14 @@ const splitSeed = async page => page.evaluate(() => {
     // "Start fresh" so the lower balance doesn't open the "Where did $X go?" sheet a moment later and cover the next step.
     await page.fill('#a-bal', '1234.56'); await page.check('#a-fresh'); await page.click('#acctform button[type=submit]');
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.useBankBalance === false);
-    assert.doesNotMatch(await page.locator('.lad.l3').innerText(), /Live from/);
+    assert.doesNotMatch(await page.locator('.lad.l3').innerText(), /\d+ accounts?/);
     // The saved sheet must be fully closed before reopening, or the wait below can match the closing one.
     await page.waitForFunction(() => document.querySelector('#sheet').hidden);
     await page.click('[data-action="account"]'); await page.waitForSelector('#acctform');
     // Let the sheet finish sliding in before tapping inside it.
     await page.waitForTimeout(350);
     await page.click('[data-action="bal-live"]'); await page.waitForSelector('.bal-total');
-    assert.match(await page.locator('.lad.l3').innerText(), /Live from 2 banks/);
+    assert.match(await page.locator('.lad.l3').innerText(), /3 accounts/);
     await page.keyboard.press('Escape');
   });
   assert.deepEqual(errs, [], 'page errors in balance flow');
