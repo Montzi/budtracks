@@ -5,6 +5,27 @@ Cloudflare Worker that proxies the [Plaid](https://plaid.com/docs/) API for BudT
 ## Endpoints
 `GET /config` (public, `{provider, env, paired}`) · `POST /pair` (once) · `GET /link-token[?item=<id>]` (update mode for reconnect) · `POST /enroll {publicToken, institution}` · `GET /accounts` · `POST /accounts/:id/toggle {enabled}` · `GET /sync?since=YYYY-MM-DD[&full=1][&ack=<token>][&item=<id>]` (`item` syncs one bank only; an `ack` still commits every bank that holds it) · `POST /refresh[?item=<id>]` · `DELETE /enroll/:id`. `DELETE /pair` (authenticated; clears the stored key hash so a new device can pair) · `POST /sandbox/item {institution_id?, dynamic?}` (sandbox only, else 404; creates a test Item via `/sandbox/public_token/create` and enrolls it like `/enroll`, institution "Sandbox bank"). All but `/config` and `POST /pair` need `Authorization: Bearer <device key>`. `/sync` returns `{txns, removed, errors, syncedAt}` with amounts as numbers, positive = money out; `removed` holds `pl:` ids Plaid deleted (for example a pending charge replaced by its posted version). `full=1` re-fetches history from an empty cursor; the stored cursor only changes when the whole run succeeds.
 
+## Email alerts (hourly cron + 7am recap)
+A cron trigger (`crons = ["0 * * * *"]`) runs the `scheduled` handler every hour. It does nothing when no bank is linked, and skips everything (no Plaid calls) unless both `RESEND_API_KEY` and `ALERT_EMAIL` are set. Each run:
+- **Balances** (Plaid `/accounts/get`, cached balances): every counted checking/savings account (toggled-off accounts skipped; credit, loan and investment never alert) is checked on `available`, falling back to `current`. Below $20 sends one "is below $20" email, below $0 one "is overdrawn" email. Only a worse level emails again; the level resets to ok, silently, once the balance is $25 or more. State: `alert:<accountId>` = `{level: ok|low|overdrawn, at}`.
+- **Deposits** (Plaid `/transactions/get` for the last 3 days, `count: 100`; it does not touch the app's `/transactions/sync` cursor): posted money-in on counted checking/savings accounts that has not been emailed is sent as one email per run. Pending deposits wait until they post. State: `dep:<transaction_id>` (10-day TTL). The first run after enabling alerts reports deposits from the last 3 days.
+- **Reconnect**: a bank that needs a new login (ITEM_LOGIN_REQUIRED and similar) gets one email per day, `reauth:<itemId>` (24h TTL). PRODUCT_NOT_READY is skipped quietly.
+- **Morning recap** in the 7 o'clock hour in America/New_York (DST-aware), once per day: `recap:<YYYY-MM-DD>` (2-day TTL). It covers cash per account, credit cards owed, yesterday's spending (transfers and card payments excluded), the top 5 purchases, deposits, pending items, and the app's budget snapshot when that is under 36h old.
+State is only recorded after Resend accepts the email, so a failed send is retried the next hour. The recipient address and the API key are never logged or stored in KV.
+
+`GET /alerts/test` (Bearer key) sends a "BudTracks alerts are on" email and returns `{sent: true}` or `{sent: false, reason}`.
+
+`POST /snapshot` (Bearer key) stores the app's budget data for the recap, AES-GCM encrypted in KV `snapshot` (each POST overwrites it; at most 10 KB, else 413; invalid shape is 400; unknown fields are dropped):
+```
+{ "cycle": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD", "left": 412.5, "needed": 300, "spent": 900, "due": 275, "income": 2450 },
+  "upcoming": [ { "name": "Rent", "date": "YYYY-MM-DD", "amount": 1200 } ],      // up to 50; recap lists the next 3 days
+  "budgets":  [ { "name": "Groceries", "spent": 320, "budget": 400 } ],          // up to 50
+  "review": 3 }                                                                  // transactions to review (integer >= 0)
+```
+All `cycle` numbers are required. Names are at most 80 characters. `upcoming`, `budgets` and `review` are optional. The recap shows "Left in paycheck" (`left`), "Still due" (`due`), bills in the next 3 days, budget status and "N transactions to review".
+
+**Setup**: create a free API key at resend.com and add repo secrets `RESEND_API_KEY` and `ALERT_EMAIL` (the address to notify). The workflow sets them on the Worker when present and skips them when empty. Mail is sent from `onboarding@resend.dev`, and Resend only delivers that sender to the address that owns the Resend account, so `ALERT_EMAIL` must be that address unless you verify your own domain in Resend.
+
 ## One-time setup
 1. **Plaid**: sign up at dashboard.plaid.com. A Team created after Apr 15 2026 is on the **Trial** plan: real production data, **at most 10 Items (bank logins)**, plus a free sandbox. On the Keys page note the `client_id`, the **sandbox** secret and the **production** secret.
 2. **Redirect URI** (needed for OAuth banks such as Chase, Capital One, PNC on a phone): Developers > API > Allowed redirect URIs, add `https://montzi.github.io/budtracks/`.
