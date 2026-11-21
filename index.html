@@ -3941,7 +3941,8 @@ async function alertsTest(btn) {
   if (btn) btn.disabled = true;
   try {
     const r = await bankFetch('/alerts/test');
-    toast(r && r.ok === false ? (r.reason || r.error || "Email isn't set up yet") : 'Test email sent');
+    // The server answers {sent:true} or {sent:false, reason}.
+    toast(r && r.sent === true ? 'Test email sent' : (r && (r.reason || r.error)) || "Email isn't set up yet");
   } catch (e) { toast(e.status === 404 ? "Email isn't set up yet" : e.message); }
   if (btn) btn.disabled = false;
 }
