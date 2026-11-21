@@ -266,7 +266,9 @@ async function accounts(env) {
   return { enrollments };
 }
 
-async function sync(env, since, full, ack) {
+// `only` (an item id) limits the sync to that Item. Pending tokens live on each Item's own record, and an ack is applied to
+// every Item that holds it, so a one-bank sync never loses the ack for a bank it skipped and never moves another bank's cursor.
+async function sync(env, since, full, ack, only) {
   if (since && !/^\d{4}-\d{2}-\d{2}$/.test(since)) throw new HttpError(400, 'since must be YYYY-MM-DD');
   const off = await getOff(env);
   const txns = [], removed = new Set(), errors = [], balances = [];
@@ -275,12 +277,15 @@ async function sync(env, since, full, ack) {
   // under `syncToken`; the app's NEXT sync acks that token, which commits it.
   const syncToken = randomToken();
   let issued = false;
-  for (const it of await loadItems(env)) {
+  const items = await loadItems(env);
+  if (only && !items.some((x) => x.id === only)) throw new HttpError(404, 'unknown item');
+  for (const it of items) {
     if (ack && it.rec.pending && it.rec.pending.token === ack) {
       const { pending, ...rest } = it.rec;
       it.rec = { ...rest, cursor: pending.cursor }; it.cursor = pending.cursor;
       await env.BT_KV.put(itemKey(it.id), JSON.stringify(it.rec));
     }
+    if (only && it.id !== only) continue;
     const err = (r, prefix = '') => errors.push({ enrollmentId: it.id, institution: it.institution, message: prefix + plaidMsg(r), needsReconnect: needsReconnect(r) });
     const ar = await plaid(env, '/accounts/get', { access_token: it.token });
     if (!ar.ok) { err(ar); balances.push({ itemId: it.id, institution: it.institution, accounts: [], needsReconnect: needsReconnect(ar) }); continue; }
@@ -316,9 +321,11 @@ async function getBalances(env) {
 // report it per Item instead of failing the request.
 const NOT_ENABLED = new Set(['PRODUCT_NOT_ENABLED', 'INVALID_PRODUCT', 'PRODUCT_NOT_READY', 'ADDITIONAL_CONSENT_REQUIRED', 'UNAUTHORIZED_PRODUCT', 'API_NOT_ENABLED']);
 const notEnabled = (r) => NOT_ENABLED.has(r.code) || r.status === 401 || r.status === 403 || /not (?:enabled|authorized|available)|not authorised/i.test(plaidMsg(r));
-async function refresh(env) {
-  const results = [];
-  for (const it of await loadItems(env)) {
+async function refresh(env, only) {
+  const results = [], items = await loadItems(env);
+  if (only && !items.some((x) => x.id === only)) throw new HttpError(404, 'unknown item');
+  for (const it of items) {
+    if (only && it.id !== only) continue;
     const r = await plaid(env, '/transactions/refresh', { access_token: it.token });
     if (r.ok) results.push({ itemId: it.id, institution: it.institution, refreshed: true });
     else results.push({ itemId: it.id, institution: it.institution, refreshed: false, reason: plaidMsg(r), code: r.code || null, notEnabled: notEnabled(r), needsReconnect: needsReconnect(r) });
@@ -366,8 +373,8 @@ export default {
         else if (m === 'POST' && path === '/sandbox/item') out = env.PLAID_ENV === 'sandbox' ? await sandboxItem(env, await readJsonOpt(req)) : (() => { throw new HttpError(404, 'not found'); })();
         else if (m === 'GET' && path === '/accounts') out = await accounts(env);
         else if (m === 'GET' && path === '/balances') out = await getBalances(env);
-        else if (m === 'POST' && path === '/refresh') out = await refresh(env);
-        else if (m === 'GET' && path === '/sync') out = await sync(env, url.searchParams.get('since'), url.searchParams.get('full') === '1', url.searchParams.get('ack') || '');
+        else if (m === 'POST' && path === '/refresh') out = await refresh(env, url.searchParams.get('item') || '');
+        else if (m === 'GET' && path === '/sync') out = await sync(env, url.searchParams.get('since'), url.searchParams.get('full') === '1', url.searchParams.get('ack') || '', url.searchParams.get('item') || '');
         else if (m === 'POST' && (mt = /^\/accounts\/([\w-]+)\/toggle$/.exec(path))) out = await toggle(env, mt[1], await readJson(req));
         else if (m === 'DELETE' && (mt = /^\/enroll\/([\w-]+)$/.exec(path))) out = await disconnect(env, mt[1]);
         else throw new HttpError(404, 'not found');

@@ -491,3 +491,77 @@ test('POST /refresh reports PRODUCT_NOT_ENABLED per Item without failing', async
     assert.equal((await (await call(env, 'POST', '/refresh', { key })).json()).notEnabled, true);
   });
 });
+
+// ---------- per-bank refresh and sync ----------
+const twoBanks = () => {
+  const pg = (ids) => ({ added: ids.map((i) => tx(i, 'acc_chk', '2026-11-10', 'n' + i, 1)), modified: [], removed: [] });
+  return mockPlaid({ tokens: {
+    tok_good: { item_id: 'item_1', accounts: [checking], batches: [[pg(['a1'])], [pg(['a2'])]] },
+    tok_two: { item_id: 'item_2', accounts: [card], batches: [[pg(['c1'])], [pg(['c2'])]] } } });
+};
+const enrollTwo = async (env, key) => {
+  await enrollGood(env, key);
+  await call(env, 'POST', '/enroll', { key, body: { publicToken: 'public-two', institution: { name: 'Citizens' } } });
+};
+
+test('POST /refresh?item= refreshes only that Item; no param refreshes all; unknown item is 404', async () => {
+  const p = twoBanks();
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollTwo(env, key);
+    p.calls.length = 0;
+    const one = await call(env, 'POST', '/refresh?item=item_2', { key }); assert.equal(one.status, 200);
+    const b = await one.json();
+    assert.deepEqual(b.results, [{ itemId: 'item_2', institution: 'Citizens', refreshed: true }]); assert.equal(b.refreshed, true);
+    const c = p.calls.filter((x) => x.path === '/transactions/refresh'); assert.equal(c.length, 1); assert.equal(c[0].body.access_token, 'tok_two');
+    p.calls.length = 0;
+    const all = await (await call(env, 'POST', '/refresh', { key })).json(); assert.equal(all.results.length, 2);
+    assert.deepEqual(p.calls.filter((x) => x.path === '/transactions/refresh').map((x) => x.body.access_token).sort(), ['tok_good', 'tok_two']);
+    p.calls.length = 0;
+    assert.equal((await call(env, 'POST', '/refresh?item=nope', { key })).status, 404);
+    assert.equal(p.calls.filter((x) => x.path === '/transactions/refresh').length, 0);
+  });
+});
+
+test('GET /sync?item= syncs only that Item and leaves the other cursors and pending tokens alone', async () => {
+  const p = twoBanks();
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollTwo(env, key);
+    p.calls.length = 0;
+    const one = await sync(env, key, '?item=item_2');
+    assert.deepEqual(one.txns.map((t) => t.id), ['pl:c1']); assert.deepEqual(one.balances.map((x) => x.itemId), ['item_2']);
+    assert.deepEqual(syncCalls(p).map((x) => x.body.access_token), ['tok_two'], 'Plaid only asked about item_2');
+    assert.equal(getItem(env, 'item_1').pending, undefined); assert.equal(getItem(env, 'item_1').cursor, null);
+    assert.equal(getItem(env, 'item_2').pending.token, one.syncToken); assert.equal(getItem(env, 'item_2').cursor, null);
+    assert.equal((await call(env, 'GET', '/sync?item=nope', { key })).status, 404);
+  });
+});
+
+test('item-scoped sync keeps acks correct: an ack for a full sync commits every Item, only the synced Item gets a new pending', async () => {
+  const p = twoBanks();
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollTwo(env, key);
+    const full = await sync(env, key); assert.deepEqual(full.txns.map((t) => t.id).sort(), ['pl:a1', 'pl:c1']);
+    assert.equal(getItem(env, 'item_1').pending.token, full.syncToken); assert.equal(getItem(env, 'item_2').pending.token, full.syncToken);
+    p.calls.length = 0;
+    const one = await sync(env, key, '?item=item_1&ack=' + full.syncToken);
+    assert.deepEqual(one.txns.map((t) => t.id), ['pl:a2'], 'item_1 resumed from its committed cursor');
+    assert.deepEqual(syncCalls(p).map((x) => x.body.access_token), ['tok_good']);
+    // item_2 was not synced, but its ack was honoured: committed, nothing pending, not re-sent later.
+    assert.equal(getItem(env, 'item_2').cursor, 'b1'); assert.equal(getItem(env, 'item_2').pending, undefined);
+    assert.equal(getItem(env, 'item_1').cursor, 'b1'); assert.equal(getItem(env, 'item_1').pending.token, one.syncToken); assert.notEqual(one.syncToken, full.syncToken);
+    const rest = await sync(env, key, '?ack=' + one.syncToken);
+    assert.deepEqual(rest.txns.map((t) => t.id), ['pl:c2'], 'item_2 continues from where the ack left it; item_1 has nothing new');
+    assert.equal(getItem(env, 'item_1').cursor, 'b2'); assert.equal(getItem(env, 'item_1').pending, undefined);
+  });
+});
+
+test('item-scoped sync with a wrong ack commits nothing and does not touch the other Item', async () => {
+  const p = twoBanks();
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollTwo(env, key);
+    const full = await sync(env, key);
+    await sync(env, key, '?item=item_1&ack=wrong');
+    assert.equal(getItem(env, 'item_2').cursor, null); assert.equal(getItem(env, 'item_2').pending.token, full.syncToken);
+    assert.equal(getItem(env, 'item_1').cursor, null);
+  });
+});

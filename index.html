@@ -839,6 +839,37 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 .pc-o-h .chev { transition: transform .15s; color: var(--ink-3); }
 .pc-o-h[aria-expanded="true"] .chev { transform: rotate(90deg); }
 .pc-o .pc-parts { margin-bottom: 8px; }
+/* Collapsible Income sections: the header is one button; the body is hidden until opened. */
+.card-h.coll { padding: 0; display: block; }
+.card-h.coll h2 { margin: 0; font-size: inherit; font-weight: inherit; }
+.coll-h { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 12px 16px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; border-radius: var(--r); }
+.coll-h:hover { background: var(--surface-2); }
+.coll-h:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.coll-t { font-size: 15px; font-weight: 600; flex: 1; min-width: 0; }
+.coll-h .meta { font-size: 12.5px; color: var(--ink-3); min-width: 0; overflow-wrap: anywhere; }
+.coll-h .chev { color: var(--ink-3); font-size: 18px; line-height: 1; transition: transform .15s; flex: none; }
+.coll-h[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.coll-body[hidden] { display: none; }
+.coll-body { padding-bottom: 4px; }
+.pc-card .pc-top { padding: 0 16px 14px; }
+.pc-card.open .pc-top { padding-bottom: 4px; }
+.pc-more { display: grid; gap: 12px; padding: 8px 16px 0; }
+.pc-more .pc-old { margin: 0 -16px; }
+.pc-acts { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.pc-more .pc-h { padding: 4px 0 0; }
+.pc-set { justify-self: start; font-size: 13px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line-2); border-top-color: var(--accent); animation: spin .8s linear infinite; flex: none; }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2.4s; } }
+.bk-eh .btn { flex: none; }
+.dc-in { width: 100%; font: inherit; font-size: 16px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface-2); color: var(--ink); letter-spacing: .08em; }
+.dc-in:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.dc-note { font-size: 13.5px; color: var(--ink-2); margin: 0 0 10px; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.oi-add { margin: 0; }
+.oi-add .btn { width: 100%; justify-content: center; min-height: 44px; }
+.oi-coll .rows { margin-top: 0; }
+.oi-coll .oi-btn { padding: 0 16px 12px; }
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#15203a">
@@ -1853,6 +1884,9 @@ function normalize(s) {
       });
     } catch (e) {}
   }
+  // One-time repair, then on every load: a bank line that was already accepted must not wait in the review list.
+  if (!o.imports.includes('inbox-purge-1')) o.imports.push('inbox-purge-1');
+  purgeInbox(o);
   mergeUnalloc(o);
   return o;
 }
@@ -2185,15 +2219,21 @@ function payPrompt(r) {
     <div class="pay-opts">${a.prev ? `<button class="pay-same" data-action="pay-same" ${d} data-amt="${a.prev}">Same as previous paycheck · ${fmt(a.prev)}</button>` : ''}${cur !== null || HEROUI.hand ? '<button class="linkbtn" data-action="pay-cancel">Cancel</button>' : ''}</div></div>`;
 }
 
+function otherIncomeHTML() {
+  const main = BT.paycheck(state), others = state.income.filter(i => i !== main), add = `<button class="btn" data-action="add" data-type="income">${ICON.plus}Add other income</button>`;
+  if (!others.length) return `<div class="oi-add">${add}</div>`;
+  const o = incOpen('other');
+  return `<section class="card oi-coll">${collHead('other', 'Other income · ' + others.length)}
+    <div class="coll-body" id="coll-other"${o ? '' : ' hidden'}><ul class="rows">${others.map(i => `<li class="row tap" data-action="edit" data-type="income" data-id="${i.id}" tabindex="0" role="button" aria-label="Edit ${esc(i.name)}">
+        <span></span><div class="daybadge">${i.freq === 'biweekly' ? '2w' : i.freq === 'weekly' ? '1w' : i.freq === 'monthly' ? '1m' : '1×'}</div>
+        <div class="main"><div class="nm">${esc(i.name)}</div><div class="sub">${FREQ[i.freq]} · ${i.freq === 'once' ? lng(i.date) : 'next ' + lng(nextPay(i))}${i.askFrom ? ' · amount asked each pay cycle' : ''}</div></div>
+        <div class="amt">${i.askFrom ? (() => { const v = BT.prevPay(i, '9999-12-31'); return v ? '<span class="muted">last</span> ' + fmt(v) : '<span class="muted">Each cycle</span>'; })() : i.amount ? fmt(i.amount) : '<span class="muted">Set amount</span>'}</div></li>`).join('')}</ul>
+      <div class="oi-btn">${add}</div></div></section>`;
+}
 function viewIncome() {
   return `<div class="grid-2"><div class="stack">
     ${latestPaycheckCard()}
-    <section class="card"><header class="card-h"><h2>Other income</h2><button class="btn primary sm" data-action="add" data-type="income">${ICON.plus}Add income</button></header>
-      <ul class="rows">${state.income.map(i => `<li class="row tap" data-action="edit" data-type="income" data-id="${i.id}" tabindex="0" role="button" aria-label="Edit ${esc(i.name)}">
-        <span></span><div class="daybadge">${i.freq === 'biweekly' ? '2w' : i.freq === 'weekly' ? '1w' : i.freq === 'monthly' ? '1m' : '1×'}</div>
-        <div class="main"><div class="nm">${esc(i.name)}${i === BT.paycheck(state) ? ' <span class="pill soft">Sets your cycle</span>' : ''}</div><div class="sub">${FREQ[i.freq]} · ${i.freq === 'once' ? lng(i.date) : 'next ' + lng(nextPay(i))}${i.askFrom ? ' · amount asked each pay cycle' : ''}</div></div>
-        <div class="amt">${i.askFrom ? (() => { const v = BT.prevPay(i, '9999-12-31'); return v ? '<span class="muted">last</span> ' + fmt(v) : '<span class="muted">Each cycle</span>'; })() : i.amount ? fmt(i.amount) : '<span class="muted">Set amount</span>'}</div></li>`).join('')}</ul>
-    </section>
+    ${otherIncomeHTML()}
     <p class="note">Each pay cycle starts on a paycheck date and runs until the day before the next one. A bill belongs to the most recent deposit before its due date, so <b>Up next</b> always shows what this paycheck has to cover.</p>
   </div>
   ${catManager()}
@@ -2269,10 +2309,11 @@ document.addEventListener('change', e => {
   f.querySelector('.via-edit-btn').hidden = !v || v === '__new';
 });
 function viaManager() {
-  return `<section class="card"><header class="card-h"><h2>Paid via</h2><span class="meta">Banks, cards and apps</span></header>
-    <ul class="rows">${state.payVia.map((m, i) => `<li class="row"><span></span><div class="daybadge">${iconSVG(m.last4 ? 'card' : 'cash')}</div><div class="main"><div class="nm">${esc(viaLabel(m))}</div><div class="sub">${m.type ? esc(m.type) : 'Type not set'}</div></div>
+  const o = incOpen('via');
+  return `<section class="card">${collHead('via', 'Paid via', `<span class="meta">${state.payVia.length}</span>`)}
+    <div class="coll-body" id="coll-via"${o ? '' : ' hidden'}><ul class="rows">${state.payVia.map((m, i) => `<li class="row"><span></span><div class="daybadge">${iconSVG(m.last4 ? 'card' : 'cash')}</div><div class="main"><div class="nm">${esc(viaLabel(m))}</div><div class="sub">${m.type ? esc(m.type) : 'Type not set'}</div></div>
       <div class="via-act"><select class="via-type" data-i="${i}" aria-label="Type for ${esc(viaLabel(m))}"><option value="">Type</option>${CARD_TYPES.map(c => `<option${m.type === c ? ' selected' : ''}>${c}</option>`).join('')}</select><button class="btn sm" data-action="via-row-edit" data-i="${i}">Edit</button><button class="icon-btn" data-action="del-via" data-i="${i}" aria-label="Remove ${esc(viaLabel(m))}">${ICON.close}</button></div></li>`).join('')}</ul>
-    <form class="via-add" id="viaadd"><input name="bank" placeholder="Bank or app" aria-label="Bank or app" autocomplete="off"><input name="last4" placeholder="Last 4" aria-label="Last 4" inputmode="numeric" maxlength="4" autocomplete="off"><button class="btn" type="submit">Add</button></form><div style="height:12px"></div></section>`;
+    <form class="via-add" id="viaadd"><input name="bank" placeholder="Bank or app" aria-label="Bank or app" autocomplete="off"><input name="last4" placeholder="Last 4" aria-label="Last 4" inputmode="numeric" maxlength="4" autocomplete="off"><button class="btn" type="submit">Add</button></form><div style="height:12px"></div></div></section>`;
 }
 document.addEventListener('change', e => { if (e.target.id === 'donesort') { state.settings.doneSort = e.target.value; try { localStorage.setItem(LS, JSON.stringify(state)); } catch (er) {} clearTimeout(timer); timer = setTimeout(flush, 600); render(); } });
 document.addEventListener('change', e => { if (e.target.matches && e.target.matches('select.cat-par[data-cat]')) { const c = e.target.dataset.cat; state.catParents[c] = e.target.value; commit('Group saved'); return; } });
@@ -2339,8 +2380,9 @@ function catManager() {
       <span class="cn">${esc(c)}</span>${ps.includes(c) ? '<span class="cat-grp">Group</span>' : `<select class="cat-par" data-cat="${esc(c)}" aria-label="Group for ${esc(c)}">${ps.map(p => `<option${p === parentOf(c) ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select>`}<button class="icon-btn del" data-action="del-cat" data-list="${list}" data-cat="${esc(c)}" aria-label="Remove ${esc(c)}">${ICON.close}</button></li>`;
   const block = (title, list, key) => `<div class="subhead">${title}</div>${catGroups(state[list]).map(g => `<div class="cat-gh">${esc(g.parent)}</div><ul class="cat-list">${g.items.map(c => row(c, list)).join('')}</ul>`).join('')}
     <form class="inline cat-add" data-list="${list}"><label class="sr" for="nc-${key}">New ${title.toLowerCase()}</label><input id="nc-${key}" name="nc" placeholder="New category" autocomplete="off"><label class="sr" for="np-${key}">Group</label><select id="np-${key}" name="par" class="cat-par"><option value="">Group (optional)</option>${ps.map(p => `<option>${esc(p)}</option>`).join('')}</select><button class="btn" type="submit">Add</button></form>`;
-  return `<section class="card"><header class="card-h"><h2>Categories</h2><span class="meta">Tap an icon to change it</span></header>
-    ${block('Bill categories', 'billCats', 'b')}${block('Spending categories', 'categories', 's')}<div style="height:12px"></div></section>`;
+  const o = incOpen('cat');
+  return `<section class="card">${collHead('cat', 'Categories', `<span class="meta">${new Set([...state.categories, ...state.billCats]).size}</span>`)}
+    <div class="coll-body" id="coll-cat"${o ? '' : ' hidden'}>${block('Bill categories', 'billCats', 'b')}${block('Spending categories', 'categories', 's')}<div style="height:12px"></div></div></section>`;
 }
 function iconSheet(cat) {
   const cur = iconFor(state, cat);
@@ -3146,7 +3188,7 @@ const bankKey = () => { try { return localStorage.getItem(KEYLS) || ''; } catch 
 const bankApi = () => String((state.bank && state.bank.api) || '').trim().replace(/\/+$/, '');
 const bankReady = () => !!(bankApi() && bankKey());
 const BALUI = { open: false };
-let BANKUI = { enr: null, loading: false, loadErr: '', syncing: false, busy: false, err: '', url: '', tried: 0 };
+let BANKUI = { enr: null, loading: false, loadErr: '', syncing: false, rowBusy: '', busy: false, err: '', url: '', tried: 0 };
 let INBOXUI = { open: null, mode: '' };
 async function bankFetch(path, o) {
   o = o || {};
@@ -3185,7 +3227,7 @@ function loadPlaid() {
 function bankCard() {
   const b = state.bank, ready = bankReady(), n = (b.inbox || []).length, hn = (b.history || []).length;
   const head = `<header class="card-h"><div><h2>Bank connections · via Plaid</h2>${ready ? `<span class="meta">${b.lastSync ? 'Last synced ' + esc(relTime(b.lastSync)) : 'Not synced yet'}</span>` : ''}</div>
-    ${ready ? `<button class="btn sm" data-action="bk-sync"${BANKUI.syncing ? ' disabled' : ''}>${BANKUI.syncing ? 'Syncing…' : 'Sync now'}</button>` : ''}</header>`;
+    ${ready ? `<button class="btn sm" data-action="bk-sync"${BANKUI.syncing || BANKUI.rowBusy ? ' disabled' : ''}>${BANKUI.syncing && !BANKUI.rowBusy ? 'Syncing…' : 'Sync now'}</button>` : ''}</header>`;
   if (!ready) return `<section class="card" id="bankcard">${head}<div class="card-b bk">
     <p class="note" style="margin:0">Pull in transactions from your banks automatically. Paste the address of your BudTracks bank service. The first time, this phone is paired with it. Your budget stays on this phone.</p>
     <form id="bankconn" class="bk-form" novalidate><label class="fld" for="bk-url"><span>Bank service address</span><input id="bk-url" name="url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://budtracks-bank.example.workers.dev" value="${esc(BANKUI.url)}"></label>
@@ -3193,7 +3235,7 @@ function bankCard() {
     <p class="bk-err" role="alert">${esc(BANKUI.err)}</p></div></section>`;
   const enr = BANKUI.enr;
   const list = enr === null ? (BANKUI.loadErr ? `<p class="bk-err" role="alert">${esc(BANKUI.loadErr)}</p>` : '<p class="bk-ok">Loading your banks…</p>')
-    : enr.length ? enr.map(e => `<div class="bk-enr"><div class="bk-eh"><b>${esc(e.institution || 'Bank')}</b>${e.needsReconnect ? '<span class="pill soft warn">Needs reconnect</span>' : ''}<span class="bk-sp"></span>${e.needsReconnect ? `<button class="btn sm" data-action="bk-reconnect" data-id="${esc(e.id)}">Reconnect</button>` : ''}<button class="btn sm danger" data-action="bk-disc" data-id="${esc(e.id)}">Disconnect</button></div>
+    : enr.length ? enr.map(e => `<div class="bk-enr"><div class="bk-eh"><b>${esc(e.institution || 'Bank')}</b>${e.needsReconnect ? '<span class="pill soft warn">Needs reconnect</span>' : ''}<span class="bk-sp"></span>${e.needsReconnect ? `<button class="btn sm" data-action="bk-reconnect" data-id="${esc(e.id)}">Reconnect</button>` : `<button class="btn sm" data-action="bk-item-sync" data-id="${esc(e.id)}" aria-label="Refresh ${esc(e.institution || 'bank')}"${BANKUI.syncing || BANKUI.rowBusy ? ' disabled' : ''}${BANKUI.rowBusy === e.id ? ' aria-busy="true"' : ''}>${BANKUI.rowBusy === e.id ? '<span class="spin" aria-hidden="true"></span>Refreshing…' : 'Refresh'}</button>`}<button class="btn sm danger" data-action="bk-disc" data-id="${esc(e.id)}">Disconnect</button></div>
       <ul class="bk-acc">${(e.accounts || []).map(a => `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}</div><div class="sub">${esc([a.subtype || a.type, a.last_four ? '··' + a.last_four : ''].filter(Boolean).join(' · '))}</div></div>
         <label class="tgl"><input type="checkbox" data-action="bk-toggle" data-id="${esc(a.id)}" data-eid="${esc(e.id)}"${a.enabled ? ' checked' : ''} aria-label="Sync ${esc(a.name || 'account')}"><span aria-hidden="true"></span></label></li>`).join('') || '<li><div class="sub">No accounts found.</div></li>'}</ul></div>`).join('')
     : '<p class="bk-ok">No banks connected yet. Tap Connect a bank.</p>';
@@ -3278,6 +3320,9 @@ function bankOAuthResume() {
 async function bankCardAct(act, a) {
   const find = id => (BANKUI.enr || []).reduce((r, e) => r || (e.accounts || []).find(x => x.id === id), null);
   if (act === 'bk-sync') return bankSyncNow();
+  if (act === 'bk-item-sync') return bankItemSync(a.dataset.id);
+  if (act === 'bk-disc') return disconnectSheet(a.dataset.id);
+  if (act === 'bk-disc-go') return bankDisconnect(a.dataset.id);
   if (act === 'bk-connect') return bankConnectBank();
   if (act === 'bk-reconnect') return bankConnectBank(a.dataset.id);
   if (act === 'bk-toggle') {
@@ -3288,18 +3333,31 @@ async function bankCardAct(act, a) {
     return;
   }
   if (!a.classList.contains('arm')) {
-    a.classList.add('arm'); a.textContent = act === 'bk-disc' ? 'Tap again to disconnect' : 'Tap again to remove';
-    const box = act === 'bk-disc' && a.closest('.bk-enr');
-    if (box && !box.querySelector('.bk-warn')) box.insertAdjacentHTML('beforeend', `<p class="note bk-warn" role="alert" style="margin:6px 0 0">On Plaid's free plan a removed bank still counts toward the 10-bank limit.</p>`);
+    a.classList.add('arm'); a.textContent = 'Tap again to remove';
     return;
   }
-  if (act === 'bk-disc') {
-    try { await bankFetch('/enroll/' + encodeURIComponent(a.dataset.id), { method: 'DELETE' }); BANKUI.enr = null; toast('Bank disconnected'); await bankCardLoad(true); }
-    catch (e) { toast(e.message); render(); }
-  } else {
-    try { localStorage.removeItem(KEYLS); } catch (e) {}
-    state.bank.api = ''; BANKUI = Object.assign(BANKUI, { enr: null, loadErr: '', err: '' }); commit('Pairing removed from this phone');
-  }
+  try { localStorage.removeItem(KEYLS); } catch (e) {}
+  state.bank.api = ''; BANKUI = Object.assign(BANKUI, { enr: null, loadErr: '', err: '' }); commit('Pairing removed from this phone');
+}
+// Disconnecting a bank is hard to take back, so it asks for a typed word. Only uppercase OKAY (spaces around it are ignored) unlocks it.
+const DISC_WORD = 'OKAY';
+function disconnectSheet(id) {
+  const e = (BANKUI.enr || []).find(x => x.id === id); if (!e) return;
+  const name = e.institution || 'this bank';
+  openSheet(`<div class="sheet-h"><div><h3>Disconnect ${esc(name)}?</h3><p class="lede">BudTracks will stop syncing transactions from it.</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    <p class="dc-note">Transactions already imported stay in your budget. On Plaid's free plan a removed bank still counts toward the 10-bank limit, so connecting it again later may use up another slot.</p>
+    <label class="fld" for="dc-ok"><span>Type <b>${DISC_WORD}</b> to confirm</span><input id="dc-ok" class="dc-in" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" aria-describedby="dc-hint"></label>
+    <p class="note" id="dc-hint" style="margin:6px 0 0">Capital letters only.</p>
+    <div class="actions" style="margin-top:12px"><div class="r"><button class="btn" data-action="close">Cancel</button><button class="btn danger" data-action="bk-disc-go" data-id="${esc(id)}" id="dc-go" disabled>Disconnect</button></div></div>`);
+  setTimeout(() => { const i = $('#dc-ok'); if (i) i.focus(); }, 30);
+}
+document.addEventListener('input', e => { if (e.target.id === 'dc-ok') { const b = $('#dc-go'); if (b) b.disabled = e.target.value.trim() !== DISC_WORD; } });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'dc-ok') { e.preventDefault(); const b = $('#dc-go'); if (b && !b.disabled) b.click(); } });
+async function bankDisconnect(id) {
+  const i = $('#dc-ok'); if (!i || i.value.trim() !== DISC_WORD) return; // the button is disabled until then; this guards a forced click
+  const go = $('#dc-go'); if (go) go.disabled = true;
+  try { await bankFetch('/enroll/' + encodeURIComponent(id), { method: 'DELETE' }); closeSheet(); BANKUI.enr = null; toast('Bank disconnected'); await bankCardLoad(true); }
+  catch (e) { if (go) go.disabled = false; toast(e.message); }
 }
 
 /* Sync + classify */
@@ -3339,7 +3397,7 @@ async function bankSync(o) {
     // Two-phase cursor: ack the previous response (it reached us and was saved), so the Worker commits its cursor.
     // The token stays until a response arrives; a lost ack only means the Worker re-sends a batch we dedupe.
     const ack = state.bank.syncToken;
-    const r = await bankFetch('/sync?since=' + since + (ack ? '&ack=' + encodeURIComponent(ack) : ''));
+    const r = await bankFetch('/sync?since=' + since + (ack ? '&ack=' + encodeURIComponent(ack) : '') + (o && o.item ? '&item=' + encodeURIComponent(o.item) : ''));
     const errs = Array.isArray(r.errors) ? r.errors : [];
     const before = new Set(state.bank.inbox.flatMap(s => (s.parts || [s.txn]).map(t => t.id)));
     const allIn = (Array.isArray(r.txns) ? r.txns : []).filter(t => t && t.id), removed = new Set((Array.isArray(r.removed) ? r.removed : []).filter(Boolean));
@@ -3376,20 +3434,24 @@ async function bankSync(o) {
       if (s.confidence === 'high' && s.pick && AUTO_KINDS.includes(s.kind) && applyOne(s, {}, true)) { applied++; return; }
       inbox.push(s);
     }), 'Bank sync');
-    state.bank.inbox = inbox; state.bank.lastSync = r.syncedAt || new Date().toISOString();
-    if (Array.isArray(r.balances)) state.bank.balances = { at: state.bank.lastSync, items: r.balances.filter(b => b && Array.isArray(b.accounts)) };
+    // A one-bank sync leaves the overall "last synced" time alone (it is the lower bound for the next full sync) and only replaces that bank's balances.
+    state.bank.inbox = inbox; purgeInbox(state); if (!(o && o.item) || !state.bank.lastSync) state.bank.lastSync = r.syncedAt || new Date().toISOString();
+    if (Array.isArray(r.balances)) {
+      const nb = r.balances.filter(b => b && Array.isArray(b.accounts)), keep = o && o.item && state.bank.balances ? state.bank.balances.items.filter(b => b.itemId !== o.item) : [];
+      state.bank.balances = { at: r.syncedAt || new Date().toISOString(), items: keep.concat(nb) };
+    }
     // Remember this response's token only now that it is applied to local state; the save below persists it.
     state.bank.syncToken = typeof r.syncToken === 'string' && r.syncToken ? r.syncToken : null;
     pruneSeenTxn();
     const fresh = inbox.filter(s => !(s.parts || [s.txn]).every(t => before.has(t.id))).length;
     const em = errs.length ? errs.map(e => (e.institution ? e.institution + ': ' : '') + (e.needsReconnect ? 'needs reconnect' : e.message || e.error || e.code || 'could not sync')).join('. ') : '';
-    const asked = o && o.refreshed ? 'Asked your banks for new activity' : '';
+    const one = !!(o && o.item), asked = o && o.refreshed && !one ? 'Asked your banks for new activity' : '';
     const news = applied || fresh || dropped ? [applied ? applied + ' matched automatically' : '', fresh ? fresh + ' to review' : '', dropped ? dropped + ' updated by your bank' : ''].filter(Boolean).join(', ') : '';
-    const msg = em || [news, asked].filter(Boolean).join(' · ') || (auto ? '' : 'Up to date');
+    const msg = em || (one && !auto ? [(o.label || 'Bank') + ' refreshed', news].filter(Boolean).join(' · ') : [news, asked].filter(Boolean).join(' · ') || (auto ? '' : 'Up to date'));
     if (applied || fresh || dropped || !auto) commit(msg); else saveQuiet();
     if (em && (applied || fresh || dropped || auto)) toast(em);
     if (errs.some(e => e.needsReconnect)) { BANKUI.enr = null; BANKUI.loadErr = ''; }
-  } catch (e) { if (!auto) toast(e.message); }
+  } catch (e) { purgeInbox(state); if (!auto) toast(e.message); }
   BANKUI.syncing = false;
   if (['income', 'transactions', 'overview', 'bills'].includes(currentTab())) render();
   if (!$('#sheet').hidden && BALUI.open) balanceSheet();
@@ -3413,6 +3475,20 @@ async function bankSyncNow() {
   await bankSync({ auto: false, refreshed });
   clearTimeout(BANKUI.follow);
   BANKUI.follow = setTimeout(() => { if (document.visibilityState === 'visible') bankSync({ auto: true }); }, window.BT_FOLLOWUP_MS || 45000);
+}
+// "Refresh" on one bank: ask Plaid about just that bank, sync just that bank, then once more shortly after (quietly).
+async function bankItemSync(id) {
+  if (!bankReady() || BANKUI.syncing || BANKUI.rowBusy) return;
+  const e = (BANKUI.enr || []).find(x => x.id === id), label = (e && e.institution) || 'Bank';
+  BANKUI.rowBusy = id; BANKUI.syncing = true; render();
+  let refreshed = false, failed = '';
+  try { const r = await bankFetch('/refresh?item=' + encodeURIComponent(id), { method: 'POST', body: {} }); refreshed = !!r.refreshed; }
+  catch (er) { failed = er.message; }
+  BANKUI.syncing = false;
+  if (failed) { BANKUI.rowBusy = ''; toast(failed); render(); return; }
+  try { await bankSync({ auto: false, item: id, label, refreshed }); } finally { BANKUI.rowBusy = ''; render(); }
+  clearTimeout(BANKUI.follow);
+  BANKUI.follow = setTimeout(() => { if (document.visibilityState === 'visible') bankSync({ auto: true, item: id, label }); }, window.BT_FOLLOWUP_MS || 45000);
 }
 function pruneSeenTxn() {
   Object.entries(state.bank.seen).filter(([, r]) => r.txn).sort((a, b) => (a[1].at || '') < (b[1].at || '') ? 1 : -1).slice(40).forEach(([, r]) => { delete r.txn; });
@@ -3532,20 +3608,35 @@ function undoSuggestion(id) {
   commit('Undone'); inboxSheet();
 }
 // A pending charge was replaced by its posted version: the decision made for the pending one now belongs to the posted one.
-function carryPending(pid, t) {
-  const r = state.bank.seen[pid]; if (!r) return;
+function carryPending(pid, t, o) {
+  o = o || state;
+  const r = o.bank.seen[pid]; if (!r) return;
   const old = r.txn, same = (a, b) => Math.abs(a - b) < 0.005;
-  delete state.bank.seen[pid];
-  state.bank.seen[t.id] = Object.assign(r, { date: t.date, amount: t.amount, desc: t.desc, txn: t });
+  delete o.bank.seen[pid];
+  o.bank.seen[t.id] = Object.assign(r, { date: t.date, amount: t.amount, desc: t.desc, txn: t });
+  // The note typed on the pending line follows it, and neither id may stay in the review list.
+  if (o.bank.notes && o.bank.notes[pid]) { if (!o.bank.notes[t.id]) o.bank.notes[t.id] = o.bank.notes[pid]; delete o.bank.notes[pid]; }
+  o.bank.inbox = o.bank.inbox.filter(s => !(s.parts || [s.txn]).some(x => x.id === pid || x.id === t.id));
+  if (o.bank.txns) { delete o.bank.txns[pid]; if (!o.bank.txns[t.id]) o.bank.txns[t.id] = t; }
   if (r.res === 'income' && r.part && old) {
-    const i = state.income.find(x => x.id === r.incomeId);
+    const i = o.income.find(x => x.id === r.incomeId);
     if (i && i.perCycle && typeof i.perCycle[r.payDate] === 'number') i.perCycle[r.payDate] = BT.round2(i.perCycle[r.payDate] + old.amount - t.amount);
   } else if (r.res === 'spend') {
-    const x = state.spends.find(z => z.id === r.spendId);
+    const x = o.spends.find(z => z.id === r.spendId);
     if (x) { x.bank = t.id; if (old && same(x.amount, Math.abs(old.amount)) && x.date === old.date) { x.amount = BT.round2(Math.abs(t.amount)); x.date = t.date; } }
   } else if ((r.res === 'match' || r.res === 'bill') && r.key) {
-    const o = state.occ[r.key]; if (o && o.txn === pid) { o.txn = t.id; if (o.paidOn === (old && old.date)) o.paidOn = t.date; }
+    const oc = o.occ[r.key]; if (oc && oc.txn === pid) { oc.txn = t.id; if (oc.paidOn === (old && old.date)) oc.paidOn = t.date; }
   }
+}
+// A transaction that already has a decision (seen) never waits in the review list. Review rows whose pending twin was decided
+// inherit that decision. Runs on load and after every sync; the Transactions chip also prefers seen over the inbox.
+function purgeInbox(o) {
+  const seen = o.bank.seen, n = o.bank.inbox.length;
+  (o.bank.inbox || []).slice().forEach(s => (s.parts || [s.txn]).forEach(t => {
+    if (t && t.pendingOf && t.pendingOf !== t.id && !seen[t.id] && seen[t.pendingOf] && ['sync', 'history'].includes(seen[t.pendingOf].src)) carryPending(t.pendingOf, t, o);
+  }));
+  o.bank.inbox = o.bank.inbox.filter(s => s && s.txn && !(s.parts || [s.txn]).every(t => seen[t.id] || (t.pendingOf && seen[t.pendingOf])));
+  return n - o.bank.inbox.length;
 }
 function finishInboxPlan(t, plan) {
   const r = state.bank.seen[t.id];
@@ -3725,8 +3816,9 @@ function setTxNote(id, text) {
 }
 function txStatus(t) {
   const b = state.bank, r = b.seen[t.id];
-  if (inboxOf(t.id)) return { k: 'review', f: 'review', label: 'Needs review' };
-  if (b.history.some(h => h.id === t.id)) return { k: 'earlier', f: 'review', label: 'Earlier · add by hand' };
+  // A recorded decision wins over any stale review-list row.
+  if (!r && inboxOf(t.id)) return { k: 'review', f: 'review', label: 'Needs review' };
+  if (!r && b.history.some(h => h.id === t.id)) return { k: 'earlier', f: 'review', label: 'Earlier · add by hand' };
   if (r) {
     if (r.res === 'spend' || r.res === 'manual') { const x = state.spends.find(z => z.id === r.spendId); return { k: 'spend', f: 'added', label: 'Added · ' + (x ? x.category : String(r.what || '').split(' · ')[0]), r }; }
     if (r.res === 'match' || r.res === 'bill' || r.res === 'new') return { k: 'match', f: 'matched', label: 'Matched · ' + String(r.what || '').replace(/ (bill|payment)$/, ''), r };
@@ -4021,6 +4113,15 @@ function txAct(act, a) {
 
 /* ---------- Latest paycheck (Income tab) ---------- */
 const INCUI = { edit: null, open: new Set() };
+// Which collapsible Income sections are open. Closed by default; remembered on this device when storage allows.
+const INCOPEN = (() => { try { const v = JSON.parse(localStorage.getItem('budtrack.incopen') || '{}'); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; } })();
+const incOpen = k => !!INCOPEN[k];
+function incToggle(k) { INCOPEN[k] = !INCOPEN[k]; try { localStorage.setItem('budtrack.incopen', JSON.stringify(INCOPEN)); } catch (e) {} }
+// Header (one accessible button) + body for a collapsible card section.
+function collHead(k, title, meta) {
+  const o = incOpen(k);
+  return `<header class="card-h coll"><h2><button type="button" class="coll-h" data-action="inc-toggle" data-k="${k}" aria-expanded="${o}" aria-controls="coll-${k}"><span class="coll-t">${title}</span>${meta || ''}<span class="chev" aria-hidden="true">›</span></button></h2></header>`;
+}
 function payDatesWithData(i) {
   const set = new Set();
   Object.keys(i.perCycle || {}).forEach(d => { if (typeof i.perCycle[d] === 'number' && d <= TODAY) set.add(d); });
@@ -4043,14 +4144,17 @@ function latestPaycheckCard() {
   let nx = nextPay(i); if (ds[0] && nx <= ds[0]) nx = BT.addDays(nx, i.freq === 'weekly' ? 7 : 14);
   const nextLine = `<p class="pc-next">Next paycheck <b>${lng(nx)}</b> · ${ready ? 'comes in automatically from your bank' : 'enter it when it arrives'}</p>`;
   if (!ds.length) return `<section class="card pc-card" id="latestpay"><header class="card-h"><h2>Latest paycheck</h2></header><div class="card-b"><div class="empty" style="padding:6px 0 10px">No paycheck recorded yet.</div>${nextLine}</div></section>`;
-  const cur = payInfo(i, ds[0]), editing = INCUI.edit === cur.date;
+  const cur = payInfo(i, ds[0]), editing = INCUI.edit === cur.date, open = incOpen('pay') || editing;
   const old = ds.slice(1, 7).map(d => payInfo(i, d));
-  return `<section class="card pc-card" id="latestpay"><header class="card-h"><h2>Latest paycheck</h2><span class="pill soft">${cur.bank ? 'From your bank' : 'Entered by hand'}</span></header>
-    <div class="card-b pc-b"><div class="pc-tot"><div><div class="pc-big">${fmt(cur.total)}</div><div class="pc-date">${esc(i.name)} · ${lng(cur.date)}${cur.manual && cur.bank ? ' · total edited by hand' : ''}</div></div>${editing ? '' : `<button class="btn sm" data-action="pc-edit" data-date="${cur.date}">Edit total</button>`}</div>
-      ${editing ? `<div class="pc-edit"><span class="money-in"><i>$</i><input id="pcamt" type="text" inputmode="decimal" autocomplete="off" value="${cur.total.toFixed(2)}" aria-label="Paycheck total"></span><button class="btn primary sm" data-action="pc-save" data-date="${cur.date}">Save</button><button class="btn sm" data-action="pc-cancel">Cancel</button></div>` : ''}
+  const src = `<span class="pill soft">${cur.bank ? 'From your bank' : 'Entered by hand'}</span>`;
+  return `<section class="card pc-card${open ? ' open' : ''}" id="latestpay"><header class="card-h coll"><h2><button type="button" class="coll-h" data-action="inc-toggle" data-k="pay" aria-expanded="${open}" aria-controls="coll-pay"><span class="coll-t">Latest paycheck</span>${src}<span class="chev" aria-hidden="true">›</span></button></h2></header>
+    <div class="pc-top"><div class="pc-big">${fmt(cur.total)}</div><div class="pc-date">${esc(i.name)} · ${lng(cur.date)}${cur.manual && cur.bank ? ' · total edited by hand' : ''}</div></div>
+    <div class="coll-body" id="coll-pay"${open ? '' : ' hidden'}><div class="pc-more">
       ${cur.parts.length ? `<ul class="pc-parts">${cur.parts.map(p => partRow(p, true)).join('')}</ul>` : ''}
-      ${nextLine}</div>
-    ${old.length ? `<div class="subhead pc-h"><span>Earlier paychecks</span></div><ul class="rows pc-old">${old.map(o => { const open = INCUI.open.has(o.date); return `<li class="pc-o"><button class="pc-o-h" data-action="pc-toggle" data-date="${o.date}" aria-expanded="${open}"><span class="main"><span class="nm">${lng(o.date)}</span><span class="sub">${o.bank ? o.parts.length + (o.parts.length === 1 ? ' deposit · bank' : ' deposits · bank') : 'Entered by hand'}</span></span><span class="amt">${fmt(o.total)}</span><span class="chev" aria-hidden="true">›</span></button>${open ? (o.parts.length ? `<ul class="pc-parts">${o.parts.map(p => partRow(p, true)).join('')}</ul>` : '<p class="note" style="margin:4px 0 8px 8px">No bank deposits for this one.</p>') : ''}</li>`; }).join('')}</ul>` : ''}
+      ${editing ? `<div class="pc-edit"><span class="money-in"><i>$</i><input id="pcamt" type="text" inputmode="decimal" autocomplete="off" value="${cur.total.toFixed(2)}" aria-label="Paycheck total"></span><button class="btn primary sm" data-action="pc-save" data-date="${cur.date}">Save</button><button class="btn sm" data-action="pc-cancel">Cancel</button></div>` : `<div class="pc-acts"><button class="btn sm" data-action="pc-edit" data-date="${cur.date}">Edit total</button><button class="linkbtn pc-set" data-action="edit" data-type="income" data-id="${i.id}">Paycheck settings</button></div>`}
+      ${nextLine}
+      ${old.length ? `<div class="subhead pc-h"><span>Earlier paychecks</span></div><ul class="rows pc-old">${old.map(o => { const op = INCUI.open.has(o.date); return `<li class="pc-o"><button class="pc-o-h" data-action="pc-toggle" data-date="${o.date}" aria-expanded="${op}"><span class="main"><span class="nm">${lng(o.date)}</span><span class="sub">${o.bank ? o.parts.length + (o.parts.length === 1 ? ' deposit · bank' : ' deposits · bank') : 'Entered by hand'}</span></span><span class="amt">${fmt(o.total)}</span><span class="chev" aria-hidden="true">›</span></button>${op ? (o.parts.length ? `<ul class="pc-parts">${o.parts.map(p => partRow(p, true)).join('')}</ul>` : '<p class="note" style="margin:4px 0 8px 8px">No bank deposits for this one.</p>') : ''}</li>`; }).join('')}</ul>` : ''}
+    </div></div>
   </section>`;
 }
 // A deposit that is not part of the paycheck: reverse it and send it back to review as a refund or transfer.
@@ -4159,12 +4263,13 @@ document.addEventListener('click', async e => {
     case 'delete': deleteItem(a); break;
     case 'set-cat': setCategory(a.dataset.id, a.dataset.cat); break;
     case 'bank-import': openBank(); break;
-    case 'bk-sync': case 'bk-connect': case 'bk-reconnect': case 'bk-toggle': case 'bk-disc': case 'bk-forget': bankCardAct(act, a); break;
+    case 'bk-sync': case 'bk-item-sync': case 'bk-connect': case 'bk-reconnect': case 'bk-toggle': case 'bk-disc': case 'bk-disc-go': case 'bk-forget': bankCardAct(act, a); break;
     case 'ix-open': case 'ix-accept': case 'ix-change': case 'ix-pick': case 'ix-cat': case 'ix-cats': case 'ix-new': case 'ix-edit': case 'ix-skip': case 'ix-all': case 'ix-undo': inboxAct(act, a); break;
     case 'tx-note': case 'tx-note-save': case 'tx-review': case 'tx-filter': case 'tx-more': case 'tx-open': case 'tx-back': case 'tx-cats': case 'tx-in': case 'tx-cat': case 'tx-sugg': case 'tx-match': case 'tx-edit': case 'tx-ignore': case 'tx-undo': case 'tx-refund': case 'tx-paycheck': txAct(act, a); break;
     case 'pc-out': payPartOut(a.dataset.id); break;
     case 'pc-edit': INCUI.edit = a.dataset.date; render(); setTimeout(() => { const f = $('#pcamt'); if (f) { f.focus(); f.select(); } }, 30); break;
     case 'pc-cancel': INCUI.edit = null; render(); break;
+    case 'inc-toggle': incToggle(a.dataset.k); render(); { const b = document.querySelector('.coll-h[data-k="' + a.dataset.k + '"]'); if (b) b.focus(); } break;
     case 'pc-toggle': if (INCUI.open.has(a.dataset.date)) INCUI.open.delete(a.dataset.date); else INCUI.open.add(a.dataset.date); render(); break;
     case 'pc-save': {
       const i = BT.paycheck(state), v = parseFloat(String(($('#pcamt') || {}).value || '').replace(/[$,\s]/g, ''));

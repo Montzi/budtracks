@@ -56,7 +56,7 @@ async function newPage(w, h) {
     if (p === '/pair') return json({ key: 'secret-device-key-123' });
     if (p === '/accounts') return json({ enrollments: mock.enrollments });
     if (p === '/sync') return json({ txns: mock.txns, removed: mock.removed, errors: mock.errors, syncToken: 'tok-' + (++mock.seq), syncedAt: new Date().toISOString(), ...(mock.balances ? { balances: mock.balances } : {}) });
-    if (p === '/refresh' && m === 'POST') return mock.refreshResp ? json(mock.refreshResp) : json({ error: 'nope' }, 404);
+    if (p === '/refresh' && m === 'POST') { if (mock.delay) await new Promise(r => setTimeout(r, mock.delay)); const it = u.searchParams.get('item'); if (it && !mock.enrollments.some(e => e.id === it)) return json({ error: 'unknown item' }, 404); return mock.refreshResp ? json(it ? { ...mock.refreshResp, results: mock.refreshResp.results.filter(x => x.itemId === it) } : mock.refreshResp) : json({ error: 'nope' }, 404); }
     if (p === '/enroll' && m === 'POST') { mock.enrollments.push({ id: 'enr_2', institution: 'Citizens', needsReconnect: false, accounts: [] }); return json({ accounts: [] }); }
     if (p.startsWith('/enroll/') && m === 'DELETE') { mock.enrollments = mock.enrollments.filter(e => !p.endsWith(e.id)); return json({ ok: true }); }
     if (/\/accounts\/.+\/toggle/.test(p)) return json({ ok: true });
@@ -111,7 +111,7 @@ const sheetNoHScroll = async (page, label) => assert.ok(await page.evaluate(() =
     const bk = await page.inputValue('#bk'); assert.ok(!bk.includes('secret-device-key-123'), 'key in backup');
     await page.keyboard.press('Escape');
   });
-  await step('accounts list, toggle, disconnect two-tap, connect a bank', async () => {
+  await step('accounts list, toggle, typed-OKAY disconnect sheet, connect a bank', async () => {
     await page.waitForSelector('.bk-enr');
     assert.ok((await page.locator('.bk-enr b').first().innerText()).includes('Chime'));
     assert.equal(await page.locator('.tgl input').count(), 2);
@@ -126,9 +126,18 @@ const sheetNoHScroll = async (page, label) => assert.ok(await page.evaluate(() =
     assert.ok(calls.find(c => c.p === '/enroll' && JSON.parse(c.body).institution === 'Citizens' && JSON.parse(c.body).publicToken === 'public-xyz'));
     await page.waitForTimeout(500);
     const d = page.locator('[data-action="bk-disc"]').nth(1);
-    await d.click(); assert.ok(!calls.some(c => c.m === 'DELETE'), 'first tap must not delete');
-    assert.match(await page.locator('.bk-warn').innerText(), /free plan a removed bank still counts toward the 10-bank limit/);
-    await page.locator('[data-action="bk-disc"]').nth(1).click();
+    await d.click(); await page.waitForSelector('#dc-ok'); assert.ok(!calls.some(c => c.m === 'DELETE'), 'opening the sheet must not delete');
+    assert.match(await page.locator('#sheet').innerText(), /free plan a removed bank still counts toward the 10-bank limit/);
+    assert.equal(await page.locator('#dc-go').isDisabled(), true, 'disabled until OKAY is typed');
+    await page.fill('#dc-ok', 'okay'); assert.equal(await page.locator('#dc-go').isDisabled(), true, 'lowercase does not unlock');
+    await page.fill('#dc-ok', 'OKAYY'); assert.equal(await page.locator('#dc-go').isDisabled(), true);
+    await page.fill('#dc-ok', 'OK'); assert.equal(await page.locator('#dc-go').isDisabled(), true);
+    await page.fill('#dc-ok', '  OKAY '); assert.equal(await page.locator('#dc-go').isDisabled(), false, 'spaces around OKAY are ignored');
+    await page.waitForTimeout(500); await page.evaluate(() => { const t = document.querySelector('#toast'); if (t) t.classList.remove('on'); }); await page.screenshot({ path: SHOTS + '/disconnect-okay-390.png', animations: 'disabled' }); await sheetNoHScroll(page, '390 disconnect sheet');
+    await page.click('#sheet [data-action="close"].btn'); assert.equal(await page.locator('#sheet').isHidden(), true, 'Cancel closes'); assert.ok(!calls.some(c => c.m === 'DELETE'));
+    await page.locator('[data-action="bk-disc"]').nth(1).click(); await page.waitForSelector('#dc-ok');
+    assert.equal(await page.locator('#dc-go').isDisabled(), true, 'a reopened sheet starts locked');
+    await page.fill('#dc-ok', 'OKAY'); await page.click('#dc-go');
     await page.waitForFunction(() => document.querySelectorAll('.bk-enr').length === 1);
     assert.ok(calls.some(c => c.m === 'DELETE' && c.p === '/enroll/enr_2'));
   });
@@ -885,7 +894,14 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     const o = s.bank.inbox.find(i => i.txn.id === 'pl:odd'); assert.ok(o && o.kind === 'transfer' && !o.pick, JSON.stringify(o && [o.kind, o.pick]));
   });
   await step('Latest paycheck card: total, date, every part, source tag, next date', async () => {
-    const c = page.locator('#latestpay'); const t = await c.innerText();
+    const c = page.locator('#latestpay');
+    const t0 = await c.innerText();
+    assert.equal(await c.locator('.coll-h').getAttribute('aria-expanded'), 'false', 'collapsed by default');
+    assert.match(t0, /\$2,273\.31/); assert.match(t0, /Fri, Nov 20/); assert.match(t0, /from your bank/i);
+    assert.ok(!(await c.locator('.pc-parts').first().isVisible()), 'deposit parts hidden while collapsed'); assert.ok(!/Earlier paychecks|Next paycheck|Edit total/.test(t0));
+    await page.screenshot({ path: SHOTS + '/income-collapsed-390.png' });
+    await c.locator('.coll-h').click(); assert.equal(await c.locator('.coll-h').getAttribute('aria-expanded'), 'true');
+    const t = await c.innerText();
     assert.match(t, /\$2,273\.31/); assert.match(t, /Fri, Nov 20/); assert.match(t, /from your bank/i); assert.equal(await c.locator('.pc-parts').first().locator('li').count(), 3);
     assert.match(t, /Citizens ••4417/); assert.match(t, /Santander ••6429/); assert.match(t, /Posted Nov 19/); assert.match(t, /\+\$1,873\.31/);
     assert.match(t, /Next paycheck Fri, Dec 4 · comes in automatically from your bank/);
@@ -893,7 +909,11 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     assert.match(t, /earlier paychecks/i); assert.match(t, /Fri, Nov 6/);
     await c.locator('[data-action="pc-toggle"]').click(); assert.match(await page.locator('.pc-o').innerText(), /No bank deposits|\$1,500\.00/);
     await noHScroll(page, '390 income');
-    await c.scrollIntoViewIfNeeded(); await page.screenshot({ path: SHOTS + '/income-390.png' });
+    await c.scrollIntoViewIfNeeded(); await page.screenshot({ path: SHOTS + '/income-390.png' }); await page.screenshot({ path: SHOTS + '/income-expanded-390.png' });
+    assert.match(t, /Paycheck settings/);
+    await c.locator('[data-action="edit"][data-type="income"]').click(); await page.waitForSelector('#form'); assert.match(await page.locator('#sheet').innerText(), /Payroll|Stat Delivery|Income/i); await page.keyboard.press('Escape');
+    await page.reload({ waitUntil: 'load' }); await page.waitForSelector('#latestpay');
+    assert.equal(await page.locator('#latestpay .coll-h').getAttribute('aria-expanded'), 'true', 'expanded state remembered');
   });
   await step('Not part of paycheck: total drops, txn returns to review as refund/transfer, and stays out after Sync now', async () => {
     await page.locator('#latestpay .pc-part', { hasText: '$300.00' }).locator('[data-action="pc-out"]').click();
@@ -1185,7 +1205,9 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     await page.setViewportSize({ width: 390, height: 844 });
   });
   await step('category manager groups categories and sets a group', async () => {
-    await page.goto(BASE + '#income'); await page.waitForSelector('.cat-list');
+    await page.goto(BASE + '#income'); await page.waitForSelector('[data-k="cat"]');
+    assert.equal(await page.getAttribute('[data-k="cat"]', 'aria-expanded'), 'false'); assert.ok(!(await page.locator('.cat-list').first().isVisible()), 'categories collapsed by default');
+    await page.click('[data-k="cat"]'); await page.waitForSelector('.cat-list');
     assert.ok(await page.locator('.cat-gh', { hasText: 'Food' }).count() > 0);
     await noHScroll(page, '390 cat manager');
     await page.locator('.cat-gh', { hasText: 'Food' }).first().scrollIntoViewIfNeeded(); await page.waitForTimeout(300); await page.screenshot({ path: SHOTS + '/catmgr-390.png' });
@@ -1203,6 +1225,166 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     assert.deepEqual(first, ['Food', 'Groceries', true]); await noHScroll(page, '390 chips'); await page.locator('.tx.open .cgroups').scrollIntoViewIfNeeded(); await page.waitForTimeout(300); await page.screenshot({ path: SHOTS + '/chips-390.png' });
   });
   assert.deepEqual(errs, [], 'page errors in v5 block'); await page.context().close();
+}
+
+/* ---------- v6: an accepted transaction never shows Needs review again ---------- */
+{
+  const { page, errs, mock } = await prepared(390, 844);
+  const santander = { id: 'acc9', name: 'Santander Checking', last4: '6429', institution: 'Santander', type: 'depository' };
+  const DP = (extra) => T('dpend', '2026-11-19', 'DOORDASH*MIKES PIZZA', 17.99, Object.assign({ status: 'pending', account: santander }, extra || {}));
+  const row = id => page.locator('.tx[data-id="' + id + '"]');
+  const chip = async id => (await row(id).locator('.txc').innerText()).trim();
+  const resync = async () => {
+    await page.goto(BASE + '#income'); await page.waitForSelector('[data-action="bk-sync"]');
+    const n = await page.evaluate(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
+    await page.click('[data-action="bk-sync"]');
+    await page.waitForFunction(o => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync !== o && document.querySelector('[data-action="bk-sync"]') && !document.querySelector('[data-action="bk-sync"]').disabled, n);
+    await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx');
+  };
+  const open = async id => { if (!(await row(id).locator('.tx-p').count())) await row(id).locator('.tx-main').click(); };
+  const accept = async id => { await open(id); await row(id).locator('[data-action="tx-cats"]').click(); await row(id).locator('.chip', { hasText: 'Dining Out' }).first().click(); await page.waitForFunction(i => !!JSON.parse(localStorage.getItem('budtrack.v1')).bank.seen[i], id); };
+  const addNote = async (id, text) => { await open(id); await row(id).locator('[data-action="tx-note"]').click(); await page.fill('#txnote', text); await page.locator('[data-action="tx-note-save"]').click(); await page.waitForTimeout(150); };
+  const fresh = async txns => {
+    mock.txns = txns; mock.removed = [];
+    await page.goto(BASE + '#income', { waitUntil: 'load' });
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.bank = Object.assign(s.bank, { seen: {}, inbox: [], txns: {}, notes: {}, history: [], lastSync: null, syncToken: null }); s.spends = []; s.occ = {}; localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
+    await page.goto(BASE + '#transactions'); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
+  };
+  const inboxHas = async id => (await getState(page)).bank.inbox.some(x => (x.parts || [x.txn]).some(t => t.id === id || t.pendingOf === id));
+  await step('pending txn: Accept from Transactions tab shows Added, not Needs review', async () => {
+    await fresh([DP()]);
+    assert.equal(await chip('pl:dpend'), 'Needs review');
+    await accept('pl:dpend');
+    assert.match(await chip('pl:dpend'), /^Added/); assert.ok(!(await inboxHas('pl:dpend')), 'left the inbox');
+  });
+  await step('add note then accept, and accept then add note: stays Added', async () => {
+    await fresh([DP()]);
+    await addNote('pl:dpend', 'Mikes Pizza - Burguer');
+    assert.equal(await chip('pl:dpend'), 'Needs review', 'note alone does not change review status');
+    await accept('pl:dpend');
+    assert.match(await chip('pl:dpend'), /^Added/);
+    let s = await getState(page); assert.equal(s.spends[0].note, 'Mikes Pizza - Burguer');
+    await resync(); await page.waitForTimeout(150);
+    await fresh([DP()]); await accept('pl:dpend'); await addNote('pl:dpend', 'Mikes Pizza - Burguer');
+    assert.match(await chip('pl:dpend'), /^Added/); assert.ok(!(await inboxHas('pl:dpend')));
+    await resync(); await page.goto(BASE + '#transactions'); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
+    assert.match(await chip('pl:dpend'), /^Added/); assert.equal((await getState(page)).spends.length, 1);
+  });
+  await step('Edit with a note from the Transactions tab: Added', async () => {
+    await fresh([DP()]);
+    await open('pl:dpend'); await row('pl:dpend').locator('[data-action="tx-edit"]').click(); await page.waitForSelector('#f-note');
+    await page.fill('#f-note', 'Mikes Pizza - Burguer'); await page.click('#form button[type=submit]');
+    await page.waitForFunction(() => Object.keys(JSON.parse(localStorage.getItem('budtrack.v1')).bank.seen).length);
+    assert.match(await chip('pl:dpend'), /^Added/); assert.ok(!(await inboxHas('pl:dpend')));
+  });
+  await step('re-delivered and modified pending txn after accept stays Added', async () => {
+    await fresh([DP()]); await accept('pl:dpend');
+    await resync(); await resync();
+    mock.txns = [DP({ amount: 17.99, desc: 'DOORDASH*MIKES PIZZA NY' })]; await resync();
+    await page.goto(BASE + '#transactions'); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
+    assert.match(await chip('pl:dpend'), /^Added/); assert.ok(!(await inboxHas('pl:dpend')), 'not back in the inbox');
+    assert.equal((await page.locator('.txc', { hasText: 'Needs review' }).count()), 0);
+    assert.equal((await getState(page)).spends.length, 1, 'no duplicate spend');
+  });
+  await step('posted twin with pendingOf after accepting pending: Added on the posted row, no Needs review row', async () => {
+    await fresh([DP()]); await accept('pl:dpend');
+    mock.txns = [T('dpost', '2026-11-20', 'DOORDASH*MIKES PIZZA', 17.99, { account: santander, pendingOf: 'pl:dpend' })]; mock.removed = ['pl:dpend']; await resync();
+    await page.goto(BASE + '#transactions'); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
+    assert.match(await chip('pl:dpost'), /^Added/); assert.equal(await page.locator('.tx[data-id="pl:dpend"]').count(), 0);
+    assert.equal((await page.locator('.txc', { hasText: 'Needs review' }).count()), 0);
+    const s = await getState(page); assert.ok(s.bank.seen['pl:dpost'] && !s.bank.seen['pl:dpend']); assert.ok(!(await inboxHas('pl:dpend')) && !(await inboxHas('pl:dpost')));
+    // the pending one is re-delivered later by a stale batch: still not a new review row
+    mock.txns = [DP(), T('dpost', '2026-11-20', 'DOORDASH*MIKES PIZZA', 17.99, { account: santander, pendingOf: 'pl:dpend' })]; mock.removed = []; await resync();
+    const s2 = await getState(page); assert.ok(!(await inboxHas('pl:dpend')), 'stale pending not re-queued'); assert.equal(s2.spends.length, 1);
+  });
+  await step('inbox-purge-1 repair removes inbox rows already handled, on load', async () => {
+    await fresh([DP()]); await accept('pl:dpend');
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')), t = s.bank.txns['pl:dpend']; s.bank.inbox = [{ txn: t, kind: 'spend', confidence: 'low', cands: [], pick: null, category: 'Other', source: 'default' }]; s.imports = s.imports.filter(k => k !== 'inbox-purge-1'); localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
+    await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
+    assert.match(await chip('pl:dpend'), /^Added/);
+    const s = await getState(page); assert.equal(s.bank.inbox.length, 0); assert.ok(s.imports.includes('inbox-purge-1'));
+  });
+  await step('inbox-purge-1 repair: posted row whose pending twin was accepted inherits the decision', async () => {
+    await fresh([DP()]); await accept('pl:dpend');
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')), q = { id: 'pl:dpost', date: '2026-11-20', desc: 'DOORDASH*MIKES PIZZA', rawDesc: 'x', amount: 17.99, status: 'posted', pendingOf: 'pl:dpend', account: s.bank.txns['pl:dpend'].account };
+      s.bank.txns['pl:dpost'] = q; s.bank.inbox = [{ txn: q, kind: 'spend', confidence: 'low', cands: [], pick: null, category: 'Other', source: 'default' }]; s.imports = s.imports.filter(k => k !== 'inbox-purge-1'); localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
+    await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
+    assert.match(await chip('pl:dpost'), /^Added/); assert.equal(await page.locator('.tx[data-id="pl:dpend"]').count(), 0);
+    const s = await getState(page); assert.equal(s.bank.inbox.length, 0); assert.equal(s.spends.length, 1); assert.equal(s.spends[0].bank, 'pl:dpost');
+  });
+  assert.deepEqual(errs, [], 'page errors in v6 accept flow'); await page.context().close();
+}
+
+/* ---------- v6: collapsible Income sections, per-bank refresh ---------- */
+{
+  const { page, errs, calls, mock } = await prepared(390, 844);
+  mock.enrollments.push({ id: 'enr_2', institution: 'Citizens', needsReconnect: false, accounts: [{ id: 'acc3', name: 'Everyday', type: 'depository', subtype: 'checking', last_four: '4417', enabled: true }] });
+  await page.goto(BASE + '#income', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync); await page.waitForSelector('.bk-enr');
+  const exp = k => page.getAttribute('.coll-h[data-k="' + k + '"]', 'aria-expanded');
+  await step('Paid via and Categories are collapsed by default and expand to their content', async () => {
+    assert.equal(await exp('via'), 'false'); assert.equal(await exp('cat'), 'false');
+    assert.match(await page.locator('.coll-h[data-k="via"]').innerText(), /Paid via\s*1/);
+    assert.equal(await page.locator('#coll-via').isVisible(), false); assert.equal(await page.locator('#coll-cat').isVisible(), false);
+    await noHScroll(page, '390 collapsed sections');
+    await page.click('.coll-h[data-k="via"]'); assert.equal(await exp('via'), 'true'); assert.equal(await page.locator('#viaadd').isVisible(), true);
+    await page.click('.coll-h[data-k="via"]'); assert.equal(await exp('via'), 'false'); assert.equal(await page.locator('#viaadd').isVisible(), false);
+    await page.focus('.coll-h[data-k="cat"]'); await page.keyboard.press('Enter'); assert.equal(await exp('cat'), 'true'); assert.equal(await page.locator('.cat-list').first().isVisible(), true);
+    await page.click('.coll-h[data-k="cat"]');
+  });
+  await step('Other income: single secondary button with only the paycheck; collapsed "Other income · N" section otherwise', async () => {
+    assert.equal(await page.locator('.oi-add .btn').innerText(), 'Add other income'); assert.equal(await page.locator('.oi-add .btn.primary').count(), 0);
+    assert.equal(await page.locator('.oi-coll').count(), 0);
+    await page.click('.oi-add .btn'); await page.waitForSelector('#form'); await page.keyboard.press('Escape');
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.income.push({ id: 'side', name: 'Side gig', freq: 'monthly', date: '2026-11-25', amount: 300 }); localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
+    await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.oi-coll');
+    assert.equal(await exp('other'), 'false'); assert.match(await page.locator('.coll-h[data-k="other"]').innerText(), /Other income · 1/);
+    assert.equal(await page.locator('#coll-other').isVisible(), false); assert.equal(await page.locator('.oi-add').count(), 0);
+    await page.click('.coll-h[data-k="other"]');
+    assert.equal(await page.locator('#coll-other .row').count(), 1, 'main paycheck is not listed here'); assert.match(await page.locator('#coll-other').innerText(), /Side gig/);
+    assert.equal(await page.locator('#coll-other [data-action="add"][data-type="income"]').innerText(), 'Add other income');
+    await noHScroll(page, '390 other income');
+    await page.click('.coll-h[data-k="other"]');
+  });
+  await step('every bank row has its own Refresh: item-scoped refresh then sync, spinner on that row only, toast', async () => {
+    assert.equal(await page.locator('.bk-enr [data-action="bk-item-sync"]').count(), 2);
+    mock.refreshResp = { refreshed: true, notEnabled: false, results: [{ itemId: 'enr_1', refreshed: true }, { itemId: 'enr_2', refreshed: true }] }; mock.delay = 500;
+    const ls = (await getState(page)).bank.lastSync; calls.length = 0;
+    await page.locator('.bk-enr').nth(1).locator('[data-action="bk-item-sync"]').click();
+    await page.waitForSelector('.bk-enr .spin');
+    assert.equal(await page.locator('.bk-enr').nth(1).locator('.spin').count(), 1); assert.equal(await page.locator('.bk-enr').nth(0).locator('.spin').count(), 0);
+    assert.equal(await page.locator('.bk-enr').nth(0).locator('[data-action="bk-item-sync"]').isDisabled(), true, 'no second sync while one runs');
+    await page.screenshot({ path: SHOTS + '/bank-card-390.png' });
+    await page.waitForFunction(() => !document.querySelector('.bk-enr .spin'));
+    const rf = calls.find(c => c.p === '/refresh'), sc = calls.find(c => c.p === '/sync');
+    assert.equal(rf.q, '?item=enr_2'); assert.match(sc.q, /[?&]item=enr_2(&|$)/); assert.ok(calls.indexOf(rf) < calls.indexOf(sc), 'refresh before sync');
+    assert.match(await page.locator('#toast').innerText(), /Citizens refreshed/);
+    assert.equal((await getState(page)).bank.lastSync, ls, 'a one-bank sync does not move the overall sync time');
+    await noHScroll(page, '390 bank card');
+    mock.delay = 0; calls.length = 0;
+    await page.locator('.bk-enr').nth(0).locator('[data-action="bk-item-sync"]').click();
+    await page.waitForFunction(() => /Chime refreshed/.test(document.querySelector('#toast').innerText));
+    assert.equal(calls.find(c => c.p === '/refresh').q, '?item=enr_1');
+    assert.ok(/[?&]ack=tok-/.test(calls.find(c => c.p === '/sync').q), 'carries the ack for the last response');
+  });
+  await step('Refresh failure shows the error and clears the spinner; Sync now still asks every bank', async () => {
+    mock.refreshResp = null; calls.length = 0;
+    await page.locator('.bk-enr').nth(1).locator('[data-action="bk-item-sync"]').click();
+    await page.waitForFunction(() => /nope/.test(document.querySelector('#toast').innerText) && !document.querySelector('.bk-enr .spin'));
+    assert.equal(calls.filter(c => c.p === '/sync').length, 0, 'no sync after a failed refresh');
+    mock.refreshResp = { refreshed: true, notEnabled: false, results: [] }; calls.length = 0;
+    await page.click('[data-action="bk-sync"]'); await page.waitForFunction(() => document.querySelector('[data-action="bk-sync"]') && !document.querySelector('[data-action="bk-sync"]').disabled);
+    assert.equal(calls.find(c => c.p === '/refresh').q, ''); assert.equal(calls.find(c => c.p === '/sync').q.includes('item='), false);
+  });
+  await step('951x669: income tab with every section open has no horizontal scroll', async () => {
+    await page.setViewportSize({ width: 951, height: 669 });
+    for (const k of ['pay', 'via', 'cat', 'other']) { if (await page.locator('.coll-h[data-k="' + k + '"]').count() && (await exp(k)) === 'false') await page.click('.coll-h[data-k="' + k + '"]'); }
+    await page.waitForTimeout(200); await noHScroll(page, '951 income open'); await page.screenshot({ path: SHOTS + '/income-951.png' });
+    await page.locator('.bk-enr [data-action="bk-disc"]').first().click(); await page.waitForSelector('#dc-ok'); await sheetNoHScroll(page, '951 disconnect'); await page.keyboard.press('Escape');
+  });
+  assert.deepEqual(errs, [], 'page errors in v6 income block'); await page.context().close();
 }
 
 await browser.close();
