@@ -19,7 +19,7 @@ const tx = (id, desc, amount, date) => ({ id, date: date || TODAY, desc, rawDesc
 
 const fixture = () => ({
   since: addD(TODAY, -60), marks: {}, occ: {}, unalloc: [], payVia: [{ bank: 'Chime', last4: '1234', type: 'debit' }],
-  categories: ['Gas', 'Groceries', 'Takeout Food', 'Snacks & Drinks', 'Coffee', 'Food', 'Electronics', 'Other'],
+  categories: ['Gas', 'Repairs', 'Groceries', 'Takeout Food', 'Snacks & Drinks', 'Coffee', 'Food', 'Electronics', 'Other'],
   billCats: ['Housing', 'Utilities', 'Subscriptions', 'Transportation', 'Other'],
   income: [{ id: 'pay', name: 'Payroll', freq: 'biweekly', date: PAY, amount: 2000, askFrom: PAY, perCycle: { [PAY]: 2000 } }],
   bills: [
@@ -140,7 +140,8 @@ const heroNeeds = page => page.locator('.lad.l2 .v').innerText().then(num);
     const opts = await page.locator('#form select[name="category"] optgroup[label="Shopping"] option').allInnerTexts();
     assert.deepEqual(opts.slice(0, 3).filter(Boolean), ['Clothing', 'Electronics', 'Electronics Repair'].filter(c => opts.includes(c)));
     assert.ok(opts.indexOf('Electronics Repair') === opts.indexOf('Electronics') + 1, 'placed right after Electronics: ' + opts.join());
-    assert.ok(await page.locator('#form optgroup[label="Home"] option', { hasText: 'Repairs' }).count() >= 0);
+    assert.ok((await page.locator('#form select[name="category"] optgroup[label="Home"] option').allInnerTexts()).includes('Repairs'), 'Home > Repairs stays under Home');
+    assert.ok(!(await page.locator('#form select[name="category"] optgroup[label="Shopping"] option').allInnerTexts()).includes('Repairs'));
     await page.keyboard.press('Escape');
   });
   assert.deepEqual(errs, [], 'page errors'); await ctx.close();
@@ -175,24 +176,32 @@ const heroNeeds = page => page.locator('.lad.l2 .v').innerText().then(num);
     await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.bank.balances = { at: new Date().toISOString(), items: [{ itemId: 'enr_1', institution: 'Chime', accounts: [{ id: 'a1', name: 'Checking', type: 'depository', current: 1234.5, available: 1234.5 }] }] }; localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
     await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.lad.l3');
     assert.match(await page.locator('.lad.l3 .v').innerText(), /1,234/); assert.equal(await page.locator('.sv-chip').count(), 0, 'no stale savings chip beside a live balance');
-    await page.click('.lad.l3'); await page.waitForSelector('.bal-total'); assert.equal(await page.locator('#sheet [data-action="sv-add"]').count(), 1); await page.keyboard.press('Escape');
+    await page.click('.lad.l3'); await page.waitForSelector('.bal-total'); assert.equal(await page.locator('#sheet [data-action="sv-add"]').count(), 1);
+    assert.ok(await page.evaluate(() => { const s = document.querySelector('#sheet .sheet'); return s.scrollWidth <= s.clientWidth + 1; }), 'live-balance sheet has no horizontal scroll'); await page.keyboard.press('Escape');
     await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.bank.balances = null; localStorage.setItem('budtrack.v1', JSON.stringify(s)); }); await page.reload({ waitUntil: 'load' });
   });
   await step('"To savings" on a Transactions row records a savings in, marks it Transfer; Undo removes it', async () => {
-    const n0 = (await getState(page)).savings.tx.length;
+    const bal = () => page.evaluate(([d]) => BT.accountBalance(JSON.parse(localStorage.getItem('budtrack.v1')), d), [TODAY]);
+    const n0 = (await getState(page)).savings.tx.length, b0 = await bal();
     await page.goto(BASE + '#transactions', { waitUntil: 'load' }); await page.waitForSelector('.tx[data-id="pl:tr1"]');
     await page.locator('.tx[data-id="pl:tr1"] .tx-main').click(); await page.locator('.tx[data-id="pl:tr1"] [data-action="tx-sv"]').click();
     await page.waitForFunction(n => JSON.parse(localStorage.getItem('budtrack.v1')).savings.tx.length === n + 1, n0);
     let s = await getState(page), r = s.bank.seen['pl:tr1']; assert.equal(r.res, 'transfer'); const sv = s.savings.tx.find(t => t.id === r.sv);
     assert.ok(sv && sv.type === 'in' && sv.amount === 200 && sv.txn === 'pl:tr1' && sv.date === TODAY);
+    assert.equal(await bal(), b0, 'the bank balance you typed already reflects the move: In account does not change');
     assert.match(await page.locator('.tx[data-id="pl:tr1"] .txc').innerText(), /Transfer/); assert.equal(await page.locator('.tx[data-id="pl:tr1"] [data-action="tx-sv"]').count(), 0);
     await page.locator('.tx[data-id="pl:tr1"] [data-action="tx-undo"]').click();
     await page.waitForFunction(n => JSON.parse(localStorage.getItem('budtrack.v1')).savings.tx.length === n, n0);
     s = await getState(page); assert.ok(!s.bank.seen['pl:tr1'] || s.bank.seen['pl:tr1'].res !== 'transfer'); assert.ok(!s.savings.tx.some(t => t.txn === 'pl:tr1'));
+    assert.equal(await bal(), b0, 'Undo gives back exactly what the move took (no leftover adjustment)'); assert.ok(!s.account.adj.some(x => x.sv));
+    await noHScroll(page, '390 transactions');
     // any money-out row offers it; money in does not
     await page.locator('.tx[data-id="pl:cof"] .tx-main').click(); assert.equal(await page.locator('.tx[data-id="pl:cof"] [data-action="tx-sv"]').count(), 1);
     await page.locator('.tx[data-id="pl:cof"] [data-action="tx-sv"]').click(); await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).savings.tx.some(t => t.txn === 'pl:cof'));
+    assert.equal(await bal(), b0); await noHScroll(page, '390 transactions expanded');
     await page.click('#toast .toast-undo'); await page.waitForFunction(() => !JSON.parse(localStorage.getItem('budtrack.v1')).savings.tx.some(t => t.txn === 'pl:cof'));
+    assert.equal(await bal(), b0, 'undo from the toast too');
+    await page.setViewportSize({ width: 951, height: 669 }); await page.locator('.tx[data-id="pl:cof"] .tx-main').click(); await noHScroll(page, '951 transactions expanded'); await page.setViewportSize({ width: 390, height: 844 });
   });
   assert.deepEqual(errs, [], 'page errors'); await ctx.close();
 }
@@ -213,7 +222,7 @@ const heroNeeds = page => page.locator('.lad.l2 .v').innerText().then(num);
     await page.locator('details.skipped [data-action="unskip"]').click(); await page.waitForFunction(() => /Electric/.test(document.querySelector('.ov-bills .rows').innerText));
     assert.equal(await heroNeeds(page), n0); assert.equal(await page.locator('details.skipped').count(), 0);
   });
-  await step('Skip this cycle works for a card minimum, a pay plan style row and a budget; undo from the toast', async () => {
+  await step('Skip this cycle works for a card minimum and a budget; undo from the toast', async () => {
     const n0 = await heroNeeds(page);
     await page.locator('.ov-bills .row', { hasText: 'Visa' }).locator('.tapzone').click(); await page.click('#occ-actions [data-action="skip-cycle"]');
     await page.waitForFunction(() => !/Visa/.test(document.querySelector('.ov-bills .rows').innerText)); assert.equal(await heroNeeds(page), n0 - 35);
