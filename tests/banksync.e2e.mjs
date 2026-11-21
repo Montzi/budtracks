@@ -1610,6 +1610,7 @@ const BT_round = n => Math.round(n * 100) / 100;
     await page.goto(BASE + '#bills', { waitUntil: 'load' }); await page.waitForSelector('.bud-rows');
     assert.match(await page.locator('.bud-rows').innerText(), /Gas[\s\S]*Groceries[\s\S]*\$20\.00 over budget/);
     await page.locator('.row.bgt', { hasText: 'Gas' }).click(); await page.waitForSelector('.bud-strip');
+    await page.click('#sheet [data-action="bud-amt"]'); await page.waitForSelector('#budamt #o-scope');
     await page.click('#sheet [data-action="edit"][data-type="spend"]'); await page.waitForSelector('#form[data-type="spend"]');
     assert.match(await page.locator('#sheet').innerText(), /Budget each pay cycle/); await page.keyboard.press('Escape'); await noHScroll(page, '390 bills');
   });

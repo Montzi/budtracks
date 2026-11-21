@@ -578,6 +578,28 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 
 .hero-stats .ss-sub{display:block;font-size:11px;opacity:.7;margin-top:2px;white-space:nowrap}
 
+.hero-saved { margin: 10px 0 0; font-size: 13px; color: var(--hero-ink-2); display: flex; justify-content: space-between; gap: 8px; }
+.hero-saved b { font-family: var(--mono); font-weight: 500; color: var(--brass-hi); }
+.sv-addrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 4px 0 8px; }
+.sv-addrow .meta { font-size: 13px; color: var(--ink-3); }
+.bs { scroll-margin-top: 12px; }
+button.tile.bs-chip { text-align: left; font: inherit; color: inherit; cursor: pointer; width: 100%; min-width: 0; }
+button.tile.bs-chip:hover { border-color: var(--line-2); }
+button.tile.bs-chip[aria-pressed="true"] { border-color: var(--accent); background: var(--surface-2); box-shadow: 0 0 0 1px var(--accent) inset; }
+button.tile.bs-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.apple-h { padding-top: 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.apple-h .meta { font-family: var(--mono); font-size: 12px; }
+.scope { grid-column: 1 / -1; border: 1px solid var(--line-2); border-radius: 12px; padding: 8px 12px 10px; margin: 0; display: grid; gap: 6px; min-width: 0; }
+.scope[hidden] { display: none; }
+.scope legend { font-size: 12px; color: var(--ink-3); padding: 0 6px; }
+.scope-opt { display: flex; align-items: flex-start; gap: 10px; padding: 6px 2px; cursor: pointer; }
+.scope-opt input { margin: 4px 0 0; flex: none; accent-color: var(--accent); width: 18px; height: 18px; }
+.scope-opt span { display: grid; gap: 1px; min-width: 0; }
+.scope-opt em { font-style: normal; font-size: 12px; color: var(--ink-3); }
+details.skipped > summary { list-style: none; cursor: pointer; }
+details.skipped > summary::-webkit-details-marker { display: none; }
+details.skipped > summary .chev { transition: transform .15s; }
+details.skipped[open] > summary .chev { transform: rotate(90deg); }
 .sv-chip { display: inline-block; margin-top: 4px; font-size: 11px; font-family: var(--mono); color: var(--brass-hi); border: 1px solid var(--hero-line); border-radius: 99px; padding: 2px 8px; white-space: nowrap; }
 .sv-box { margin-top: 16px; padding: 14px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); display: grid; gap: 12px; }
 .sv-box.off { grid-template-columns: 1fr auto; align-items: center; gap: 12px; }
@@ -1911,7 +1933,7 @@ function normalize(s) {
   o.bank.order = o.bank.order.filter((x, i, l) => typeof x === 'string' && l.indexOf(x) === i);
   if (typeof o.settings.hideBalances !== 'boolean') o.settings.hideBalances = false;
   if (!o.settings.legendOpen || typeof o.settings.legendOpen !== 'object' || Array.isArray(o.settings.legendOpen)) o.settings.legendOpen = {};
-  if (typeof o.settings.billsView !== 'string') o.settings.billsView = 'all';
+  if (typeof o.settings.billsView !== 'string') o.settings.billsView = '';
   if (!o.bank.notPay || typeof o.bank.notPay !== 'object') o.bank.notPay = {};
   if (!o.bank.notMatch || typeof o.bank.notMatch !== 'object') o.bank.notMatch = {};
   // Ledger of every bank transaction received (last 180 days). Seeded once from what older versions kept elsewhere.
@@ -2153,7 +2175,7 @@ function budgetSheet(id) {
     ${b.category ? '' : '<p class="note">Pick a category so spending can count toward this budget.</p>'}
     <div class="subhead" style="border:0;padding-left:0;margin-top:12px">Counted toward it · ${b.spends.length}${b.category ? ' · ' + esc(b.category) : ''}</div>
     <ul class="rows" style="padding:0">${b.spends.slice().sort((x, y) => x.date < y.date ? 1 : -1).map(e => `<li class="row tap" data-action="edit" data-type="extra" data-id="${esc(e.ref)}" tabindex="0" role="button" aria-label="Edit ${esc(e.name)}: ${fmt(e.amount)}"><div class="date" aria-hidden="true"><span class="dow">${DOW[BT.parse(e.date).getDay()]}</span><span class="dd">${BT.parse(e.date).getDate()}</span></div><div class="main"><div class="nm">${esc(e.name)}</div><div class="sub">${md(e.date)}${e.memo ? ' · ' + esc(e.memo) : ''}<span class="edit-hint"> · Edit</span></div></div><div class="amt">${fmt(e.amount)}</div></li>`).join('') || '<li class="empty">Nothing spent yet this cycle.</li>'}</ul>
-    <div class="actions"><button type="button" class="btn" data-action="add" data-type="extra">Add spending</button><div class="r"><button type="button" class="btn primary" data-action="edit" data-type="spend" data-id="${esc(id)}">Edit budget amount</button></div></div>`);
+    <div class="actions"><button type="button" class="btn" data-action="add" data-type="extra">Add spending</button><button type="button" class="btn" data-action="skip-cycle" data-key="${esc(b.key)}" data-name="${esc(b.name)} budget">Skip this cycle</button><div class="r"><button type="button" class="btn primary" data-action="bud-amt" data-id="${esc(id)}">Edit budget amount</button></div></div>`);
 }
 function viewOverview() {
   const view = state.settings.view;
@@ -2205,7 +2227,7 @@ function viewOverview() {
   const rows = dated.length ? `<ul class="rows">${pinned.map(one).join('')}${open.map(one).join('') || (pinned.length ? '' : '<li class="empty all-done">All paid for this ' + VIEWNAME[view] + '.</li>')}</ul>`
     + (done.length ? `<div class="subhead done-h"><span>Completed · ${done.length} · ${fmt(done.reduce((a, x) => a + x.amount, 0))}</span><label class="sr" for="donesort">Sort completed</label><select id="donesort" class="done-sort">${[['recent', 'Most recent'], ['oldest', 'Oldest first'], ['high', 'Amount: high to low'], ['low', 'Amount: low to high'], ['name', 'Name A to Z'], ['cat', 'Category']].map(([v, l]) => `<option value="${v}"${v === ds ? ' selected' : ''}>${l}</option>`).join('')}</select></div><ul class="rows done-rows">${done.map(one).join('')}</ul>` : '')
     : '<div class="empty">Nothing due in this period.</div>';
-  const rowsAll = rows + pausedHTML(r) + budgetsHTML(budgets);
+  const rowsAll = rows + pausedHTML(r) + skippedHTML(r) + budgetsHTML(budgets);
   OCC = new Map(s.items.map(x => [x.key, x]));
 
   const groups = byCategory(s.items, r), chartTotal = BT.round2(groups.reduce((a, g) => a + g.value, 0));
@@ -2236,6 +2258,7 @@ function viewOverview() {
       <div><dt>Still due</dt><dd>${hm(s.due)}</dd></div>
       <div><dt>After all bills</dt><dd class="${!hide && s.left < 0 && s.income > 0 ? 'neg' : ''}">${s.income > 0 ? hm(s.left) : 'Set income'}</dd></div>
     </dl>
+    ${(() => { const sv = state.savings.on ? BT.savedIn(state, r) : 0; return sv > 0 ? `<p class="hero-saved">Saved this ${{ weekly: 'week', biweekly: 'cycle', monthly: 'month' }[view]} <b>${hm(sv)}</b></p>` : ''; })()}
     ${payPrompt(r) || (pc && !pc.amount && !pc.askFrom ? `<button class="cta" data-action="edit" data-type="income" data-id="${pc.id}">Add your paycheck amount to see what is left over each ${VIEWNAME[view]}.</button>` : '')}
     <div class="hero-foot"><span>Next ${VIEWNAME[view]} needs <b>${hm(ns.needed)}</b></span>${isNow ? '' : '<button class="linkbtn" data-action="today">Back to now</button>'}<span class="sync" data-s="${SYNC.s}" role="status">${esc(SYNC.t)}</span></div>
   </section>
@@ -2252,36 +2275,56 @@ function viewOverview() {
   </div>`;
 }
 
+// A bill belongs to Subscriptions when its group is a subscription group (Apple included) or its category is Subscriptions.
+const isSubBill = b => SUB_GROUPS.includes(b.group) || b.category === 'Subscriptions';
+const billSection = b => isSubBill(b) ? 'Subscriptions' : b.group === 'Fixed' ? 'Fixed' : 'Other bills';
+const BILL_SECTIONS = ['Fixed', 'Subscriptions', 'Other bills'];
+const BILL_CHIPS = [['fixed', 'Fixed', 's1'], ['subs', 'Subscriptions', 's3'], ['budgets', 'Budgets', 's5'], ['all', 'All recurring', '']];
+function billRow(b) {
+  const k = likelyKeyFor('bill', b.id);
+  return `<li class="row tap" data-action="edit" data-type="bill" data-id="${b.id}" tabindex="0" role="button" aria-label="Edit ${esc(b.name)}">
+        <span></span><div class="daybadge">${ord(b.day)}</div><div class="main"><div class="nm">${esc(b.name)}${b.active === false ? ' <span class="pill soft">Paused</span>' : ''}${k ? likelyPill(k) : ''}</div><div class="sub">${b.category ? catIcon(b.category) + '<span class="bcat">' + esc(b.category) + '</span> · ' : ''}${b.note ? esc(b.note) + ' · ' : ''}Due the ${ord(b.day)}${b.via ? ' <span class="tag via">via ' + esc(viaText(b.via)) + '</span>' : ''}</div>${k ? likelyDetail(k) : ''}</div><div class="amt">${fmt(b.amount)}</div></li>`;
+}
+// Everything that repeats, by day of the month: bills, subscriptions (Apple too), card minimums, then budgets (no due day).
+function allRecurringHTML() {
+  const rows = [
+    ...live(state.bills).map(b => ({ day: b.day, nm: b.name, amt: b.amount, html: billRow(b) })),
+    ...live(state.cards).filter(c => c.minPayment).map(c => ({ day: c.day, nm: c.name, amt: c.minPayment, html: `<li class="row tap" data-action="edit" data-type="card" data-id="${c.id}" tabindex="0" role="button" aria-label="Edit ${esc(c.name)}"><span></span><div class="daybadge">${ord(c.day)}</div><div class="main"><div class="nm">${esc(c.name)}</div><div class="sub">${catIcon('Credit cards')}<span class="bcat">Credit cards</span> · Minimum payment · Due the ${ord(c.day)}</div></div><div class="amt">${fmt(c.minPayment)}</div></li>` }))
+  ].sort((a, b) => a.day - b.day || a.nm.localeCompare(b.nm));
+  const buds = live(state.perPeriod).sort((a, b) => a.name.localeCompare(b.name));
+  const total = BT.round2(monthlyTotal(state.bills) + live(state.cards).reduce((t, c) => t + (c.minPayment || 0), 0) + buds.reduce((t, x) => t + x.amount, 0) * 2);
+  return `<section class="card bs" id="bs-all"><header class="card-h"><div><h2>All recurring</h2></div><div class="r"><span class="meta">${rows.length + buds.length} items · ${fmt(total)}/mo</span></div></header>
+    <ul class="rows">${rows.map(r => r.html).join('')}${buds.map(x => `<li class="row tap" data-action="budget" data-id="${esc(x.id)}" tabindex="0" role="button" aria-label="${esc(x.name)} budget"><span></span><div class="daybadge">2×</div><div class="main"><div class="nm">${esc(x.name)}</div><div class="sub">${catIcon(x.category || 'Other')}<span class="bcat">${esc(x.category || 'Budget')}</span> · Budget each pay cycle</div></div><div class="amt">${fmt(x.amount)}</div></li>`).join('')}</ul></section>`;
+}
 function viewBills() {
-  const fixed = live(state.bills).filter(b => b.group === 'Fixed');
-  const subs = live(state.bills).filter(b => b.group !== 'Fixed');
+  const bills = live(state.bills), fixed = bills.filter(b => billSection(b) === 'Fixed'), subList = bills.filter(b => billSection(b) === 'Subscriptions');
   const per = live(state.perPeriod).reduce((a, b) => a + b.amount, 0);
   const archived = [...state.bills.filter(b => b.endDate).map(b => ({ type: 'bill', i: b, nm: b.name, amt: b.amount })),
     ...state.perPeriod.filter(b => b.endDate).map(b => ({ type: 'spend', i: b, nm: b.name, amt: b.amount })),
     ...state.cards.filter(b => b.endDate).map(b => ({ type: 'card', i: b, nm: b.name, amt: b.minPayment }))];
-  const all = monthlyTotal(state.bills) + per * 2;
-  const cards = BILL_GROUPS.map(g => {
-    const list = live(state.bills).filter(b => (BILL_GROUPS.includes(b.group) ? b.group : 'Other bills') === g).sort((a, b) => a.day - b.day);
+  const all = BT.round2(monthlyTotal(state.bills) + live(state.cards).reduce((t, c) => t + (c.minPayment || 0), 0) + per * 2);
+  const view = BILL_CHIPS.some(c => c[0] === state.settings.billsView) ? state.settings.billsView : '';
+  const head = (g, list, id) => `<header class="card-h"><div><h2><span class="dot" style="--c:${gc(g)};display:inline-block;margin-right:8px"></span>${g}</h2></div>
+      <div class="r"><span class="meta">${fmt(monthlyTotal(list))}/mo</span><button class="icon-btn" data-action="add" data-type="bill" data-group="${g}" aria-label="Add to ${g}">${ICON.plus}</button></div></header>`;
+  const cards = BILL_SECTIONS.map(g => {
+    const list = bills.filter(b => billSection(b) === g).sort((a, b) => a.day - b.day);
     if (!list.length && g === 'Other bills') return '';
-    return `<section class="card"><header class="card-h"><div><h2><span class="dot" style="--c:${gc(g)};display:inline-block;margin-right:8px"></span>${g}</h2></div>
-      <div class="r"><span class="meta">${fmt(monthlyTotal(list))}/mo</span><button class="icon-btn" data-action="add" data-type="bill" data-group="${g}" aria-label="Add to ${g}">${ICON.plus}</button></div></header>
-      ${list.length ? `<ul class="rows">${list.map(b => `<li class="row tap" data-action="edit" data-type="bill" data-id="${b.id}" tabindex="0" role="button" aria-label="Edit ${esc(b.name)}">
-        <span></span><div class="daybadge">${ord(b.day)}</div><div class="main"><div class="nm">${esc(b.name)}${b.active === false ? ' <span class="pill soft">Paused</span>' : ''}${(() => { const k = likelyKeyFor('bill', b.id); return k ? likelyPill(k) : ''; })()}</div><div class="sub">${b.category ? catIcon(b.category) + '<span class="bcat">' + esc(b.category) + '</span> · ' : ''}${b.note ? esc(b.note) + ' · ' : ''}Due the ${ord(b.day)}${b.via ? ' <span class="tag via">via ' + esc(viaText(b.via)) + '</span>' : ''}</div>${(() => { const k = likelyKeyFor('bill', b.id); return k ? likelyDetail(k) : ''; })()}</div><div class="amt">${fmt(b.amount)}</div></li>`).join('')}</ul>` : '<div class="empty">No items yet.</div>'}
-    </section>`;
+    const id = g === 'Fixed' ? 'bs-fixed' : g === 'Subscriptions' ? 'bs-subs' : 'bs-other';
+    if (g !== 'Subscriptions') return `<section class="card bs" id="${id}">${head(g, list)}${list.length ? `<ul class="rows">${list.map(billRow).join('')}</ul>` : '<div class="empty">No items yet.</div>'}</section>`;
+    // Subscriptions: general ones first, then an Apple sub-section with its own subtotal.
+    const apple = list.filter(b => b.group === 'Apple Subscriptions'), gen = list.filter(b => b.group !== 'Apple Subscriptions');
+    return `<section class="card bs" id="${id}">${head(g, list)}${list.length ? `${gen.length ? `<ul class="rows">${gen.map(billRow).join('')}</ul>` : ''}${apple.length ? `<div class="subhead apple-h" id="bs-apple"><span>Apple · ${apple.length}</span><span class="meta">${fmt(monthlyTotal(apple))}/mo</span></div><ul class="rows apple-rows">${apple.map(billRow).join('')}</ul>` : ''}` : '<div class="empty">No items yet.</div>'}</section>`;
   });
+  const vals = { fixed: monthlyTotal(fixed), subs: monthlyTotal(subList), budgets: per, all };
   return `<div class="stack">
-    <div class="strip">
-      <div class="tile"><div class="k"><span class="dot" style="--c:var(--s1)"></span>Fixed</div><div class="v">${fmt0(monthlyTotal(fixed))}<small>/mo</small></div></div>
-      <div class="tile"><div class="k"><span class="dot" style="--c:var(--s3)"></span>Subscriptions</div><div class="v">${fmt0(monthlyTotal(subs))}<small>/mo</small></div></div>
-      <div class="tile"><div class="k"><span class="dot" style="--c:var(--s5)"></span>Budgets</div><div class="v">${fmt0(per)}<small>×2/mo</small></div></div>
-      <div class="tile"><div class="k">All recurring</div><div class="v">${fmt0(all)}<small>/mo</small></div></div>
-    </div>
+    <div class="strip bs-chips" role="group" aria-label="Jump to a section">${BILL_CHIPS.map(([v, l, c]) => `<button type="button" class="tile bs-chip" data-action="bills-chip" data-v="${v}" aria-pressed="${view === v}"><div class="k">${c ? `<span class="dot" style="--c:var(--${c})"></span>` : ''}${l}</div><div class="v">${fmt0(vals[v])}<small>${v === 'budgets' ? '×2/mo' : '/mo'}</small></div></button>`).join('')}</div>
+    ${view === 'all' ? allRecurringHTML() : ''}
     <div class="grid-2"><div class="stack">${cards.slice(0, 2).join('')}</div>
     <div class="stack">${cards.slice(2).join('')}
-      <section class="card"><header class="card-h"><div><h2><span class="dot" style="--c:var(--s5);display:inline-block;margin-right:8px"></span>Budgets</h2></div>
+      <section class="card bs" id="bs-budgets"><header class="card-h"><div><h2><span class="dot" style="--c:var(--s5);display:inline-block;margin-right:8px"></span>Budgets</h2></div>
         <div class="r"><span class="meta">${fmt(per)} each cycle</span><button class="icon-btn" data-action="add" data-type="spend" aria-label="Add a budget">${ICON.plus}</button></div></header>
         <div class="card-b note" style="padding-bottom:6px">No due dates. Spending in a budget's category counts toward it, once per pay cycle.</div>
-        ${(() => { const cyc = BT.summary(state, BT.periodRange(state, 'biweekly', 0, TODAY), TODAY).items.filter(x => x.kind === 'spend'); return cyc.length ? `<div class="subhead bud-h">Budgets this cycle</div><ul class="rows bud-rows">${cyc.map(budgetRow).join('')}</ul>` : '<div class="empty">No budgets yet.</div>'; })()}
+        ${(() => { const cr = BT.periodRange(state, 'biweekly', 0, TODAY), cyc = BT.summary(state, cr, TODAY).items.filter(x => x.kind === 'spend'); return (cyc.length ? `<div class="subhead bud-h">Budgets this cycle</div><ul class="rows bud-rows">${cyc.map(budgetRow).join('')}</ul>` : '<div class="empty">No budgets yet.</div>') + skippedHTML(cr); })()}
       </section>
       ${archived.length ? `<section class="card"><header class="card-h"><h2>Archived</h2><span class="meta">No longer scheduled</span></header>
         <ul class="rows">${archived.map(a => `<li class="row"><span></span><div class="daybadge">${catIcon(a.i.category || 'Other bills')}</div><div class="main"><div class="nm">${esc(a.nm)}</div><div class="sub">Stopped ${md(a.i.endDate)}</div></div><button class="btn sm" data-action="restore-item" data-type="${a.type}" data-id="${a.i.id}">Restore</button></li>`).join('')}</ul></section>` : ''}
@@ -2383,6 +2426,7 @@ function viewIncome() {
   return `<div class="grid-2"><div class="stack">
     ${latestPaycheckCard()}
     ${otherIncomeHTML()}
+    <div class="sv-addrow">${state.savings.on ? `<span class="meta">Savings ${hid() ? MASK : fmt(BT.savingsBalance(state))}</span>` : ''}<button type="button" class="btn" data-action="sv-add">Add to savings</button></div>
     <p class="note">Each pay cycle starts on a paycheck date and runs until the day before the next one. A bill belongs to the most recent deposit before its due date, so <b>Up next</b> always shows what this paycheck has to cover.</p>
   </div>
   ${catManager()}
@@ -2582,7 +2626,7 @@ function catDetail(cat, mode, grp) {
   const n = tracked.length, avg = n >= 3 ? BT.round2(tracked.reduce((a, h) => a + h.v, 0) / n) : null;
   const shownHist = hist.filter(h => h.r.end > state.since);
   const max = Math.max(1, ...shownHist.map(h => h.v));
-  const subs = !grp && cat === 'Subscriptions' ? live(state.bills).filter(b => SUB_GROUPS.includes(b.group) && b.active !== false) : null;
+  const subs = !grp && cat === 'Subscriptions' ? live(state.bills).filter(b => isSubBill(b) && b.active !== false) : null;
   const subBox = subs ? (() => {
     const apple = subs.filter(b => b.group === 'Apple Subscriptions'), other = subs.filter(b => b.group !== 'Apple Subscriptions');
     const sum = l => BT.round2(l.reduce((a, b) => a + b.amount, 0)), all = sum(subs);
@@ -2705,7 +2749,7 @@ function periodBars(view) {
 /* ---------- Forms ---------- */
 const F = (k, label, type, extra) => Object.assign({ k, label, type }, extra || {});
 const SPECS = {
-  bill: { title: 'Bill', fields: [F('name', 'Name', 'text'), F('amount', 'Amount', 'money', { half: 1 }), F('day', 'Due day of month', 'day', { half: 1 }), F('group', 'Section', 'select', { opts: BILL_GROUPS }), F('category', 'Category', 'select', { half: 1, optsFn: () => [{ v: '', t: 'None' }, ...state.billCats] }), F('via', 'Paid via', 'via', { opt: 1 }), F('note', 'Note', 'text', { opt: 1 }), F('active', 'Active (uncheck to pause)', 'check')] },
+  bill: { title: 'Bill', fields: [F('name', 'Name', 'text'), F('amount', 'Amount', 'money', { half: 1 }), F('day', 'Due day of month', 'day', { half: 1 }), F('group', 'Section', 'select', { opts: [{ v: 'Fixed', t: 'Fixed' }, { v: 'Subscriptions', t: 'Subscriptions' }, { v: 'Apple Subscriptions', t: 'Subscriptions › Apple' }, { v: 'Other bills', t: 'Other bills' }] }), F('category', 'Category', 'select', { half: 1, optsFn: () => [{ v: '', t: 'None' }, ...state.billCats] }), F('via', 'Paid via', 'via', { opt: 1 }), F('note', 'Note', 'text', { opt: 1 }), F('active', 'Active (uncheck to pause)', 'check')] },
   spend: { title: 'Budget', fields: [F('name', 'Name', 'text'), F('amount', 'Budget each pay cycle (0 = not set)', 'money', { half: 1 }), F('category', 'Category', 'select', { half: 1, optsFn: () => [{ v: '', t: 'None' }, ...state.categories, ...state.billCats.filter(c => !state.categories.includes(c))] }), F('via', 'Paid via', 'via', { opt: 1 })] },
   income: { title: 'Income', fields: [F('name', 'Name', 'text'), F('amount', 'Usual amount', 'money', { half: 1 }), F('freq', 'How often', 'select', { half: 1, opts: Object.entries(FREQ).map(([v, t]) => ({ v, t })) }), F('date', 'A paycheck date (last or next)', 'date')] },
   plan: { title: 'Pay plan', fields: [F('provider', 'Service', 'select', { opts: PROVIDERS }), F('merchant', 'What you bought', 'text'), F('amount', 'Payment amount', 'money', { half: 1 }), F('freq', 'Payment schedule', 'select', { half: 1, opts: ['weekly', 'biweekly', 'monthly'].map(v => ({ v, t: FREQ[v] })) }), F('lastDate', 'Date of last payment made', 'date'), F('paid', 'Payments made', 'int', { half: 1, min: 0 }), F('total', 'Total payments', 'int', { half: 1, min: 1 }), F('category', 'Category', 'select', { grouped: 1, lead: 'Pick a category', optsFn: () => [] }), F('via', 'Paid via', 'via', { opt: 1 }), F('autopay', 'Autopay (count past due dates as paid)', 'check')] },
@@ -2771,6 +2815,13 @@ function openForm(type, id, extra) {
         <div class="r"><button type="button" class="btn" data-action="${inbox ? 'ix-open' : hist ? 'hx-open' : 'close'}">Cancel</button><button type="submit" class="btn primary">${isNew ? (type === 'plan' ? 'Save and choose category' : 'Add') : 'Save'}</button></div></div>
     </form>`);
   if (type === 'plan') { const f = $('#form'); f.addEventListener('input', planPreview); planPreview(); }
+  if (!isNew && AMT_KEY[type] && !inbox && !hist && !txf && pastOccs(type, item.id).length) {
+    const f = $('#form'), ak = AMT_KEY[type], el = f.elements[ak], first = item[ak];
+    if (el) {
+      const lab = el.closest('label'); if (lab) lab.insertAdjacentHTML('afterend', scopeHTML(true, first, type === 'card' ? 'minimum payment' : type === 'spend' ? 'budget' : 'bill'));
+      el.addEventListener('input', () => { const sc = $('#o-scope'); if (sc) sc.hidden = !(BT.round2(parseFloat(el.value)) !== first); });
+    }
+  }
   addIconChooser($('#form'));
   setTimeout(() => { const first = $('#form input[type="text"]'); if (first && isNew && window.matchMedia('(min-width:700px)').matches) first.focus(); }, 50);
 }
@@ -2841,6 +2892,13 @@ function saveForm(form) {
     const it = findItem(type, id);
     if (type === 'plan' && it.dates && ['amount', 'freq', 'lastDate', 'paid', 'total'].some(k => o[k] !== it[k])) { delete it.dates; delete it.amounts; delete it.purchased; }
     const was = it.from || '';
+    const ak = AMT_KEY[type];
+    if (ak && typeof o[ak] === 'number' && o[ak] !== it[ak] && pastOccs(type, it.id).length) {
+      // The amount changed on an item with history: ask whether it is just this cycle or from now on.
+      const oc = scopeOf(form) === 'once' ? nextOccOf(type, it.id) : null;
+      if (oc) { const oo = state.occ[oc.key] || (state.occ[oc.key] = {}); oo.amount = o[ak]; o[ak] = it[ak]; }
+      else setAmountForever(type, it, o[ak]);
+    }
     Object.assign(it, o); if (!it.from) delete it.from;
     if (type === 'extra' && it.bank) { if (it.note) state.bank.notes[it.bank] = it.note; else delete state.bank.notes[it.bank]; }
     closeSheet(); commit(type === 'extra' && it.from && it.from !== was ? 'Counted as part of unallocated spending' : 'Saved'); return;
@@ -2913,6 +2971,65 @@ function occCatOpts(x) {
   const none = x.kind === 'bill' && SUB_GROUPS.includes(x.group) ? 'Subscriptions' : x.kind === 'card' ? 'Credit cards' : 'None';
   return [{ v: '', t: none }, ...allCats()];
 }
+// ---- One-time vs permanent amounts ----
+// "From now on" changes the item itself. Past cycles keep what they were by pinning their old amount first.
+const AMT_KEY = { bill: 'amount', spend: 'amount', card: 'minPayment' };
+function pastOccs(kind, ref) {
+  const c = BT.periodRange(state, 'biweekly', 0, TODAY);
+  if (!(state.since < c.start)) return [];
+  return BT.occurrences(state, { start: state.since, end: c.start, view: 'biweekly' }, TODAY).filter(x => x.kind === kind && x.ref === ref && x.natural < c.start);
+}
+function setAmountForever(kind, item, a) {
+  const k = AMT_KEY[kind], old = item[k];
+  if (BT.round2(old) !== BT.round2(a)) pastOccs(kind, item.id).forEach(x => { const o = state.occ[x.key] || (state.occ[x.key] = {}); if (typeof o.amount !== 'number') o.amount = x.base; });
+  item[k] = a;
+}
+// The occurrence a "just this cycle" change from the edit form lands on: the next one from the start of this pay cycle.
+function nextOccOf(kind, ref) {
+  const c = BT.periodRange(state, 'biweekly', 0, TODAY);
+  return BT.occurrences(state, { start: c.start, end: BT.addDays(c.start, 62), view: 'biweekly' }, TODAY).filter(x => x.kind === kind && x.ref === ref).sort((a, b) => a.date < b.date ? -1 : 1)[0] || null;
+}
+const scopeHTML = (hidden, base, what) => `<fieldset class="fld scope" id="o-scope"${hidden ? ' hidden' : ''}><legend>Use this amount</legend>
+  <label class="scope-opt"><input type="radio" name="scope" value="once" checked><span><b>Just this cycle</b><em>${base != null ? 'Usual amount stays ' + fmt(base) : 'Only this pay cycle'}</em></span></label>
+  <label class="scope-opt"><input type="radio" name="scope" value="forever"><span><b>From now on</b><em>Changes the ${what}, this cycle too</em></span></label></fieldset>`;
+const scopeOf = f => { const r = f.querySelector('#o-scope'); const el = r && !r.hidden && f.querySelector('input[name="scope"]:checked'); return el ? el.value : 'once'; };
+// Skipped items (Skip this cycle): out of needed, kept in a collapsed list so they can come back.
+function skippedHTML(r) {
+  const l = BT.skippedIn(state, r, TODAY).sort((a, b) => a.date.localeCompare(b.date)); if (!l.length) return '';
+  return `<details class="skipped"><summary class="subhead paused-h"><span>Skipped · ${l.length}</span><span class="chev" aria-hidden="true">›</span></summary><ul class="rows paused">${l.map(z => `<li class="row paused-row"><div class="daybadge">${z.kind === 'spend' ? '·' : BT.parse(z.date).getDate()}</div><div class="main"><div class="nm">${esc(z.name)}</div><div class="sub">Skipped this cycle · ${fmt(z.amount)}</div></div><button type="button" class="btn sm" data-action="unskip" data-key="${esc(z.key)}">Unskip</button></li>`).join('')}</ul></details>`;
+}
+function skipCycle(k, name) {
+  const o = state.occ[k] || (state.occ[k] = {}); o.skip = true; o.skipped = true; delete state.marks[k];
+  closeSheet(); commit();
+  toast('Skipped ' + name + ' this cycle', () => unskip(k, true));
+}
+function unskip(k, quiet) {
+  const o = state.occ[k]; if (!o) return;
+  delete o.skip; delete o.skipped; if (!Object.keys(o).length) delete state.occ[k];
+  commit(quiet ? 'Back on the list' : 'Unskipped');
+}
+function budgetAmountSheet(id) {
+  const o = budgetOf(id), item = state.perPeriod.find(p => p.id === id);
+  if (!item) return; if (!o) { openForm('spend', id); return; }
+  const { b, r } = o;
+  openSheet(`<div class="sheet-h"><div><h3>${esc(b.name)} budget</h3><p class="lede">${rangeLabel({ start: r.start, end: r.end, view: 'biweekly' })} · usually ${fmt(item.amount)}</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    <form class="form" id="budamt" data-key="${esc(b.key)}" data-id="${esc(id)}" novalidate>
+      <label class="fld" for="ba-amt"><span>Budget amount</span><div class="money-in"><i>$</i><input id="ba-amt" name="amount" type="number" inputmode="decimal" step="0.01" min="0" value="${b.budget || item.amount}"></div></label>
+      ${scopeHTML(false, item.amount, 'budget')}
+      <div class="form-err" id="ferr" role="alert"></div>
+      <div class="actions"><button type="button" class="btn" data-action="edit" data-type="spend" data-id="${esc(id)}">Name and category</button><div class="r"><button type="button" class="btn" data-action="close">Cancel</button><button type="submit" class="btn primary">Save</button></div></div>
+    </form>`);
+  setTimeout(() => { const i = $('#ba-amt'); if (i) { i.focus(); i.select(); } }, 60);
+}
+function saveBudgetAmount(f) {
+  const a = BT.round2(parseFloat(f.elements.amount.value)), item = state.perPeriod.find(p => p.id === f.dataset.id), k = f.dataset.key;
+  if (!item) return closeSheet();
+  if (!(a >= 0)) { $('#ferr').textContent = 'Enter an amount, like 150.'; f.elements.amount.focus(); return; }
+  const forever = scopeOf(f) === 'forever';
+  if (forever) { setAmountForever('spend', item, a); if (state.occ[k]) { delete state.occ[k].amount; cleanOcc(k); } }
+  else { const o = state.occ[k] || (state.occ[k] = {}); if (a !== item.amount) o.amount = a; else delete o.amount; cleanOcc(k); }
+  closeSheet(); commit((forever ? 'Budget is ' + fmt(a) + ' from now on' : 'Budget is ' + fmt(a) + ' for this cycle'));
+}
 function openOcc(key) {
   const x = OCC.get(key); if (!x) return;
   const canDefault = x.kind !== 'plan';
@@ -2923,21 +3040,23 @@ function openOcc(key) {
     <form class="form" id="occform" data-key="${esc(key)}" novalidate>
       ${x.kind === 'unalloc' ? '' : `<label class="fld" for="o-name"><span>Name <em>changes it everywhere</em></span><input id="o-name" name="nm" type="text" autocomplete="off" value="${esc(x.name)}"></label>`}
       ${x.kind === 'unalloc' || x.kind === 'extra' ? '' : catIconField(occCat(x), occCatOpts(x)) + viaField(x.via)}
-      <label class="fld" for="o-amount"><span>Amount this time${x.edited ? ' <em>usually ' + fmt(x.base) + '</em>' : ''}</span><div class="money-in"><i>$</i><input id="o-amount" name="amount" type="number" inputmode="decimal" step="0.01" min="0" value="${x.amount}"></div></label>
+      <label class="fld" for="o-amount"><span>Amount${x.edited ? ' <em>usually ' + fmt(x.base) + '</em>' : ''}</span><div class="money-in"><i>$</i><input id="o-amount" name="amount" type="number" inputmode="decimal" step="0.01" min="0" value="${x.amount}"></div></label>
+      ${canDefault ? scopeHTML(true, x.base, what) : ''}
       ${x.kind === 'spend' ? `<input type="hidden" name="due" value="${x.due}"><input type="hidden" name="on" value="">` : `<label class="fld" for="o-due"><span>Due date${x.due !== x.natural ? ' <em>originally ' + md(x.natural) + '</em>' : ''}</span><input id="o-due" name="due" type="date" value="${x.due}"></label>`}
       <label class="fld chk" for="o-paid"><input type="checkbox" id="o-paid" name="paid" ${x.paid ? 'checked' : ''}><span>Paid</span></label>
       ${x.kind === 'spend' ? '' : `<label class="fld" for="o-on"><span>Date paid</span><input id="o-on" name="on" type="date" value="${x.paidOn || x.due}"></label>`}
       ${x.kind === 'spend' ? '' : '<p class="note" style="grid-column:span 2;margin:0">It counts in the pay cycle of the date paid. If unpaid, the due date.</p>'}
-      ${canDefault ? `<label class="fld chk" for="o-def"><input type="checkbox" id="o-def" name="def"><span>Use this amount from now on (changes the ${what})</span></label>` : ''}
       ${isSub(x) ? '<p class="note" style="grid-column:span 2;margin:0">Pause skips this month only. It leaves upcoming and past due, and you can resume it from the Paused list.</p>' : ''}
       <div class="form-err" id="ferr" role="alert"></div>
       <div class="rm-confirm" id="rmc" hidden><p><b>Remove ${esc(x.name)}?</b> Just this ${x.kind === 'plan' ? 'payment' : 'time'}, or from now on? From now on archives it. Past ${VIEWNAME.biweekly}s keep it.</p>
         <div class="rm-btns"><button type="button" class="btn" data-action="rm-once">Just this time</button><button type="button" class="btn danger" data-action="rm-forward">From now on</button><button type="button" class="btn" data-action="rm-cancel">Keep it</button></div></div>
-      <div class="actions" id="occ-actions">${x.kind === 'unalloc' ? '' : '<button type="button" class="btn danger" data-action="rm-ask">Remove</button>'}${isSub(x) ? '<button type="button" class="btn" data-action="pause-sub">Pause this month</button>' : ''}${x.edited ? '<button type="button" class="btn" data-action="occ-reset">Use usual amount</button>' : ''}
+      <div class="actions" id="occ-actions">${x.kind === 'unalloc' ? '' : '<button type="button" class="btn danger" data-action="rm-ask">Remove</button>'}${x.kind === 'unalloc' || x.kind === 'extra' ? '' : '<button type="button" class="btn" data-action="skip-cycle">Skip this cycle</button>'}${isSub(x) ? '<button type="button" class="btn" data-action="pause-sub">Pause this month</button>' : ''}${x.edited ? '<button type="button" class="btn" data-action="occ-reset">Use usual amount</button>' : ''}
         <div class="r"><button type="button" class="btn" data-action="close">Cancel</button><button type="submit" class="btn primary">Save</button></div></div>
     </form>`);
   const f = $('#occform');
   wireIconField(f);
+  const askScope = () => { const sc = $('#o-scope'); if (sc) sc.hidden = !(BT.round2(parseFloat(f.elements.amount.value)) !== x.amount); };
+  f.elements.amount.addEventListener('input', askScope);
   if (x.kind !== 'spend') {
     const sync = () => { f.elements.on.disabled = !f.elements.paid.checked; };
     f.elements.paid.addEventListener('change', sync); sync();
@@ -2965,10 +3084,10 @@ function saveOcc(f) {
     if (item) { if (x.kind === 'plan') item.merchant = nm; else item.name = nm; }
   }
   const a = BT.round2(amt), o = state.occ[k] || (state.occ[k] = {});
-  if (f.elements.def && f.elements.def.checked) {
+  if (a !== x.amount && scopeOf(f) === 'forever' && AMT_KEY[x.kind]) {
     const list = { bill: 'bills', spend: 'perPeriod', card: 'cards' }[x.kind];
     const item = state[list].find(i => i.id === x.ref);
-    if (item) { if (x.kind === 'card') item.minPayment = a; else item.amount = a; }
+    if (item) setAmountForever(x.kind, item, a);
     delete o.amount;
   } else if (a !== x.base) o.amount = a; else delete o.amount;
   if (due !== x.natural) o.date = due; else delete o.date;
@@ -3025,7 +3144,7 @@ function balanceSheet() {
     <div class="sh-btns"><button type="button" class="icon-btn${busy ? ' spinning' : ''}" data-action="bal-refresh" aria-label="Refresh balances"${busy ? ' disabled aria-busy="true"' : ''}>${ICON.refresh}</button><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div></div>
     ${multi ? `<div class="bal-tools"><button type="button" class="linkbtn" data-action="bal-edit" aria-pressed="${edit}">${edit ? 'Done' : 'Edit order'}</button></div>` : ''}
     <div class="bal-banks" id="balbanks">${rows}</div>${owedHTML}
-    <div class="actions"><button type="button" class="btn" data-action="bal-hand">Set balance by hand</button><div class="r"><button type="button" class="btn primary" data-action="bal-sync"${BANKUI.syncing ? ' disabled' : ''}>${BANKUI.syncing ? 'Syncing…' : 'Sync now'}</button></div></div>`);
+    <div class="actions"><button type="button" class="btn" data-action="bal-hand">Set balance by hand</button><button type="button" class="btn" data-action="sv-add">Add to savings</button><div class="r"><button type="button" class="btn primary" data-action="bal-sync"${BANKUI.syncing ? ' disabled' : ''}>${BANKUI.syncing ? 'Syncing…' : 'Sync now'}</button></div></div>`);
   BALUI.open = true;
 }
 // Refresh icon: ask every bank for new activity (when the plan allows it), sync, and say how it went.
@@ -3098,7 +3217,7 @@ function accountSheet(force) {
       <label class="fld chk" for="a-fresh"><input type="checkbox" id="a-fresh" name="fresh"><span>Start fresh from this balance (no unallocated spending)</span></label>
       <div class="form-err" id="ferr" role="alert"></div>
       <div class="actions">${est ? '' : '<button type="button" class="btn" data-action="acct-reset">Recalculate from this paycheck</button>'}<div class="r"><button type="button" class="btn" data-action="close">Cancel</button><button type="submit" class="btn primary">Save</button></div></div>
-    </form>${savingsHTML()}`);
+    </form><div class="sv-addrow"><button type="button" class="btn" data-action="sv-add">Add to savings</button></div>${savingsHTML()}`);
   const f = $('#acctform'), show = () => {
     const v = parseFloat(f.elements.bal.value), d = BT.round2(cur - v), el = $('#a-diff');
     el.innerHTML = !isFinite(v) ? 'Enter the balance your bank shows.' : f.elements.fresh.checked ? 'Balance will be set to ' + fmt(v) + '. Nothing goes to unallocated.'
@@ -3110,7 +3229,7 @@ function accountSheet(force) {
 // Savings: optional. Moves to savings leave checking but are not spending.
 function savingsHTML() {
   const s = state.savings;
-  if (!s.on) return `<div class="sv-box off"><div><b>Savings</b><span>Track money you move to savings. It leaves your checking balance and is not counted as spending.</span></div><button type="button" class="btn" data-action="sv-on">Turn on</button></div>`;
+  if (!s.on) return '';
   const tx = s.tx.slice().sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
   const label = { open: 'Savings I already had', in: 'Moved to savings', out: 'Moved to checking' };
   const banks = [...new Set(state.payVia.map(m => m.bank).concat(s.bank ? [s.bank] : []))];
@@ -3127,6 +3246,29 @@ function savingsHTML() {
     </form>
     ${tx.length ? `<ul class="sv-tx">${tx.map(t => `<li><span class="sv-d">${md(t.date)}</span><span class="sv-t">${label[t.type]}${t.note ? ' · ' + esc(t.note) : ''}</span><b class="${t.type === 'out' ? 'neg' : 'pos'}">${t.type === 'out' ? '−' : '+'}${fmt(t.amount)}</b><button type="button" class="x" data-action="sv-del" data-id="${esc(t.id)}" aria-label="Remove">${ICON.close}</button></li>`).join('')}</ul>` : '<p class="lede">No savings activity yet.</p>'}
   </div>`;
+}
+// "Add to savings": records a move into savings (and turns savings on). Amount, date, where it came from, a note.
+function savingsAddSheet() {
+  const from = [...new Set(state.payVia.map(viaLabel).concat(bankHas() ? shownBanks().map(it => it.institution || '').filter(Boolean) : []))];
+  openSheet(`<div class="sheet-h"><div><h3>Add to savings</h3><p class="lede">Money you moved out of checking into savings. It is not counted as spending.</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    <form class="form" id="svadd" novalidate>
+      <label class="fld half" for="sa-amt"><span>Amount</span><div class="money-in"><i>$</i><input id="sa-amt" name="amt" type="number" inputmode="decimal" step="0.01" min="0"></div></label>
+      <label class="fld half" for="sa-date"><span>Date</span><input id="sa-date" name="date" type="date" value="${TODAY}"></label>
+      <label class="fld" for="sa-from"><span>From account <em>optional</em></span><select id="sa-from" name="from"><option value="">Not set</option>${from.map(f => `<option>${esc(f)}</option>`).join('')}</select></label>
+      <label class="fld" for="sa-note"><span>Note <em>optional</em></span><input id="sa-note" name="note" type="text" maxlength="60" autocomplete="off"></label>
+      <div class="form-err" id="sverr" role="alert"></div>
+      <div class="actions"><div class="r"><button type="button" class="btn" data-action="close">Cancel</button><button type="submit" class="btn primary">Add to savings</button></div></div>
+    </form>`);
+  setTimeout(() => { const i = $('#sa-amt'); if (i) i.focus(); }, 60);
+}
+function saveSavingsAdd(f) {
+  const amt = BT.round2(parseFloat(f.elements.amt.value)), date = f.elements.date.value;
+  if (!(amt > 0)) { $('#sverr').textContent = 'Enter an amount, like 100.'; f.elements.amt.focus(); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { $('#sverr').textContent = 'Pick a date.'; return; }
+  const tx = { id: uid('sv'), type: 'in', amount: amt, date, note: f.elements.note.value.trim().slice(0, 60) };
+  if (f.elements.from.value) tx.from = f.elements.from.value;
+  state.savings.tx.push(tx); state.savings.on = true;
+  closeSheet(); commit(fmt(amt) + ' moved to savings');
 }
 function saveSavings(f) {
   const amt = BT.round2(parseFloat(f.elements.amt.value)), date = f.elements.date.value;
@@ -3459,7 +3601,7 @@ function loadPlaid() {
 function bankCard() {
   const b = state.bank, ready = bankReady(), n = (b.inbox || []).length, hn = (b.history || []).length;
   const head = `<header class="card-h"><div><h2>Bank connections · via Plaid</h2>${ready ? `<span class="meta">${b.lastSync ? 'Last synced ' + esc(relTime(b.lastSync)) : 'Not synced yet'}</span>` : ''}</div>
-    ${ready ? `<button class="btn sm" data-action="bk-sync"${BANKUI.syncing || BANKUI.rowBusy ? ' disabled' : ''}>${BANKUI.syncing && !BANKUI.rowBusy ? 'Syncing…' : 'Sync now'}</button>` : ''}</header>`;
+    ${ready ? `<button class="btn sm" data-action="bk-sync"${BANKUI.syncing || BANKUI.rowBusy ? ' disabled' : ''}>${BANKUI.syncing && !BANKUI.rowBusy ? 'Refreshing…' : 'Refresh all'}</button>` : ''}</header>`;
   if (!ready) return `<section class="card" id="bankcard">${head}<div class="card-b bk">
     <p class="note" style="margin:0">Pull in transactions from your banks automatically. Paste the address of your BudTracks bank service. The first time, this phone is paired with it. Your budget stays on this phone.</p>
     <form id="bankconn" class="bk-form" novalidate><label class="fld" for="bk-url"><span>Bank service address</span><input id="bk-url" name="url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://budtracks-bank.example.workers.dev" value="${esc(BANKUI.url)}"></label>
@@ -3467,7 +3609,7 @@ function bankCard() {
     <p class="bk-err" role="alert">${esc(BANKUI.err)}</p></div></section>`;
   const enr = BANKUI.enr;
   const list = enr === null ? (BANKUI.loadErr ? `<p class="bk-err" role="alert">${esc(BANKUI.loadErr)}</p>` : '<p class="bk-ok">Loading your banks…</p>')
-    : enr.length ? orderBanks(enr, e => e.id).map(e => `<div class="bk-enr"><div class="bk-eh"><b>${esc(e.institution || 'Bank')}</b>${e.needsReconnect ? '<span class="pill soft warn">Needs reconnect</span>' : ''}<span class="bk-sp"></span>${e.needsReconnect ? `<button class="btn sm" data-action="bk-reconnect" data-id="${esc(e.id)}">Reconnect</button>` : `<button class="btn sm" data-action="bk-item-sync" data-id="${esc(e.id)}" aria-label="Refresh ${esc(e.institution || 'bank')}"${BANKUI.syncing || BANKUI.rowBusy ? ' disabled' : ''}${BANKUI.rowBusy === e.id ? ' aria-busy="true"' : ''}>${BANKUI.rowBusy === e.id ? '<span class="spin" aria-hidden="true"></span>Refreshing…' : 'Refresh'}</button>`}<button class="btn sm danger" data-action="bk-disc" data-id="${esc(e.id)}">Disconnect</button></div>
+    : enr.length ? orderBanks(enr, e => e.id).map(e => `<div class="bk-enr"><div class="bk-eh"><b>${esc(e.institution || 'Bank')}</b>${e.needsReconnect ? '<span class="pill soft warn">Needs reconnect</span>' : ''}<span class="bk-sp"></span>${e.needsReconnect ? `<button class="btn sm" data-action="bk-reconnect" data-id="${esc(e.id)}">Reconnect</button>` : `<button class="btn sm" data-action="bk-item-sync" data-id="${esc(e.id)}" aria-label="Sync ${esc(e.institution || 'bank')}"${BANKUI.syncing || BANKUI.rowBusy ? ' disabled' : ''}${BANKUI.rowBusy === e.id ? ' aria-busy="true"' : ''}>${BANKUI.rowBusy === e.id ? '<span class="spin" aria-hidden="true"></span>Syncing…' : 'Sync'}</button>`}<button class="btn sm danger" data-action="bk-disc" data-id="${esc(e.id)}">Disconnect</button></div>
       <ul class="bk-acc">${(e.accounts || []).map(a => `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}</div><div class="sub">${esc([a.subtype || a.type, a.last_four ? '··' + a.last_four : ''].filter(Boolean).join(' · '))}</div></div>
         <label class="tgl"><input type="checkbox" data-action="bk-toggle" data-id="${esc(a.id)}" data-eid="${esc(e.id)}"${a.enabled ? ' checked' : ''} aria-label="Sync ${esc(a.name || 'account')}"><span aria-hidden="true"></span></label></li>`).join('') || '<li><div class="sub">No accounts found.</div></li>'}</ul></div>`).join('')
     : '<p class="bk-ok">No banks connected yet. Tap Connect a bank.</p>';
@@ -3709,7 +3851,7 @@ async function bankSyncNow(force) {
   clearTimeout(BANKUI.follow);
   BANKUI.follow = setTimeout(() => { if (document.visibilityState === 'visible') bankSync({ auto: true }); }, window.BT_FOLLOWUP_MS || 45000);
 }
-// "Refresh" on one bank: ask Plaid about just that bank, sync just that bank, then once more shortly after (quietly).
+// "Sync" on one bank: ask Plaid about just that bank, sync just that bank, then once more shortly after (quietly).
 async function bankItemSync(id) {
   if (!bankReady() || BANKUI.syncing || BANKUI.rowBusy) return;
   const e = (BANKUI.enr || []).find(x => x.id === id), label = (e && e.institution) || 'Bank';
@@ -3773,6 +3915,12 @@ function applyOne(s, ch, auto) {
     parts.forEach(p => rec('income', { incomeId: i.id, payDate: c.date, prev, part: true, acct: acctDots(p), what: i.name + ' ' + md(c.date) }, p));
     return true;
   }
+  if (kind === 'savings') {
+    const svId = uid('sv');
+    state.savings.tx.push({ id: svId, type: 'in', amount: BT.round2(Math.abs(t.amount)), date: t.date, note: cleanMerchant(t).slice(0, 60), txn: t.id });
+    state.savings.on = true;
+    return rec('transfer', { what: 'Moved to savings', sv: svId });
+  }
   if (kind === 'transfer') return rec('transfer', { what: s.refund ? 'Refund or deposit, not counted' : 'Transfer, not counted' });
   if (kind === 'spend') {
     const sp = ch.spend || {}, cat = sp.category || ch.category || s.category;
@@ -3822,6 +3970,8 @@ function revertSeen(id) {
   } else if (r.res === 'spend' || r.res === 'manual') {
     state.spends = state.spends.filter(x => x.id !== r.spendId);
     Object.keys(state.marks).concat(Object.keys(state.occ)).forEach(k => { if (k.startsWith('x:' + r.spendId)) { delete state.marks[k]; delete state.occ[k]; } });
+  } else if (r.res === 'transfer' && r.sv) {
+    state.savings.tx = state.savings.tx.filter(x => x.id !== r.sv);
   } else if (r.res === 'new') {
     state.plans = state.plans.filter(p => p.id !== r.plan);
     [state.marks, state.occ].forEach(m => Object.keys(m).forEach(k => { if (k.startsWith('p:' + r.plan + ':')) delete m[k]; }));
@@ -4092,6 +4242,7 @@ function txPanel(t, st) {
   else if (k === 'ignored') acts = (money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit')) + b('tx-undo', 'Undo');
   else if (k === 'none') acts = money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit');
   else acts = (money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit')) + b('tx-ignore', 'Ignore');
+  if (money === false && !(k === 'transfer' && st.r && st.r.sv)) acts += b('tx-sv', 'To savings');
   acts += b('tx-note', noteOfTxn(t) ? 'Edit note' : 'Add note');
   return `<div class="tx-p">${s && k === 'review' ? `<div class="bx-g"><span class="pill conf-${s.confidence}">${{ high: 'Sure', medium: 'Likely', low: 'Unsure' }[s.confidence]}</span><span class="g-t">${guessHTML(s)}</span></div>` : ''}${note ? `<div class="bm-m">${note}</div>` : ''}<div class="bx-a">${acts}</div></div>`;
 }
@@ -4352,6 +4503,12 @@ function txAct(act, a) {
     case 'tx-ignore': txDo(id, { kind: 'ignore' }); break;
     case 'tx-undo': txUndo(id); break;
     case 'tx-refund': txDo(id, { kind: 'transfer' }); break;
+    case 'tx-sv': {
+      const t = txnOf(id); if (!t || t.amount <= 0) break;
+      if (state.bank.seen[id]) absorbChange(state, () => revertSeen(id), 'Bank sync');
+      if (txDo(id, { kind: 'savings' }, '', true)) toast(fmt(Math.abs(t.amount)) + ' moved to savings', () => txUndo(id));
+      break;
+    }
     case 'tx-paycheck': {
       const s = inboxOf(id), t = txnOf(id); if (!t) break;
       if (s && s.kind === 'income' && s.pick && s.parts && s.parts.length > 1) { applySuggestion(s, {}, true); TXUI.mode = ''; render(); break; }
@@ -4454,6 +4611,7 @@ document.addEventListener('click', async e => {
     case 'bal-hand': accountSheet(true); break;
     case 'bal-live': state.bank.useBankBalance = true; commit('Using the live bank balance'); accountSheet(); break;
     case 'pay-split': HEROUI.split = !HEROUI.split; render(); break;
+    case 'sv-add': savingsAddSheet(); break;
     case 'sv-on': state.savings.on = true; commit('Savings on'); accountSheet(true); break;
     case 'sv-off': state.savings.on = false; commit('Savings hidden. Your entries are kept.'); accountSheet(true); break;
     case 'sv-del': state.savings.tx = state.savings.tx.filter(t => t.id !== a.dataset.id); commit('Removed'); accountSheet(true); break;
@@ -4476,6 +4634,17 @@ document.addEventListener('click', async e => {
       state.occ[k] = Object.assign(state.occ[k] || {}, { skip: true, paused: true }); delete state.marks[k];
       closeSheet(); commit('Paused ' + x.name + ' for this month'); break;
     }
+    case 'skip-cycle': { const k = a.dataset.key || ($('#occform') || {}).dataset.key, x = k && OCC.get(k); if (!k) break; skipCycle(k, a.dataset.name || (x ? x.name : 'it')); break; }
+    case 'bills-chip': {
+      state.settings.billsView = a.dataset.v;
+      try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} clearTimeout(timer); timer = setTimeout(flush, 600);
+      render();
+      const el = document.getElementById({ fixed: 'bs-fixed', subs: 'bs-subs', budgets: 'bs-budgets', all: 'bs-all' }[a.dataset.v]);
+      if (el) requestAnimationFrame(() => { const t = el.getBoundingClientRect().top; if (t < 0 || t > innerHeight * 0.5) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+      break;
+    }
+    case 'unskip': unskip(a.dataset.key); break;
+    case 'bud-amt': budgetAmountSheet(a.dataset.id); break;
     case 'resume': {
       const k = a.dataset.key, o = state.occ[k]; if (!o) break;
       delete o.skip; delete o.paused; if (!Object.keys(o).length) delete state.occ[k];
@@ -4528,7 +4697,7 @@ document.addEventListener('click', async e => {
     case 'bank-import': openBank(); break;
     case 'bk-sync': case 'bk-item-sync': case 'bk-connect': case 'bk-reconnect': case 'bk-toggle': case 'bk-disc': case 'bk-disc-go': case 'bk-forget': bankCardAct(act, a); break;
     case 'ix-open': case 'ix-accept': case 'ix-change': case 'ix-pick': case 'ix-cat': case 'ix-cats': case 'ix-new': case 'ix-edit': case 'ix-skip': case 'ix-all': case 'ix-undo': inboxAct(act, a); break;
-    case 'tx-note': case 'tx-note-save': case 'tx-review': case 'tx-filter': case 'tx-more': case 'tx-open': case 'tx-back': case 'tx-cats': case 'tx-in': case 'tx-cat': case 'tx-sugg': case 'tx-match': case 'tx-edit': case 'tx-ignore': case 'tx-undo': case 'tx-refund': case 'tx-paycheck': txAct(act, a); break;
+    case 'tx-note': case 'tx-note-save': case 'tx-review': case 'tx-filter': case 'tx-more': case 'tx-open': case 'tx-back': case 'tx-cats': case 'tx-in': case 'tx-cat': case 'tx-sugg': case 'tx-match': case 'tx-edit': case 'tx-ignore': case 'tx-undo': case 'tx-refund': case 'tx-paycheck': case 'tx-sv': txAct(act, a); break;
     case 'pc-out': payPartOut(a.dataset.id); break;
     case 'pc-edit': INCUI.edit = a.dataset.date; render(); setTimeout(() => { const f = $('#pcamt'); if (f) { f.focus(); f.select(); } }, 30); break;
     case 'pc-cancel': INCUI.edit = null; render(); break;
@@ -4587,6 +4756,8 @@ document.addEventListener('submit', e => {
     if (v && !state[list].includes(v)) { state[list].push(v); const par = e.target.elements.par.value; if (par && par !== v) state.catParents[v] = par; commit('Added ' + v); }
   }
   if (e.target.id === 'svform') { saveSavings(e.target); return; }
+  if (e.target.id === 'budamt') { saveBudgetAmount(e.target); return; }
+  if (e.target.id === 'svadd') { saveSavingsAdd(e.target); return; }
   if (e.target.id === 'svbank') { state.savings.bank = e.target.elements.bank.value.trim().slice(0, 30); commit('Bank name saved'); accountSheet(true); return; }
   if (e.target.id === 'acctform') { saveAccount(e.target); return; }
   if (e.target.id === 'catform') { const v = e.target.elements.newcat.value.trim(); if (v) setCategory(e.target.dataset.id, v.slice(0, 30)); }
