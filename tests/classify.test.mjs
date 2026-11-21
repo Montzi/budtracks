@@ -343,3 +343,43 @@ test('likelyPaid: exact cents beat near amounts; unrelated name needs the exact 
   addTx(s2, { id: 'g2', desc: 'WALMART SUPERCENTER' });
   assert.equal(BT.likelyPaid(s2, carItem(s2), txs(s2), TODAY).id, 'g2');
 });
+
+/* ---- v5: strong merchant rules, grouped default categories ---- */
+const full = () => { const st = fixture(); st.categories.push('Coffee', 'Snacks & Drinks', 'Laundry', 'Rideshare', 'Parking & Tolls', 'Groceries'); return st; };
+test('delivery apps win over Plaid category and restaurant names', () => {
+  for (const [desc, pc] of [['DoorDash', 'dining'], ['UBER *EATS', 'general'], ['Uber Eats', 'dining'], ['GRUBHUB*TACO BELL', 'general'], ['POSTMATES INC', null]]) {
+    const g = BT.guessCategory(full(), T({ desc, providerCategory: pc }));
+    assert.equal(g.category, 'Takeout Food', desc);
+  }
+  // the bank shows the restaurant in desc and the processor line in rawDesc
+  assert.equal(BT.guessCategory(full(), T({ desc: 'Chick-fil-A', rawDesc: 'DOORDASH*CHICK FIL A', providerCategory: 'dining' })).category, 'Takeout Food');
+  assert.equal(BT.guessCategory(full(), T({ desc: 'UBER *TRIP HELP.UBER.COM' })).category, 'Rideshare');
+});
+test('Instacart is Groceries', () => {
+  assert.equal(BT.guessCategory(full(), T({ desc: 'INSTACART', providerCategory: 'general' })).category, 'Groceries');
+});
+test('PAYPAL *DOORDASH without a PayPal plan is spending; with a matching plan amount it stays a plan', () => {
+  const s = BT.classifyTxn(full(), T({ desc: 'PAYPAL *DOORDASH', amount: 22.1 }), TODAY);
+  assert.equal(s.kind, 'spend'); assert.equal(s.category, 'Takeout Food');
+  assert.equal(BT.classifyTxn(full(), T({ desc: 'PAYPAL *INSTACART', amount: 61 }), TODAY).category, 'Groceries');
+  const p = BT.classifyTxn(full(), T({ desc: 'PAYPAL *DOORDASH', amount: 40 }), TODAY);
+  assert.equal(p.kind, 'plan'); assert.equal(p.pick.planId, 'pp1');
+  assert.equal(BT.classifyTxn(full(), T({ desc: 'PAYPAL *SOMESHOP', amount: 19 }), TODAY).kind, 'plan');
+});
+test('vending, laundromat, coffee, parking rules', () => {
+  const c = d => BT.guessCategory(full(), T({ desc: d })).category;
+  assert.equal(c('CPI*CANTEEN VENDING 8800'), 'Snacks & Drinks');
+  assert.equal(c('SUDS LAUNDROMAT #4'), 'Laundry');
+  assert.equal(c('STARBUCKS STORE 123'), 'Coffee');
+  assert.equal(c('PARKMOBILE'), 'Parking & Tolls');
+  // categories missing from the app fall back to the older rules
+  assert.equal(BT.guessCategory(fixture(), T({ desc: 'SUDS LAUNDROMAT' })).category, 'Other');
+  assert.equal(BT.guessCategory(fixture(), T({ desc: 'STARBUCKS' })).category, 'Dining Out');
+});
+test('a learned rule still beats the strong rule, also for PAYPAL lines', () => {
+  const st = full(); BT.learnRule(st, T({ desc: 'DOORDASH*CHIPOTLE' }), 'Groceries');
+  assert.deepEqual(BT.guessCategory(st, T({ desc: 'DOORDASH*CHIPOTLE' })), { category: 'Groceries', source: 'rule' });
+  const st2 = full(); BT.learnRule(st2, T({ desc: 'PAYPAL *DOORDASH' }), 'Dining Out');
+  const s = BT.classifyTxn(st2, T({ desc: 'PAYPAL *DOORDASH', amount: 22.1 }), TODAY);
+  assert.equal(s.kind, 'spend'); assert.equal(s.category, 'Dining Out');
+});

@@ -353,6 +353,17 @@ button.lad:hover .v, button.lad:focus-visible .v { color: var(--brass-hi); }
 .tag .cico, .chip .cico, .hbar .cico { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; }
 .hbar .l { display: flex; align-items: center; }
 .chip .cico { color: inherit; }
+.nlabel { font-size: 12px; color: var(--ink-3); font-style: italic; overflow-wrap: anywhere; margin-top: 1px; }
+.cat-list { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.cgroups { display: grid; gap: 8px; margin: 6px 0 14px; }
+.cgroups .chips, .tx-p .cgroups .chips { margin: 0; }
+.cgrp + .cgrp { border-top: 1px solid var(--line); padding-top: 8px; }
+.chip-parent { font-weight: 700; }
+.cat-gh { padding: 8px 16px 0; font-size: 12px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.cat-grp { font-size: 11.5px; color: var(--ink-3); }
+select.cat-par { max-width: 128px; min-width: 0; padding: 5px 6px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface-2); color: inherit; font-size: 12.5px; }
+.cat-add select.cat-par { max-width: 108px; padding: 9px 8px; font-size: 14px; }
+.cat-add { flex-wrap: wrap; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .cat-list .cn { white-space: normal; overflow: visible; line-height: 1.2; }
 
@@ -851,9 +862,9 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 </div>
 <nav class="tabs" aria-label="Sections"><div class="tabs-in">
   <a href="#overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l6 4"/></svg>Overview</a>
+  <a href="#transactions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Transactions</a>
   <a href="#bills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Bills</a>
   <a href="#plans"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.5 11h-11z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg>Plans</a>
-  <a href="#transactions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Transactions</a>
   <a href="#income"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>Income</a>
 </div></nav>
 <div id="sheet" class="sheet-wrap" hidden><div class="backdrop" data-action="close"></div><div class="sheet" role="dialog" aria-modal="true"><div id="sheetBody"></div></div></div>
@@ -995,8 +1006,11 @@ const BT = (() => {
     out = out.filter(x => { const e = ends[x.kind + ':' + x.ref]; if (e && x.date >= e) return false; return !(occ[x.key] && occ[x.key].skip); });
     // Anything due before tracking started is assumed paid unless the user unchecks it.
     if (st.since) out.forEach(x => { if (!x.auto && x.date < st.since) { x.auto = true; x.paid = x.key in st.marks ? !!st.marks[x.key] : true; } });
+    const notes = (st.bank && st.bank.notes) || {};
     out.forEach(x => {
       const o = x.kind === 'extra' || x.kind === 'unalloc' ? {} : (occ[x.key] || {});
+      if (x.kind === 'extra') { const sp = (st.spends || []).find(z => z.id === x.ref) || {}; x.memo = sp.note && sp.note !== 'Bank sync' ? sp.note : (sp.bank && notes[sp.bank]) || ''; }
+      else x.memo = o.note || (o.txn && notes[o.txn]) || '';
       x.natural = x.date;
       x.base = x.amount;
       if (typeof o.amount === 'number') x.amount = o.amount;
@@ -1355,8 +1369,18 @@ const BT = (() => {
     });
     return { groups, rest };
   }
+  // Delivery apps always win, even over a restaurant name the bank puts in the description. Checked before KEYWORD_RULES.
+  const STRONG_RULES = [
+    [/doordash|uber\W*eats|grubhub|postmates/i, 'Takeout Food'],
+    [/instacart/i, 'Groceries']
+  ];
   const KEYWORD_RULES = [
     [/doordash|uber ?eats|grubhub|postmates/i, 'Takeout Food'],
+    [/vending|canteen|\bcpi\b|\bcoke\b|pepsi|snack/i, 'Snacks & Drinks'],
+    [/laundromat|laundry|wash ?& ?fold|cleaners/i, 'Laundry'],
+    [/starbucks|dunkin|coffee/i, 'Coffee'],
+    [/uber(?!\W*eats)|lyft/i, 'Rideshare'],
+    [/parking|paybyphone|parkmobile|\btoll|ez ?pass/i, 'Parking & Tolls'],
     [/instacart|costco|walmart|aldi|kroger|safeway|whole ?foods|trader joe|stop ?& ?shop|shoprite|wegmans|publix|lidl|smart and final|food lion|\bgiant\b|harris teeter|h-e-b|\bheb\b|sprouts|meijer|winco|market basket|albertsons/i, 'Groceries'],
     [/\btarget\b|dollar tree|dollar general|home depot|lowe'?s|ikea|bed bath/i, 'Household'],
     [/\bshell\b|exxon|\bbp\b|mobil|sunoco|chevron|wawa|speedway|\bgas\b|7-eleven|[x7]-eleven|royal farms|sheetz|circle k|marathon|valero|citgo|\b76\b/i, 'Gas'],
@@ -1374,13 +1398,25 @@ const BT = (() => {
   const PROVIDER_CATS = { dining: 'Dining Out', bar: 'Dining Out', groceries: 'Groceries', fuel: 'Gas', transport: 'Transportation', transportation: 'Transportation', utilities: 'Utilities', phone: 'Phone & Internet',
     shopping: 'Other', clothing: 'Clothing', entertainment: 'Entertainment', sport: 'Entertainment', health: 'Personal care', insurance: 'Insurance', loan: 'Loans', tax: 'Taxes', home: 'Household',
     software: 'Software', service: 'Other', general: 'Other', electronics: 'Other', accommodation: 'Other', education: 'Other', charity: 'Gifts', advertising: 'Other', income: 'Other' };
+  const catOk = (st, c) => !!c && ((st.categories || []).includes(c) || (st.billCats || []).includes(c));
+  const guessTexts = txn => {
+    const cp = String(txn.counterparty || '');
+    return [txn.desc, txn.rawDesc].filter((d, i, a) => d && a.indexOf(d) === i).map(d => cleanDesc(d) + ' ' + cp + (/\btst\s*\*/i.test(d) ? ' tst*' : ''));
+  };
+  // Category from a strong merchant rule (delivery apps, Instacart), or '' when none applies or the category is missing.
+  function strongCategory(st, txn) {
+    const texts = guessTexts(txn).concat(String(txn.rawDesc || ''), String(txn.desc || ''));
+    for (const [rx, cat] of STRONG_RULES) if (texts.some(t => rx.test(t)) && catOk(st, cat)) return cat;
+    return '';
+  }
   function guessCategory(st, txn) {
-    const ok = c => !!c && ((st.categories || []).includes(c) || (st.billCats || []).includes(c));
+    const ok = c => catOk(st, c);
     const learned = st.bank && st.bank.rules && st.bank.rules[merchantKey(txn.desc)];
     if (ok(learned)) return { category: learned, source: 'rule' };
+    const strong = strongCategory(st, txn);
+    if (strong) return { category: strong, source: 'keyword' };
     // Cleaned desc first, then the cleaned rawDesc when it differs; a TST* (Toast) prefix is kept as a restaurant hint.
-    const cp = String(txn.counterparty || ''), texts = [txn.desc, txn.rawDesc].filter((d, i, a) => d && a.indexOf(d) === i)
-      .map(d => cleanDesc(d) + ' ' + cp + (/\btst\s*\*/i.test(d) ? ' tst*' : ''));
+    const texts = guessTexts(txn);
     for (const text of texts) for (const [rx, cat] of KEYWORD_RULES) if (rx.test(text) && ok(cat)) return { category: cat, source: 'keyword' };
     const tc = PROVIDER_CATS[String(txn.providerCategory || '').toLowerCase()];
     if (ok(tc)) return { category: tc, source: 'provider' };
@@ -1396,6 +1432,11 @@ const BT = (() => {
     const base = { txn, kind: 'spend', confidence: 'low', cands: [], pick: null, category: '', source: '' };
     if (PLAN_RX.test(txn.desc)) {
       const cands = matchPlanPayments(st, txn, today);
+      // PayPal as the way a store was paid (not a Pay-in-4 plan): no plan candidate and a known merchant or learned rule means plain spending.
+      if (!cands.length && txn.amount > 0 && !/klarna|afterpay/i.test(txn.desc) && /paypal/i.test(txn.desc)) {
+        const g = guessCategory(st, txn);
+        if (g.source === 'rule' || strongCategory(st, txn)) return Object.assign(base, { category: g.category, source: g.source, confidence: g.source === 'rule' ? 'high' : 'medium' });
+      }
       const plans = new Set(cands.map(c => c.planId)).size;
       return Object.assign(base, { kind: 'plan', cands, pick: cands[0] || null, confidence: plans === 1 ? 'high' : plans > 1 ? 'medium' : 'low', newPlan: !cands.length });
     }
@@ -1491,7 +1532,7 @@ const BT = (() => {
     if (k && category) st.bank.rules[k] = category;
   }
 
-  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
+  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, strongCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
 })();
 
 
@@ -1541,12 +1582,15 @@ const ICONS = {
   tag: ['other misc general tag', '<path d="M3.5 12.5V4.5a1 1 0 0 1 1-1h8l8 8-9 9z"/><circle cx="8" cy="8" r="1.4"/>'],
   question: ['unallocated unknown question', '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7"/><path d="M12 17h.01"/>'],
   repeat: ['subscriptions recurring monthly renew', '<path d="M17 3l3 3-3 3"/><path d="M4 11V9a3 3 0 0 1 3-3h13"/><path d="M7 21l-3-3 3-3"/><path d="M20 13v2a3 3 0 0 1-3 3H4"/>'],
+  washer: ['laundry washer washing machine clothes wash fold', '<rect x="5" y="3" width="14" height="18" rx="2"/><circle cx="12" cy="13.5" r="4"/><path d="M8 6.5h2M14 6.5h2"/>'],
+  soda: ['snacks drinks soda vending cup straw', '<path d="M7 8h10l-1.2 12H8.2z"/><path d="M6 8h12"/><path d="M13 8l1.5-4.5H17"/>'],
+  parking: ['parking tolls garage meter', '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M10 16V8h3a2.5 2.5 0 0 1 0 5h-3"/>'],
   star: ['favorite star premium', '<path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/>']
 };
 const DEFAULT_ICON = {
   Housing: 'house', Utilities: 'bolt', Transportation: 'car', Insurance: 'shield', 'Phone & Internet': 'wifi', Loans: 'bank', Taxes: 'receipt',
   Entertainment: 'tv', Software: 'sparkle', Other: 'tag', Clothing: 'shirt', Groceries: 'cart', Gaming: 'gamepad', Repairs: 'wrench',
-  Electronics: 'laptop', Household: 'sofa', Dining: 'utensils', 'Dining Out': 'utensils', 'Takeout Food': 'bag', 'Personal care': 'heart', Gifts: 'gift', Unallocated: 'question', Uncategorized: 'tag', Subscriptions: 'repeat', 'Credit cards': 'card', 'Other bills': 'receipt', Gas: 'fuel', Food: 'utensils', Car: 'car', 'Food Out': 'utensils', Bills: 'bolt', Lotto: 'star'
+  Electronics: 'laptop', Household: 'sofa', Dining: 'utensils', 'Dining Out': 'utensils', 'Takeout Food': 'bag', 'Personal care': 'heart', Gifts: 'gift', Unallocated: 'question', Uncategorized: 'tag', Subscriptions: 'repeat', 'Credit cards': 'card', 'Other bills': 'receipt', Gas: 'fuel', Food: 'utensils', Home: 'house', Shopping: 'bag', 'Health & Personal': 'heart', Health: 'pill', 'Bills & Finance': 'cash', Coffee: 'coffee', 'Snacks & Drinks': 'soda', Rideshare: 'car', 'Parking & Tolls': 'parking', 'Car Maintenance': 'wrench', Laundry: 'washer', Fees: 'receipt', Car: 'car', 'Food Out': 'utensils', Bills: 'bolt', Lotto: 'star'
 };
 function iconFor(st, cat) {
   if (!cat) return 'tag';
@@ -1641,6 +1685,12 @@ const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(
 const clone = o => JSON.parse(JSON.stringify(o));
 const TODAY = BT.iso(new Date());
 
+// Parent groups and the default categories under each. A parent is itself a pickable category.
+const CAT_TREE = [['Food', ['Groceries', 'Dining Out', 'Takeout Food', 'Coffee', 'Snacks & Drinks']], ['Transportation', ['Gas', 'Parking & Tolls', 'Rideshare', 'Car Maintenance']],
+  ['Home', ['Housing', 'Utilities', 'Household', 'Laundry', 'Repairs']], ['Shopping', ['Clothing', 'Electronics', 'Gifts']], ['Health & Personal', ['Personal care', 'Health']],
+  ['Entertainment', ['Entertainment', 'Gaming', 'Subscriptions', 'Software']], ['Bills & Finance', ['Phone & Internet', 'Insurance', 'Loans', 'Taxes', 'Fees']], ['Other', []]];
+const DEFAULT_PARENT = {};
+CAT_TREE.forEach(([p, ch]) => ch.forEach(c => { if (c !== p) DEFAULT_PARENT[c] = p; }));
 const BILL_GROUPS = ['Fixed', 'Apple Subscriptions', 'Subscriptions', 'Other bills'];
 const GCOLOR = { 'Fixed': 's1', 'Apple Subscriptions': 's2', 'Subscriptions': 's3', 'Other bills': 's4', 'Per paycheck': 's5', 'Pay plans': 's6', 'Credit cards': 's7', 'Spending': 's8' };
 const gc = g => 'var(--' + (GCOLOR[g] || 's4') + ')';
@@ -1774,6 +1824,34 @@ function normalize(s) {
         i.perCycle[pd] = BT.round2(g.reduce((a, [, r]) => a - r.amount, 0));
       });
     });
+  }
+  if (!o.catParents || typeof o.catParents !== 'object' || Array.isArray(o.catParents)) o.catParents = {};
+  if (!o.bank.notes || typeof o.bank.notes !== 'object') o.bank.notes = {};
+  // Parent groups and the full default category set, merged into the user's own. Nothing of theirs is removed.
+  if (!o.imports.includes('cats-v2')) {
+    o.imports.push('cats-v2');
+    const swap = l => { if (!Array.isArray(l) || !l.includes('Dining')) return; if (l.includes('Dining Out')) l.splice(l.indexOf('Dining'), 1); else l[l.indexOf('Dining')] = 'Dining Out'; };
+    swap(o.categories); swap(o.billCats);
+    [o.spends, o.bills, o.plans, o.perPeriod].forEach(l => (l || []).forEach(i => { if (i.category === 'Dining') i.category = 'Dining Out'; }));
+    Object.keys(o.bank.rules).forEach(k => { if (o.bank.rules[k] === 'Dining') o.bank.rules[k] = 'Dining Out'; });
+    o.bank.inbox.forEach(x => { if (x.category === 'Dining') x.category = 'Dining Out'; });
+    if (o.icons.Dining && !o.icons['Dining Out']) o.icons['Dining Out'] = o.icons.Dining;
+    CAT_TREE.forEach(([par, ch]) => [par, ...ch].forEach(c => {
+      if (!o.categories.includes(c) && !o.billCats.includes(c)) o.categories.push(c);
+      if (c !== par && !(c in o.catParents)) o.catParents[c] = par;
+    }));
+  }
+  // Delivery apps and Instacart win over everything but the user's own learned rule. Redo the guess for lines still waiting for review.
+  if (!o.imports.includes('strong-rules-1')) {
+    o.imports.push('strong-rules-1');
+    try {
+      o.bank.inbox.forEach(s => {
+        if (!s || !s.txn || (s.parts && s.parts.length > 1) || !(s.kind === 'spend' || (s.kind === 'plan' && !s.pick))) return;
+        const n = BT.classifyTxn(o, s.txn, TODAY);
+        if (n.kind !== 'spend' || !n.category) return;
+        Object.assign(s, { kind: 'spend', category: n.category, source: n.source, confidence: n.confidence, cands: [], pick: null }); delete s.newPlan;
+      });
+    } catch (e) {}
   }
   mergeUnalloc(o);
   return o;
@@ -1921,16 +1999,16 @@ function viewOverview() {
   const tapAttrs = x => x.kind === 'extra' ? `data-action="edit" data-type="extra" data-id="${x.ref}"` : !x.paid && likelyMap().has(x.key) ? `data-action="likely-open" data-key="${esc(x.key)}"` : `data-action="occ" data-key="${esc(x.key)}"`;
   const rowDated = x => {
     const late = !x.paid && x.date < TODAY, d = BT.parse(x.date), isNext = x.key === nextKey;
-    const sub = x.kind === 'extra' ? `<span class="tag cat">${catIcon(x.category)}${esc(x.category)}</span>${x.via ? ' <span class="tag via">via ' + esc(viaText(x.via)) + '</span>' : ''}${x.note.includes(' · ') ? esc(x.note.slice(x.note.indexOf(' · '))) : ''}`
+    const sub = x.kind === 'extra' ? `<span class="tag cat">${catIcon(x.category)}${esc(x.category)}</span>${x.via ? ' <span class="tag via">via ' + esc(viaText(x.via)) + '</span>' : ''}`
       : `${SUB_GROUPS.includes(x.group) && !x.category ? catIcon('Subscriptions') + '<span class="bcat">Subscriptions</span>' + (x.group === 'Apple Subscriptions' ? ' · Apple' : '') + (x.note ? ' · ' + esc(x.note) : '') : (x.category ? catIcon(x.category) + '<span class="bcat">' + esc(x.category) + '</span> · ' : '<span class="dot" style="--c:' + gc(x.group) + '"></span>') + esc(x.note || x.group)}${x.via ? ' <span class="tag via">via ' + esc(viaText(x.via)) + '</span>' : ''}${x.edited ? ' · usually ' + fmt(x.base) : ''}`;
     return `<li class="row${x.paid ? ' is-paid' : ''}${isNext ? ' is-next' : ''}">${check(x)}
       <div class="date" aria-hidden="true"><span class="dow">${DOW[d.getDay()]}</span><span class="dd">${d.getDate()}</span></div>
       <div class="main tapzone" ${tapAttrs(x)}><div class="nm">${esc(x.name)}${isNext ? ' <span class="pill brass">Up next</span>' : ''}${late ? ' <span class="pill soft warn">Past due</span>' : ''}${x.paid ? '' : likelyPill(x.key)}</div>
-      <div class="sub">${sub}<span class="sr">${md(x.date)}</span></div>${x.paid ? '' : likelyDetail(x.key)}</div>${amtBtn(x)}</li>`;
+      <div class="sub">${sub}<span class="sr">${md(x.date)}</span></div>${x.memo ? `<div class="nlabel">${esc(x.memo)}</div>` : ''}${x.paid ? '' : likelyDetail(x.key)}</div>${amtBtn(x)}</li>`;
   };
   const rowLiving = x => { const d = BT.parse(shown(x)); return `<li class="row${x.paid ? ' is-paid' : ''}">${check(x)}
       <div class="date" aria-hidden="true"><span class="dow">${DOW[d.getDay()]}</span><span class="dd">${d.getDate()}</span></div>
-      <div class="main tapzone" ${tapAttrs(x)}><div class="nm">${esc(x.name)}${x.paid ? '' : likelyPill(x.key)}</div><div class="sub">${x.category ? catIcon(x.category) + '<span class="bcat">' + esc(x.category) + '</span> · ' : '<span class="dot" style="--c:' + gc(x.group) + '"></span>'}Living expense${x.via ? ' <span class="tag via">via ' + esc(viaText(x.via)) + '</span>' : ''}${x.edited ? ' · usually ' + fmt(x.base) : ''}</div>${x.paid ? '' : likelyDetail(x.key)}</div>${amtBtn(x)}</li>`; };
+      <div class="main tapzone" ${tapAttrs(x)}><div class="nm">${esc(x.name)}${x.paid ? '' : likelyPill(x.key)}</div><div class="sub">${x.category ? catIcon(x.category) + '<span class="bcat">' + esc(x.category) + '</span> · ' : '<span class="dot" style="--c:' + gc(x.group) + '"></span>'}Living expense${x.via ? ' <span class="tag via">via ' + esc(viaText(x.via)) + '</span>' : ''}${x.edited ? ' · usually ' + fmt(x.base) : ''}</div>${x.memo ? `<div class="nlabel">${esc(x.memo)}</div>` : ''}${x.paid ? '' : likelyDetail(x.key)}</div>${amtBtn(x)}</li>`; };
   const rowUnalloc = x => `<li class="row unalloc" data-action="allocate" data-id="${x.ref}" tabindex="0" role="button" aria-label="Sort out ${fmt(x.amount)} unallocated spending">
       <span class="ua-ico" aria-hidden="true">?</span><div class="date" aria-hidden="true"><span class="dow">Found</span><span class="dd">${BT.parse(x.date).getDate()}</span></div>
       <div class="main"><div class="nm">Unallocated spending</div><div class="sub">Tap to record where it went</div></div><div class="amt">${fmt(x.amount)}</div></li>`;
@@ -2197,11 +2275,35 @@ function viaManager() {
     <form class="via-add" id="viaadd"><input name="bank" placeholder="Bank or app" aria-label="Bank or app" autocomplete="off"><input name="last4" placeholder="Last 4" aria-label="Last 4" inputmode="numeric" maxlength="4" autocomplete="off"><button class="btn" type="submit">Add</button></form><div style="height:12px"></div></section>`;
 }
 document.addEventListener('change', e => { if (e.target.id === 'donesort') { state.settings.doneSort = e.target.value; try { localStorage.setItem(LS, JSON.stringify(state)); } catch (er) {} clearTimeout(timer); timer = setTimeout(flush, 600); render(); } });
+document.addEventListener('change', e => { if (e.target.matches && e.target.matches('select.cat-par[data-cat]')) { const c = e.target.dataset.cat; state.catParents[c] = e.target.value; commit('Group saved'); return; } });
 document.addEventListener('change', e => { if (e.target.matches && e.target.matches('.via-type')) { state.payVia[+e.target.dataset.i].type = e.target.value; commit('Saved'); } });
 
 /* ---------- Categories + icons ---------- */
 // Category select + icon chooser used inside any item form. Picked icon is saved for that category.
 function allCats() { return [...state.categories, ...state.billCats.filter(c => !state.categories.includes(c))]; }
+// Parent groups: the defaults, then any the user made, with Other last. Categories without a known parent sit under Other.
+function parentNames() {
+  const ps = CAT_TREE.map(x => x[0]).filter(p => p !== 'Other');
+  Object.values(state.catParents || {}).forEach(p => { if (p && p !== 'Other' && !ps.includes(p)) ps.push(p); });
+  return [...ps, 'Other'];
+}
+function parentOf(c) { const ps = parentNames(); return ps.includes(c) ? c : (state.catParents || {})[c] || DEFAULT_PARENT[c] || 'Other'; }
+// [{ parent, items }] with the parent itself first (when it exists as a category), then its children in the default order.
+function catGroups(list, keep) {
+  list = (list || allCats()).slice(); if (keep && !list.includes(keep)) list.push(keep);
+  const ps = parentNames(), order = c => { const p = DEFAULT_PARENT[c] ? CAT_TREE.find(x => x[0] === DEFAULT_PARENT[c])[1].indexOf(c) : 99; return p < 0 ? 99 : p; };
+  return ps.map(par => {
+    const kids = list.filter(c => !ps.includes(c) && parentOf(c) === par).map((c, i) => [c, i]).sort((a, b) => order(a[0]) - order(b[0]) || a[1] - b[1]).map(x => x[0]);
+    return { parent: par, items: [...(list.includes(par) ? [par] : []), ...kids] };
+  }).filter(g => g.items.length);
+}
+function catOptsHTML(sel, lead) {
+  return (lead || '') + catGroups(null, sel).map(g => `<optgroup label="${esc(g.parent)}">${g.items.map(c => `<option value="${esc(c)}"${c === sel ? ' selected' : ''}>${esc(c)}</option>`).join('')}</optgroup>`).join('');
+}
+// Category chips grouped by parent: the parent chip (bold) first, then its children.
+function catChipsHTML(action, attrs, isOn) {
+  return `<div class="cgroups" role="group" aria-label="Categories">${catGroups().map(g => `<div class="chips cgrp">${g.items.map(c => `<button class="chip${c === g.parent ? ' chip-parent' : ''}" data-action="${action}" ${attrs} data-cat="${esc(c)}" aria-pressed="${isOn(c)}">${catIcon(c)}${esc(c)}</button>`).join('')}</div>`).join('')}</div>`;
+}
 function catIconField(cat, opts, label) {
   return `<label class="fld half" for="f-cat2"><span>${label || 'Category'}</span><select id="f-cat2" name="cat2">${opts.map(o => { const v = typeof o === 'object' ? o.v : o, tt = typeof o === 'object' ? o.t : o; return `<option value="${esc(v)}"${v === cat ? ' selected' : ''}>${esc(tt)}</option>`; }).join('')}</select></label>
     <div class="fld half"><span>Icon</span><button type="button" class="icon-now" data-action="icon-toggle" aria-expanded="false">${iconSVG(iconFor(state, cat || 'Other'))}<span>Change icon</span></button><input type="hidden" name="icon" value=""></div>
@@ -2232,10 +2334,11 @@ function addIconChooser(form) {
 function saveIconChoice(form, cat) { const v = form.elements.icon && form.elements.icon.value; if (v && cat) state.icons[cat] = v; }
 
 function catManager() {
-  const block = (title, list, key) => `<div class="subhead">${title}</div><ul class="cat-list">${state[list].map(c => `<li>
+  const ps = parentNames(), row = (c, list) => `<li>
       <button class="icon-pick" data-action="pick-icon" data-cat="${esc(c)}" aria-label="Change icon for ${esc(c)}">${catIcon(c)}</button>
-      <span class="cn">${esc(c)}</span><button class="icon-btn del" data-action="del-cat" data-list="${list}" data-cat="${esc(c)}" aria-label="Remove ${esc(c)}">${ICON.close}</button></li>`).join('')}</ul>
-    <form class="inline cat-add" data-list="${list}"><label class="sr" for="nc-${key}">New ${title.toLowerCase()}</label><input id="nc-${key}" name="nc" placeholder="New category" autocomplete="off"><button class="btn" type="submit">Add</button></form>`;
+      <span class="cn">${esc(c)}</span>${ps.includes(c) ? '<span class="cat-grp">Group</span>' : `<select class="cat-par" data-cat="${esc(c)}" aria-label="Group for ${esc(c)}">${ps.map(p => `<option${p === parentOf(c) ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select>`}<button class="icon-btn del" data-action="del-cat" data-list="${list}" data-cat="${esc(c)}" aria-label="Remove ${esc(c)}">${ICON.close}</button></li>`;
+  const block = (title, list, key) => `<div class="subhead">${title}</div>${catGroups(state[list]).map(g => `<div class="cat-gh">${esc(g.parent)}</div><ul class="cat-list">${g.items.map(c => row(c, list)).join('')}</ul>`).join('')}
+    <form class="inline cat-add" data-list="${list}"><label class="sr" for="nc-${key}">New ${title.toLowerCase()}</label><input id="nc-${key}" name="nc" placeholder="New category" autocomplete="off"><label class="sr" for="np-${key}">Group</label><select id="np-${key}" name="par" class="cat-par"><option value="">Group (optional)</option>${ps.map(p => `<option>${esc(p)}</option>`).join('')}</select><button class="btn" type="submit">Add</button></form>`;
   return `<section class="card"><header class="card-h"><h2>Categories</h2><span class="meta">Tap an icon to change it</span></header>
     ${block('Bill categories', 'billCats', 'b')}${block('Spending categories', 'categories', 's')}<div style="height:12px"></div></section>`;
 }
@@ -2404,8 +2507,8 @@ const SPECS = {
   bill: { title: 'Bill', fields: [F('name', 'Name', 'text'), F('amount', 'Amount', 'money', { half: 1 }), F('day', 'Due day of month', 'day', { half: 1 }), F('group', 'Section', 'select', { opts: BILL_GROUPS }), F('category', 'Category', 'select', { half: 1, optsFn: () => [{ v: '', t: 'None' }, ...state.billCats] }), F('via', 'Paid via', 'via', { opt: 1 }), F('note', 'Note', 'text', { opt: 1 }), F('active', 'Active (uncheck to pause)', 'check')] },
   spend: { title: 'Per-paycheck spending', fields: [F('name', 'Name', 'text'), F('amount', 'Amount each pay cycle', 'money', { half: 1 }), F('category', 'Category', 'select', { half: 1, optsFn: () => [{ v: '', t: 'None' }, ...state.categories, ...state.billCats.filter(c => !state.categories.includes(c))] }), F('via', 'Paid via', 'via', { opt: 1 })] },
   income: { title: 'Income', fields: [F('name', 'Name', 'text'), F('amount', 'Usual amount', 'money', { half: 1 }), F('freq', 'How often', 'select', { half: 1, opts: Object.entries(FREQ).map(([v, t]) => ({ v, t })) }), F('date', 'A paycheck date (last or next)', 'date')] },
-  plan: { title: 'Pay plan', fields: [F('provider', 'Service', 'select', { opts: PROVIDERS }), F('merchant', 'What you bought', 'text'), F('amount', 'Payment amount', 'money', { half: 1 }), F('freq', 'Payment schedule', 'select', { half: 1, opts: ['weekly', 'biweekly', 'monthly'].map(v => ({ v, t: FREQ[v] })) }), F('lastDate', 'Date of last payment made', 'date'), F('paid', 'Payments made', 'int', { half: 1, min: 0 }), F('total', 'Total payments', 'int', { half: 1, min: 1 }), F('category', 'Category', 'select', { optsFn: () => [{ v: '', t: 'Pick a category' }, ...allCats()] }), F('via', 'Paid via', 'via', { opt: 1 }), F('autopay', 'Autopay (count past due dates as paid)', 'check')] },
-  extra: { title: 'Spending', fields: [F('category', 'Category', 'select', { optsFn: () => allCats(), half: 1 }), F('newcat', 'Or new category', 'text', { opt: 1, half: 1, noStore: 1 }), F('desc', 'What was it', 'text', { opt: 1 }), F('amount', 'Amount', 'money', { half: 1 }), F('date', 'Date', 'date', { half: 1 }), F('via', 'Paid via', 'via', { opt: 1 }), F('note', 'Comment', 'text', { opt: 1, half: 1 }), F('from', 'Part of unallocated spending', 'unalloc', { editOnly: 1 }), F('recurring', 'Recurring: add it every month on this day', 'check', { newOnly: 1 })] },
+  plan: { title: 'Pay plan', fields: [F('provider', 'Service', 'select', { opts: PROVIDERS }), F('merchant', 'What you bought', 'text'), F('amount', 'Payment amount', 'money', { half: 1 }), F('freq', 'Payment schedule', 'select', { half: 1, opts: ['weekly', 'biweekly', 'monthly'].map(v => ({ v, t: FREQ[v] })) }), F('lastDate', 'Date of last payment made', 'date'), F('paid', 'Payments made', 'int', { half: 1, min: 0 }), F('total', 'Total payments', 'int', { half: 1, min: 1 }), F('category', 'Category', 'select', { grouped: 1, lead: 'Pick a category', optsFn: () => [] }), F('via', 'Paid via', 'via', { opt: 1 }), F('autopay', 'Autopay (count past due dates as paid)', 'check')] },
+  extra: { title: 'Spending', fields: [F('category', 'Category', 'select', { grouped: 1, optsFn: () => [], half: 1 }), F('newcat', 'Or new category', 'text', { opt: 1, half: 1, noStore: 1 }), F('note', 'Note (optional)', 'text', { opt: 1, noEm: 1, half: 1 }), F('desc', 'What was it', 'text', { opt: 1 }), F('amount', 'Amount', 'money', { half: 1 }), F('date', 'Date', 'date', { half: 1 }), F('via', 'Paid via', 'via', { opt: 1 }), F('from', 'Part of unallocated spending', 'unalloc', { editOnly: 1 }), F('recurring', 'Recurring: add it every month on this day', 'check', { newOnly: 1 })] },
   card: { title: 'Credit card', fields: [F('name', 'Card name', 'text'), F('balance', 'Balance', 'money', { half: 1 }), F('limit', 'Credit limit', 'money', { half: 1, opt: 1 }), F('minPayment', 'Minimum payment', 'money', { half: 1 }), F('day', 'Due day of month', 'day', { half: 1 })] }
 };
 const DEFAULTS = {
@@ -2430,11 +2533,12 @@ function fieldHTML(f, v, isNew) {
   if (f.type === 'check') return `<label class="fld chk" for="${id}"><input type="checkbox" id="${id}" name="${f.k}" ${v !== false ? 'checked' : ''}><span>${f.label}</span></label>`;
   if (f.type === 'select') {
     const opts = f.optsFn ? f.optsFn() : f.opts;
+    if (f.grouped) return `<label class="${cls}" for="${id}"><span>${f.label}</span><select id="${id}" name="${f.k}">${catOptsHTML(v, f.lead ? `<option value="">${esc(f.lead)}</option>` : '')}</select></label>`;
     return `<label class="${cls}" for="${id}"><span>${f.label}</span><select id="${id}" name="${f.k}">${opts.map(o => { const ov = typeof o === 'object' ? o.v : o, ot = typeof o === 'object' ? o.t : o; return `<option value="${esc(ov)}"${String(v) === String(ov) ? ' selected' : ''}>${esc(ot)}</option>`; }).join('')}</select></label>`;
   }
   const at = { money: 'type="number" inputmode="decimal" step="0.01" min="0"', day: 'type="number" inputmode="numeric" min="1" max="31" step="1"', int: `type="number" inputmode="numeric" min="${f.min ?? 0}" step="1"`, date: 'type="date"', text: 'type="text" autocomplete="off"' }[f.type];
   const input = `<input id="${id}" name="${f.k}" ${at} value="${esc(v ?? '')}"${f.list ? ` list="${f.list}"` : ''}${f.ph ? ` placeholder="${esc(f.ph)}"` : ''}>${f.list ? `<datalist id="${f.list}">${VIA_SUGGEST.map(v => `<option value="${v}">`).join('')}</datalist>` : ''}`;
-  return `<label class="${cls}" for="${id}"><span>${f.label}${f.opt ? ' <em>optional</em>' : ''}</span>${f.type === 'money' ? `<div class="money-in"><i>$</i>${input}</div>` : input}</label>`;
+  return `<label class="${cls}" for="${id}"><span>${f.label}${f.opt && !f.noEm ? ' <em>optional</em>' : ''}</span>${f.type === 'money' ? `<div class="money-in"><i>$</i>${input}</div>` : input}</label>`;
 }
 function planSummary(p, curKey) {
   const s = BT.planStatus(state, p, TODAY), paid = BT.round2(s.total - s.owed);
@@ -2451,6 +2555,7 @@ function openForm(type, id, extra) {
   if (!item) return;
   const isNew = !id, inbox = type === 'extra' && extra && extra.inbox ? extra.inbox : '', hist = type === 'extra' && extra && extra.history ? extra.history : '', txf = type === 'extra' && extra && extra.tx ? extra.tx : '';
   if ((inbox || hist || txf) && extra.prefill) Object.assign(item, extra.prefill);
+  if (type === 'extra' && item.note === 'Bank sync') item.note = '';
   EDIT_AMT = item.amount || 0;
   openSheet(`<div class="sheet-h"><div><h3>${isNew ? (type === 'plan' ? 'Log a purchase' : 'Add ' + spec.title.toLowerCase()) : 'Edit ' + spec.title.toLowerCase()}</h3>
     <p class="lede">${type === 'plan' ? 'Klarna, Afterpay or PayPal. Next payments schedule themselves.' : type === 'bill' ? 'Repeats every month on the due day.' : type === 'income' ? 'Your main paycheck sets the start of every pay cycle.' : type === 'card' ? 'The minimum payment joins your cycle on its due day.' : type === 'extra' ? 'Spending outside your bills. It comes out of the pay cycle of its date.' : 'Counted once per pay cycle.'}</p></div>
@@ -2536,6 +2641,7 @@ function saveForm(form) {
     if (type === 'plan' && it.dates && ['amount', 'freq', 'lastDate', 'paid', 'total'].some(k => o[k] !== it[k])) { delete it.dates; delete it.amounts; delete it.purchased; }
     const was = it.from || '';
     Object.assign(it, o); if (!it.from) delete it.from;
+    if (type === 'extra' && it.bank) { if (it.note) state.bank.notes[it.bank] = it.note; else delete state.bank.notes[it.bank]; }
     closeSheet(); commit(type === 'extra' && it.from && it.from !== was ? 'Counted as part of unallocated spending' : 'Saved'); return;
   }
   if (type === 'extra' && o.recurring) {
@@ -2571,7 +2677,7 @@ function openCategory(planId, fresh) {
   const p = findItem('plan', planId); if (!p) return;
   openSheet(`<div class="sheet-h"><div><h3>Where does this spending fall?</h3><p class="lede">${esc(p.merchant)} · ${esc(p.provider)} · ${fmt(BT.planStatus(state, p, TODAY).total)} total${needCat().length > 1 && catChain ? ' · ' + needCat().length + ' to go' : ''}</p></div>
     <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
-    <div class="chips" role="group" aria-label="Categories">${allCats().map(c => `<button class="chip" data-action="set-cat" data-id="${p.id}" data-cat="${esc(c)}" aria-pressed="${p.category === c}">${catIcon(c)}${esc(c)}</button>`).join('')}</div>
+    ${catChipsHTML('set-cat', `data-id="${p.id}"`, c => p.category === c)}
     <form class="inline" id="catform" data-id="${p.id}"><label for="newcat" class="sr" style="position:absolute;left:-9999px">New category</label><input id="newcat" name="newcat" placeholder="New category" autocomplete="off"><button class="btn" type="submit">Add</button></form>
     <div class="actions" style="margin-top:14px"><div class="r"><button class="btn" data-action="close">${fresh ? 'Skip for now' : 'Cancel'}</button></div></div>`);
 }
@@ -2792,7 +2898,7 @@ function split(total) {
 let ALLOC = null;
 function allocRow(i, date) {
   return `<div class="alloc-row" data-i="${i}">
-    <label class="fld half"><span>Category</span><select name="cat">${allCats().map(c => `<option>${esc(c)}</option>`).join('')}</select></label>
+    <label class="fld half"><span>Category</span><select name="cat">${catOptsHTML('')}</select></label>
     <label class="fld half"><span>Amount</span><div class="money-in"><i>$</i><input name="amt" type="number" inputmode="decimal" step="0.01" min="0"></div></label>
     <label class="fld half"><span>What was it <em>optional</em></span><input name="desc" type="text" autocomplete="off"></label>
     <label class="fld half"><span>Date</span><input name="date" type="date" value="${date}"></label>
@@ -2989,7 +3095,7 @@ function openBankPlan(i) {
       <label class="fld"><span>Merchant</span><input name="merchant" value="${esc(BT.planMerchant(t.desc))}" maxlength="40" autocomplete="off"></label>
       <label class="fld"><span>Number of payments</span><input name="total" type="number" inputmode="numeric" min="1" max="60" value="4"></label>
       <label class="fld"><span>How often</span><select name="freq"><option value="biweekly">Every 2 weeks</option><option value="monthly">Monthly</option></select></label>
-      <label class="fld"><span>Category</span><select name="category"><option value="">Choose later</option>${allCats().map(c => `<option>${esc(c)}</option>`).join('')}</select></label>
+      <label class="fld"><span>Category</span><select name="category">${catOptsHTML('', '<option value="">Choose later</option>')}</select></label>
       <label class="fld"><span>Paid via</span><select name="via"><option value="">Not set</option>${vias.map(v => `<option value="${esc(v)}">${esc(viaText(v))}</option>`).join('')}</select></label>
       <div class="preview" id="bpprev" aria-live="polite"></div>
       <div class="form-err" id="ferr" role="alert"></div>
@@ -3366,6 +3472,8 @@ function applyOne(s, ch, auto) {
     const id = uid('x'), desc = (sp.desc != null ? sp.desc : cleanMerchant(t)) || cleanMerchant(t);
     const item = { id, category: cat, desc, amount: BT.round2(sp.amount != null ? sp.amount : Math.abs(t.amount)), date: sp.date || t.date, via: sp.via != null ? sp.via : ensureVia(t), note: sp.note != null ? sp.note : 'Bank sync', bank: t.id };
     if (sp.from) item.from = sp.from;
+    const own = item.note && item.note !== 'Bank sync' ? item.note : state.bank.notes[t.id] || '';
+    if (own) { item.note = own; state.bank.notes[t.id] = own; }
     state.spends.push(item);
     if (!auto && cat !== s.category) BT.learnRule(state, t, cat);
     return rec('spend', { spendId: id, what: cat + ' · ' + desc });
@@ -3390,6 +3498,7 @@ function applyEdited(id, o) {
 // Reverses whatever a synced suggestion did to the budget and forgets it. Does not save or re-render. Returns the record.
 function revertSeen(id) {
   const r = state.bank.seen[id]; if (!r || !SYNCSRC.includes(r.src)) return null;
+  if ((r.res === 'match' || r.res === 'bill') && r.key && state.occ[r.key]) delete state.occ[r.key].note;
   if (r.res === 'match') BT.unlinkPayment(state, r.key, r.prev);
   else if (r.res === 'bill') {
     if (r.prev.mark === null) delete state.marks[r.key]; else state.marks[r.key] = r.prev.mark;
@@ -3474,7 +3583,7 @@ function inboxRow(s) {
     const showCats = s.kind === 'spend' || INBOXUI.mode === 'cats';
     const cands = s.cands.map((c, i) => `<button class="chip" data-action="ix-pick" data-id="${id}" data-ci="${i}" aria-pressed="${!!s.pick && (s.pick.key || s.pick.incomeId + s.pick.date) === (c.key || c.incomeId + c.date)}">${esc(candLabel(s, c))}</button>`).join('');
     panel = `<div class="bx-ch">${!showCats ? `<div class="h">Match to</div><div class="chips">${cands}${s.kind === 'plan' ? `<button class="chip" data-action="ix-new" data-id="${id}">New plan</button>` : ''}${t.amount > 0 ? `<button class="chip" data-action="ix-cats" data-id="${id}">Count as spending…</button>` : ''}</div>`
-      : `<div class="h">Category</div><div class="chips">${allCats().map(c => `<button class="chip" data-action="ix-cat" data-id="${id}" data-cat="${esc(c)}" aria-pressed="${s.kind === 'spend' && s.category === c}">${catIcon(c)}${esc(c)}</button>`).join('')}</div>`}</div>`;
+      : `<div class="h">Category</div>${catChipsHTML('ix-cat', `data-id="${id}"`, c => s.kind === 'spend' && s.category === c)}`}</div>`;
   }
   return `<div class="bm bx" data-id="${id}"><div class="bm-d"><b>${grp ? 'Paycheck ' + md(s.pick.date) : esc(cleanMerchant(t))}</b><span class="amt${money ? ' in' : ''}">${money ? '+' : ''}${fmt(total)}</span></div>
     <div class="bm-m">${grp ? md(t.date) + ' · ' + s.parts.length + ' deposits' : md(t.date) + (acctText(t) ? ' · ' + esc(acctText(t)) : '')}${t.status === 'pending' ? ' · pending' : ''}</div>
@@ -3536,7 +3645,7 @@ function inboxAct(act, a) {
     case 'ix-skip': applySuggestion(s, { kind: 'ignore' }); break;
     case 'ix-edit': {
       const cats = allCats(), t = s.txn;
-      openForm('extra', null, { inbox: t.id, prefill: { category: s.kind === 'spend' && s.category ? s.category : cats.includes('Other') ? 'Other' : cats[0], desc: cleanMerchant(t), amount: Math.abs(t.amount), date: t.date, via: acctVia(t), note: 'Bank sync' } });
+      openForm('extra', null, { inbox: t.id, prefill: { category: s.kind === 'spend' && s.category ? s.category : cats.includes('Other') ? 'Other' : cats[0], desc: cleanMerchant(t), amount: Math.abs(t.amount), date: t.date, via: acctVia(t), note: noteOfTxn(t) } });
       break;
     }
   }
@@ -3586,13 +3695,34 @@ function historyAct(act, a) {
     dropHistory(id); commit('Hidden'); historySheet(); return;
   }
   const cats = allCats(), g = BT.guessCategory(state, t);
-  openForm('extra', null, { history: id, prefill: { category: g.category && cats.includes(g.category) ? g.category : cats.includes('Other') ? 'Other' : cats[0], desc: cleanMerchant(t), amount: Math.abs(t.amount), date: t.date, via: acctVia(t), note: 'Bank sync' } });
+  openForm('extra', null, { history: id, prefill: { category: g.category && cats.includes(g.category) ? g.category : cats.includes('Other') ? 'Other' : cats[0], desc: cleanMerchant(t), amount: Math.abs(t.amount), date: t.date, via: acctVia(t), note: noteOfTxn(t) } });
 }
 
 /* ---------- Transactions tab: every bank transaction received, with what became of it ---------- */
 let TXUI = { filter: 'all', bank: '', q: '', open: null, mode: '', limit: 60 };
 const txnOf = id => state.bank.txns[id] || ((state.bank.seen[id] || {}).txn) || null;
 const inboxOf = id => state.bank.inbox.find(s => (s.parts || [s.txn]).some(t => t.id === id));
+// The user's note for a bank line: the saved note, else what its spending entry or matched bill says. "Bank sync" is only an internal marker.
+function noteOfTxn(t) {
+  const id = t && t.id; if (!id) return '';
+  const n = state.bank.notes[id]; if (n) return n;
+  const r = state.bank.seen[id]; if (!r) return '';
+  if (r.spendId) { const x = state.spends.find(z => z.id === r.spendId); if (x && x.note && x.note !== 'Bank sync') return x.note; }
+  if (r.key && state.occ[r.key] && state.occ[r.key].note) return state.occ[r.key].note;
+  return '';
+}
+// Saves a note on a bank line and keeps its spending entry or matched bill/plan occurrence in step.
+function setTxNote(id, text) {
+  text = String(text || '').trim().slice(0, 120);
+  const notes = state.bank.notes, r = state.bank.seen[id];
+  if (text) notes[id] = text; else delete notes[id];
+  if (r && r.spendId) { const x = state.spends.find(z => z.id === r.spendId); if (x) x.note = text; }
+  if (r && (r.res === 'match' || r.res === 'bill') && r.key) {
+    const o = state.occ[r.key] || (state.occ[r.key] = {});
+    if (text) o.note = text; else { delete o.note; if (!Object.keys(o).length) delete state.occ[r.key]; }
+  }
+  TXUI.mode = ''; commit(text ? 'Note saved' : 'Note removed');
+}
 function txStatus(t) {
   const b = state.bank, r = b.seen[t.id];
   if (inboxOf(t.id)) return { k: 'review', f: 'review', label: 'Needs review' };
@@ -3618,7 +3748,7 @@ function txList() {
 function txRow(t) {
   const st = txStatus(t), money = t.amount < 0, open = TXUI.open === t.id, id = esc(t.id);
   return `<div class="tx${open ? ' open' : ''}" data-id="${id}"><button class="tx-main" data-action="tx-open" data-id="${id}" aria-expanded="${open}">
-    <span class="tx-l"><b>${esc(cleanMerchant(t))}</b><span class="tx-s">${esc(acctDots(t))}${t.status === 'pending' ? ' <span class="pill soft">Pending</span>' : ''}</span></span>
+    <span class="tx-l"><b>${esc(cleanMerchant(t))}</b><span class="tx-s">${esc(acctDots(t))}${t.status === 'pending' ? ' <span class="pill soft">Pending</span>' : ''}</span>${noteOfTxn(t) ? `<span class="nlabel">${esc(noteOfTxn(t))}</span>` : ''}</span>
     <span class="tx-r"><span class="amt${money ? ' in' : ''}">${money ? '+' : ''}${fmt(Math.abs(t.amount))}</span><span class="txc k-${st.k}">${esc(st.label)}</span></span></button>${open ? txPanel(t, st) : ''}</div>`;
 }
 function txPanel(t, st) {
@@ -3626,8 +3756,9 @@ function txPanel(t, st) {
   if (TXUI.mode === 'cats') {
     const cur = k === 'spend' ? ((state.spends.find(z => z.id === st.r.spendId) || {}).category) : (s && s.kind === 'spend' ? s.category : BT.guessCategory(state, t).category);
     const sugg = s && s.pick && ['plan', 'bill', 'transfer'].includes(s.kind) && k === 'review' ? `<div class="h">Suggested</div><div class="chips"><button class="chip" data-action="tx-sugg" data-id="${id}">${guessHTML(s)}</button></div>` : '';
-    return `<div class="tx-p">${sugg}<div class="h">${k === 'spend' ? 'Change category' : 'Category'}</div><div class="chips">${allCats().map(c => `<button class="chip" data-action="tx-cat" data-id="${id}" data-cat="${esc(c)}" aria-pressed="${cur === c}">${catIcon(c)}${esc(c)}</button>`).join('')}</div><div class="bx-a"><button class="btn sm" data-action="tx-back" data-id="${id}">Back</button></div></div>`;
+    return `<div class="tx-p">${sugg}<div class="h">${k === 'spend' ? 'Change category' : 'Category'}</div>${catChipsHTML('tx-cat', `data-id="${id}"`, c => cur === c)}<div class="bx-a"><button class="btn sm" data-action="tx-back" data-id="${id}">Back</button></div></div>`;
   }
+  if (TXUI.mode === 'note') return `<div class="tx-p"><label class="fld" for="txnote"><span>Note <em>optional</em></span><input id="txnote" type="text" maxlength="120" autocomplete="off" value="${esc(noteOfTxn(t))}" placeholder="What was this for?"></label><div class="bx-a"><button class="btn sm primary" data-action="tx-note-save" data-id="${id}">Save note</button><button class="btn sm" data-action="tx-back" data-id="${id}">Cancel</button></div></div>`;
   if (TXUI.mode === 'in') return `<div class="tx-p"><div class="h">Count this money in as</div><div class="chips"><button class="chip" data-action="tx-paycheck" data-id="${id}">Paycheck</button><button class="chip" data-action="tx-refund" data-id="${id}">Refund or transfer</button></div><div class="bx-a"><button class="btn sm" data-action="tx-back" data-id="${id}">Back</button></div></div>`;
   const b = (a, l, p) => `<button class="btn sm${p ? ' primary' : ''}" data-action="${a}" data-id="${id}">${l}</button>`;
   let acts = '', note = '';
@@ -3636,6 +3767,7 @@ function txPanel(t, st) {
   else if (k === 'ignored') acts = (money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit')) + b('tx-undo', 'Undo');
   else if (k === 'none') acts = money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit');
   else acts = (money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit')) + b('tx-ignore', 'Ignore');
+  acts += b('tx-note', noteOfTxn(t) ? 'Edit note' : 'Add note');
   return `<div class="tx-p">${s && k === 'review' ? `<div class="bx-g"><span class="pill conf-${s.confidence}">${{ high: 'Sure', medium: 'Likely', low: 'Unsure' }[s.confidence]}</span><span class="g-t">${guessHTML(s)}</span></div>` : ''}${note ? `<div class="bm-m">${note}</div>` : ''}<div class="bx-a">${acts}</div></div>`;
 }
 function txListHTML() {
@@ -3857,7 +3989,7 @@ function txEdit(id) {
   const t = txnOf(id), st = t && txStatus(t); if (!t) return;
   if (st.k === 'spend' && st.r.spendId) { openForm('extra', st.r.spendId); return; }
   const cats = allCats(), s = inboxOf(id), g = BT.guessCategory(state, t), c = s && s.kind === 'spend' && s.category ? s.category : g.category;
-  openForm('extra', null, { tx: id, prefill: { category: cats.includes(c) ? c : cats.includes('Other') ? 'Other' : cats[0], desc: cleanMerchant(t), amount: Math.abs(t.amount), date: t.date, via: acctVia(t), note: 'Bank sync' } });
+  openForm('extra', null, { tx: id, prefill: { category: cats.includes(c) ? c : cats.includes('Other') ? 'Other' : cats[0], desc: cleanMerchant(t), amount: Math.abs(t.amount), date: t.date, via: acctVia(t), note: noteOfTxn(t) } });
 }
 function txAct(act, a) {
   const id = a.dataset.id;
@@ -3867,6 +3999,8 @@ function txAct(act, a) {
     case 'tx-more': TXUI.limit += 60; { const l = $('#txlist'); if (l) l.innerHTML = txListHTML(); } break;
     case 'tx-open': TXUI.open = TXUI.open === id ? null : id; TXUI.mode = ''; { const l = $('#txlist'); if (l) l.innerHTML = txListHTML(); } break;
     case 'tx-back': TXUI.mode = ''; render(); break;
+    case 'tx-note': TXUI.mode = 'note'; render(); { const i = $('#txnote'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } } break;
+    case 'tx-note-save': { const i = $('#txnote'); setTxNote(id, i ? i.value : ''); break; }
     case 'tx-cats': TXUI.mode = 'cats'; render(); break;
     case 'tx-in': TXUI.mode = 'in'; render(); break;
     case 'tx-cat': { const st = txnOf(id) && txStatus(txnOf(id)); if (st && st.k === 'spend') txSetCat(id, a.dataset.cat); else txDo(id, { kind: 'spend', category: a.dataset.cat }); break; }
@@ -3901,7 +4035,7 @@ function payInfo(i, date) {
 }
 function partRow(p, removable) {
   const t = p.t, bank = acctDots(t) || p.r.acct || 'Bank';
-  return `<li class="pc-part"><div class="main"><div class="nm">${esc(cleanMerchant(t))}</div><div class="sub">${esc(bank)} · Posted ${md(t.date)}</div></div><span class="amt in">+${fmt(Math.abs(p.r.amount))}</span>${removable ? `<button class="linkbtn pc-out" data-action="pc-out" data-id="${esc(p.id)}">Not part of paycheck</button>` : ''}</li>`;
+  return `<li class="pc-part"><div class="main"><div class="nm">${esc(cleanMerchant(t))}</div><div class="sub">${esc(bank)} · Posted ${md(t.date)}</div>${noteOfTxn(t) ? `<div class="nlabel">${esc(noteOfTxn(t))}</div>` : ''}</div><span class="amt in">+${fmt(Math.abs(p.r.amount))}</span>${removable ? `<button class="linkbtn pc-out" data-action="pc-out" data-id="${esc(p.id)}">Not part of paycheck</button>` : ''}</li>`;
 }
 function latestPaycheckCard() {
   const i = BT.paycheck(state); if (!i) return '';
@@ -4006,7 +4140,7 @@ document.addEventListener('click', async e => {
     case 'del-cat': {
       const list = a.dataset.list, c = a.dataset.cat;
       if (!a.classList.contains('arm')) { a.classList.add('arm'); a.innerHTML = 'Remove?'; a.classList.remove('icon-btn'); a.classList.add('btn', 'sm', 'danger'); break; }
-      state[list] = state[list].filter(x => x !== c); commit('Removed ' + c + '. Items already using it keep the name.'); break;
+      state[list] = state[list].filter(x => x !== c); if (!allCats().includes(c)) delete state.catParents[c]; commit('Removed ' + c + '. Items already using it keep the name.'); break;
     }
     case 'alloc-add': addAllocRow(); break;
     case 'alloc-rest': saveAlloc(true); break;
@@ -4027,7 +4161,7 @@ document.addEventListener('click', async e => {
     case 'bank-import': openBank(); break;
     case 'bk-sync': case 'bk-connect': case 'bk-reconnect': case 'bk-toggle': case 'bk-disc': case 'bk-forget': bankCardAct(act, a); break;
     case 'ix-open': case 'ix-accept': case 'ix-change': case 'ix-pick': case 'ix-cat': case 'ix-cats': case 'ix-new': case 'ix-edit': case 'ix-skip': case 'ix-all': case 'ix-undo': inboxAct(act, a); break;
-    case 'tx-review': case 'tx-filter': case 'tx-more': case 'tx-open': case 'tx-back': case 'tx-cats': case 'tx-in': case 'tx-cat': case 'tx-sugg': case 'tx-match': case 'tx-edit': case 'tx-ignore': case 'tx-undo': case 'tx-refund': case 'tx-paycheck': txAct(act, a); break;
+    case 'tx-note': case 'tx-note-save': case 'tx-review': case 'tx-filter': case 'tx-more': case 'tx-open': case 'tx-back': case 'tx-cats': case 'tx-in': case 'tx-cat': case 'tx-sugg': case 'tx-match': case 'tx-edit': case 'tx-ignore': case 'tx-undo': case 'tx-refund': case 'tx-paycheck': txAct(act, a); break;
     case 'pc-out': payPartOut(a.dataset.id); break;
     case 'pc-edit': INCUI.edit = a.dataset.date; render(); setTimeout(() => { const f = $('#pcamt'); if (f) { f.focus(); f.select(); } }, 30); break;
     case 'pc-cancel': INCUI.edit = null; render(); break;
@@ -4082,7 +4216,7 @@ document.addEventListener('submit', e => {
   }
   if (e.target.classList.contains('cat-add')) {
     const list = e.target.dataset.list, v = e.target.elements.nc.value.trim().slice(0, 30);
-    if (v && !state[list].includes(v)) { state[list].push(v); commit('Added ' + v); }
+    if (v && !state[list].includes(v)) { state[list].push(v); const par = e.target.elements.par.value; if (par && par !== v) state.catParents[v] = par; commit('Added ' + v); }
   }
   if (e.target.id === 'svform') { saveSavings(e.target); return; }
   if (e.target.id === 'svbank') { state.savings.bank = e.target.elements.bank.value.trim().slice(0, 30); commit('Bank name saved'); accountSheet(true); return; }
@@ -4167,7 +4301,7 @@ function viewPlansTab() {
   const v = state.settings.plansView === 'cards' ? 'cards' : 'plans';
   return `<div class="stack"><div class="seg plans-seg" role="group" aria-label="Plans view"><button data-action="plans-view" data-v="plans" aria-pressed="${v === 'plans'}">Pay later</button><button data-action="plans-view" data-v="cards" aria-pressed="${v === 'cards'}">Credit cards</button></div>${v === 'cards' ? viewCards() : viewPlans()}</div>`;
 }
-const TABS = { overview: viewOverview, bills: viewBills, plans: viewPlansTab, transactions: viewTransactions, income: viewIncome };
+const TABS = { overview: viewOverview, transactions: viewTransactions, bills: viewBills, plans: viewPlansTab, income: viewIncome };
 function currentTab() { const h = location.hash.slice(1); return h === 'cards' ? 'plans' : TABS[h] ? h : 'overview'; }
 function render() {
   LIKELY = null;

@@ -713,8 +713,8 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
   const { page, errs } = await newPage(390, 844);
   await seed(page);
   await page.goto(BASE + '#overview', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
-  await step('bottom bar is Overview, Bills, Plans, Transactions, Income and fits at 390', async () => {
-    assert.deepEqual(await page.locator('.tabs a').allInnerTexts(), ['Overview', 'Bills', 'Plans', 'Transactions', 'Income']);
+  await step('bottom bar is Overview, Transactions, Bills, Plans, Income and fits at 390', async () => {
+    assert.deepEqual(await page.locator('.tabs a').allInnerTexts(), ['Overview', 'Transactions', 'Bills', 'Plans', 'Income']);
     await tabsFit(page, '390'); await noHScroll(page, '390 tabs');
     await page.click('.tabs a[href="#transactions"]'); await page.waitForSelector('.tabs a[aria-current="page"]:has-text("Transactions")');
     assert.equal(await page.locator('.tabs a[aria-current="page"]').innerText(), 'Transactions');
@@ -1088,6 +1088,121 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     await noHScroll(page, '390 bills'); await page.locator('.pill.likely').click(); await page.waitForSelector('.lk-cmp'); await page.keyboard.press('Escape');
   });
   assert.deepEqual(errs, [], 'page errors in match picker / likely'); await page.context().close();
+}
+
+/* ---------- v5: grouped categories, notes, strong delivery rules, tab order ---------- */
+{
+  const { page, errs } = await newPage(390, 844);
+  const DD = T('ddwait', '2026-11-19', 'DOORDASH*CHICK FIL A', 24.5, { providerCategory: 'dining' });
+  const put = (extra) => page.evaluate(([fx, ex]) => {
+    const s = JSON.parse(localStorage.getItem('budtrack.v1')); Object.assign(s, JSON.parse(fx)); Object.assign(s.bank, JSON.parse(ex));
+    localStorage.setItem('budtrack.v1', JSON.stringify(s));
+  }, [JSON.stringify(fixtureState({})), JSON.stringify(extra || {})]);
+  await page.goto(BASE, { waitUntil: 'load' });
+  await step('migration keeps user categories, adds defaults once, maps Dining, re-guesses a waiting DoorDash line', async () => {
+    await page.evaluate(([dd]) => {
+      const s = JSON.parse(localStorage.getItem('budtrack.v1'));
+      s.categories = ['Gas', 'Dining', 'My Custom', 'Other']; s.billCats = ['Housing', 'Utilities', 'Other']; s.catParents = {};
+      s.spends = [{ id: 'x1', category: 'Dining', desc: 'Pizza', amount: 12, date: '2026-11-20', note: '' }];
+      s.imports = (s.imports || []).filter(k => k !== 'cats-v2' && k !== 'strong-rules-1');
+      s.bank.inbox = [{ txn: JSON.parse(dd), kind: 'spend', confidence: 'medium', cands: [], pick: null, category: 'Dining Out', source: 'provider' }];
+      localStorage.setItem('budtrack.v1', JSON.stringify(s));
+    }, [JSON.stringify(DD)]);
+    await page.reload({ waitUntil: 'load' });
+    const s = await getState(page), all = [...s.categories, ...s.billCats];
+    assert.ok(s.categories.includes('My Custom') && s.categories.includes('Gas') && !s.categories.includes('Dining'));
+    assert.equal(s.spends[0].category, 'Dining Out');
+    ['Food', 'Laundry', 'Takeout Food', 'Snacks & Drinks', 'Parking & Tolls', 'Fees', 'Housing'].forEach(c => assert.equal(all.filter(x => x === c).length, 1, c + ' appears once'));
+    assert.equal(new Set(all).size, new Set([...s.categories]).size + s.billCats.filter(c => !s.categories.includes(c)).length, 'no duplicates across lists');
+    assert.equal(s.catParents.Laundry, 'Home'); assert.equal(s.catParents['Takeout Food'], 'Food'); assert.ok(!('My Custom' in s.catParents)); assert.ok(!('Entertainment' in s.catParents));
+    assert.equal(s.bank.inbox[0].category, 'Takeout Food');
+    await page.reload({ waitUntil: 'load' });
+    const s2 = await getState(page); assert.equal(s2.categories.length, s.categories.length, 'second load adds nothing');
+  });
+  await step('bottom bar order and screenshot', async () => {
+    await put(); await page.goto(BASE + '#overview'); await page.reload({ waitUntil: 'load' });
+    assert.deepEqual(await page.locator('.tabs a').allInnerTexts(), ['Overview', 'Transactions', 'Bills', 'Plans', 'Income']);
+    await tabsFit(page, '390'); await noHScroll(page, '390 overview'); await page.screenshot({ path: SHOTS + '/tabs-390.png' });
+  });
+  await step('spending form: Note beside Or new category, grouped select with Food and Laundry', async () => {
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.imports = s.imports.filter(k => k !== 'cats-v2'); localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
+    await page.reload({ waitUntil: 'load' });
+    await page.evaluate(() => document.querySelector('[data-action="add"][data-type="bill"]') && 0);
+    await page.click('.ov-bills [data-action="add"]'); await page.waitForSelector('#form');
+    if (await page.locator('#f-newcat').count() === 0) { await page.click('.kind-seg [data-type="extra"]'); await page.waitForSelector('#f-newcat'); }
+    const bx = await page.evaluate(() => { const r = id => document.querySelector(id).closest('label').getBoundingClientRect(); const a = r('#f-newcat'), b = r('#f-note'); return { at: a.top, bt: b.top, aw: a.width, bw: b.width, al: a.left, bl: b.left }; });
+    assert.ok(Math.abs(bx.at - bx.bt) < 2 && bx.bl > bx.al && Math.abs(bx.aw - bx.bw) < 2 && bx.aw < 200, JSON.stringify(bx));
+    assert.match(await page.locator('label[for="f-note"] span').innerText(), /^Note \(optional\)$/);
+    const groups = await page.evaluate(() => [...document.querySelectorAll('#f-category optgroup')].map(g => [g.label, [...g.children].map(o => o.value)]));
+    const food = groups.find(g => g[0] === 'Food'), home = groups.find(g => g[0] === 'Home');
+    assert.equal(food[1][0], 'Food'); assert.ok(food[1].includes('Takeout Food')); assert.ok(home[1].includes('Laundry'));
+    await page.selectOption('#f-category', 'Laundry'); await page.fill('#f-note', 'quarters for the dryer'); await page.fill('#f-amount', '6.5'); await page.fill('#f-desc', 'Laundromat');
+    await sheetNoHScroll(page, '390 spend form');
+    await page.waitForTimeout(300); await page.screenshot({ path: SHOTS + '/cats-390.png' });
+    await page.click('#form button[type=submit]');
+    const s = await getState(page); const x = s.spends.find(z => z.desc === 'Laundromat'); assert.equal(x.note, 'quarters for the dryer'); assert.equal(x.category, 'Laundry');
+    await page.waitForSelector('.row .nlabel'); assert.match(await page.locator('.row', { hasText: 'Laundromat' }).locator('.nlabel').innerText(), /quarters for the dryer/);
+  });
+  await step('Transactions: add note on a spend row and on a matched bill row; both show in Transactions and Overview', async () => {
+    const t1 = T('spendtx', '2026-11-20', 'WALMART', 31.2), t2 = T('electric2', '2026-11-20', 'NATIONAL GRID ELECTRIC', 70);
+    const KEY = 'b:elec:2026-11-21';
+    await page.evaluate(([a, b, key]) => {
+      const s = JSON.parse(localStorage.getItem('budtrack.v1')), A = JSON.parse(a), B = JSON.parse(b), at = new Date().toISOString();
+      s.bank.txns[A.id] = A; s.bank.txns[B.id] = B;
+      s.spends.push({ id: 'xs1', category: 'Groceries', desc: 'Walmart', amount: 31.2, date: '2026-11-20', note: 'Bank sync', bank: A.id });
+      s.bank.seen[A.id] = { res: 'spend', kind: 'spend', spendId: 'xs1', what: 'Groceries · Walmart', date: A.date, amount: A.amount, desc: A.desc, at, src: 'sync', auto: false, txn: A };
+      s.marks[key] = true; s.occ[key] = { txn: B.id, paidOn: B.date };
+      s.bank.seen[B.id] = { res: 'bill', kind: 'bill', key, what: 'Electric bill', date: B.date, amount: B.amount, desc: B.desc, at, src: 'sync', auto: false, txn: B, prev: { mark: null, occ: null } };
+      localStorage.setItem('budtrack.v1', JSON.stringify(s));
+    }, [JSON.stringify(t1), JSON.stringify(t2), KEY]);
+    await page.goto(BASE + '#transactions'); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
+    for (const [id, text] of [['pl:spendtx', 'weekly shop'], ['pl:electric2', 'Nov bill, higher heat']]) {
+      await page.locator('.tx[data-id="' + id + '"] .tx-main').click();
+      await page.locator('.tx[data-id="' + id + '"] [data-action="tx-note"]').click();
+      await page.fill('#txnote', text); await page.locator('[data-action="tx-note-save"]').click();
+      await page.waitForSelector('.tx[data-id="' + id + '"] .nlabel');
+      assert.equal(await page.locator('.tx[data-id="' + id + '"] .nlabel').innerText(), text);
+    }
+    await page.locator('.tx[data-id="pl:spendtx"] .tx-main').click();
+    assert.equal(await page.locator('.tx[data-id="pl:spendtx"] [data-action="tx-note"]').innerText(), 'Edit note');
+    await page.waitForTimeout(250); await noHScroll(page, '390 tx notes'); await page.screenshot({ path: SHOTS + '/tx-note-390.png' });
+    const s = await getState(page);
+    assert.equal(s.bank.notes['pl:spendtx'], 'weekly shop'); assert.equal(s.spends.find(z => z.id === 'xs1').note, 'weekly shop');
+    assert.equal(s.bank.notes['pl:electric2'], 'Nov bill, higher heat'); assert.equal(s.occ[KEY].note, 'Nov bill, higher heat'); assert.equal(s.occ[KEY].txn, 'pl:electric2');
+    await page.goto(BASE + '#overview'); await page.waitForSelector('.ov-bills');
+    assert.match(await page.locator('.row', { hasText: 'Walmart' }).locator('.nlabel').innerText(), /weekly shop/);
+    assert.match(await page.locator('.row', { hasText: 'Electric' }).locator('.nlabel').innerText(), /Nov bill, higher heat/);
+    // the spend form edit keeps the txn note in step
+    await page.locator('.row', { hasText: 'Walmart' }).locator('.tapzone').click(); await page.waitForSelector('#f-note');
+    assert.equal(await page.inputValue('#f-note'), 'weekly shop'); await page.fill('#f-note', 'edited in form'); await page.click('#form button[type=submit]');
+    assert.equal((await getState(page)).bank.notes['pl:spendtx'], 'edited in form');
+    await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx'); assert.equal(await page.locator('.tx[data-id="pl:spendtx"] .nlabel').innerText(), 'edited in form');
+  });
+  await step('951x669: no horizontal scroll on Transactions, Overview and the spend form', async () => {
+    await page.setViewportSize({ width: 951, height: 669 }); await page.waitForTimeout(200);
+    await page.goto(BASE + '#transactions'); await noHScroll(page, '951 transactions'); await page.goto(BASE + '#overview'); await page.waitForSelector('.ov-bills'); await noHScroll(page, '951 overview');
+    await page.click('.ov-bills [data-action="add"]'); await page.waitForSelector('#form'); await sheetNoHScroll(page, '951 form'); await page.keyboard.press('Escape');
+    await page.setViewportSize({ width: 390, height: 844 });
+  });
+  await step('category manager groups categories and sets a group', async () => {
+    await page.goto(BASE + '#income'); await page.waitForSelector('.cat-list');
+    assert.ok(await page.locator('.cat-gh', { hasText: 'Food' }).count() > 0);
+    await noHScroll(page, '390 cat manager');
+    await page.locator('.cat-gh', { hasText: 'Food' }).first().scrollIntoViewIfNeeded(); await page.waitForTimeout(300); await page.screenshot({ path: SHOTS + '/catmgr-390.png' });
+    await page.selectOption('select.cat-par[data-cat="Gaming"]', 'Shopping');
+    assert.equal((await getState(page)).catParents.Gaming, 'Shopping');
+    await page.fill('#nc-s', 'Pet food'); await page.selectOption('#np-s', 'Food'); await page.click('.cat-add[data-list="categories"] button[type=submit]');
+    assert.equal((await getState(page)).catParents['Pet food'], 'Food');
+  });
+  await step('grouped Accept chips on Transactions: Food parent chip first', async () => {
+    const t = T('newwait', '2026-11-18', 'MYSTERY CAFE', 9);
+    await page.evaluate(([a]) => { const s = JSON.parse(localStorage.getItem('budtrack.v1')), A = JSON.parse(a); s.bank.txns[A.id] = A; s.bank.inbox = [{ txn: A, kind: 'spend', confidence: 'low', cands: [], pick: null, category: 'Other', source: 'default' }]; localStorage.setItem('budtrack.v1', JSON.stringify(s)); }, [JSON.stringify(t)]);
+    await page.goto(BASE + '#transactions'); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
+    await page.locator('.tx[data-id="pl:newwait"] .tx-main').click(); await page.locator('.tx[data-id="pl:newwait"] [data-action="tx-cats"]').click();
+    const first = await page.evaluate(() => { const g = document.querySelector('.tx.open .cgrp'); return [...g.querySelectorAll('.chip')].map(c => c.textContent.trim()).slice(0, 2).concat(g.querySelector('.chip').classList.contains('chip-parent')); });
+    assert.deepEqual(first, ['Food', 'Groceries', true]); await noHScroll(page, '390 chips'); await page.locator('.tx.open .cgroups').scrollIntoViewIfNeeded(); await page.waitForTimeout(300); await page.screenshot({ path: SHOTS + '/chips-390.png' });
+  });
+  assert.deepEqual(errs, [], 'page errors in v5 block'); await page.context().close();
 }
 
 await browser.close();
