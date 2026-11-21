@@ -676,6 +676,8 @@ const splitSeed = async page => page.evaluate(() => {
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.useBankBalance === false);
     assert.doesNotMatch(await page.locator('.lad.l3').innerText(), /Live from/);
     await page.click('[data-action="account"]'); await page.waitForSelector('#acctform');
+    // Let the sheet finish sliding in before tapping inside it.
+    await page.waitForTimeout(350);
     await page.click('[data-action="bal-live"]'); await page.waitForSelector('.bal-total');
     assert.match(await page.locator('.lad.l3').innerText(), /Live from 2 banks/);
     await page.keyboard.press('Escape');
