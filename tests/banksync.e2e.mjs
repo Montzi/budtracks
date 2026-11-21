@@ -34,7 +34,7 @@ const fixtureState = s => Object.assign(s, {
 });
 
 let failures = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok   ' + name); } catch (e) { failures++; console.log('FAIL ' + name + '\n     ' + String(e.message).split('\n').slice(0, 6).join('\n     ')); } };
+const step = async (name, fn) => { try { await fn(); console.log('ok   ' + name); } catch (e) { failures++; console.log('FAIL ' + name + '\n     ' + String(e.message).split('\n').slice(0, 25).join('\n     ')); } };
 
 const browser = await chromium.launch();
 async function newPage(w, h) {
@@ -1385,6 +1385,260 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     await page.locator('.bk-enr [data-action="bk-disc"]').first().click(); await page.waitForSelector('#dc-ok'); await sheetNoHScroll(page, '951 disconnect'); await page.keyboard.press('Escape');
   });
   assert.deepEqual(errs, [], 'page errors in v6 income block'); await page.context().close();
+}
+
+const alignHero = async (page, label) => {
+  const m = await page.evaluate(() => {
+    const lads = [...document.querySelectorAll('.ladder .lad')], q = sel => lads.map(l => l.querySelector(sel)), top = e => e.getBoundingClientRect().top;
+    const base = e => { const sp = document.createElement('span'); sp.style.cssText = 'display:inline-block;width:0;height:0'; e.appendChild(sp); const b = sp.getBoundingClientRect().bottom; sp.remove(); return b; };
+    const textW = e => { const r = document.createRange(); r.selectNodeContents(e); return r.getBoundingClientRect().width; };
+    return { n: lads.length, k: q('.hs-k').map(top), v: q('.v').map(top), vb: q('.v').map(base), s: q('.hs-s').map(top), fs: q('.v').map(e => getComputedStyle(e).fontSize),
+      fit: q('.v').map((e, i) => e.scrollWidth <= e.clientWidth + 0.5 && textW(e) <= lads[i].clientWidth - 11), txt: q('.v').map(e => e.textContent), kt: q('.hs-k').map(e => e.scrollWidth <= e.clientWidth + 0.5 && e.getBoundingClientRect().right <= e.parentElement.getBoundingClientRect().right + 0.5) };
+  });
+  const same = a => Math.max(...a) - Math.min(...a) <= 1;
+  assert.equal(m.n, 3, label); assert.ok(same(m.k), label + ' labels ' + m.k); assert.ok(same(m.v), label + ' values ' + m.v); assert.ok(same(m.vb), label + ' baselines ' + m.vb);
+  assert.ok(same(m.s), label + ' sublines ' + m.s); assert.equal(new Set(m.fs).size, 1, label + ' one font size ' + m.fs); assert.deepEqual(m.fit, [true, true, true], label + ' no clipped digits ' + m.txt + ' ' + m.fs);
+  assert.deepEqual(m.kt, [true, true, true], label + ' labels fit');
+  return m;
+};
+
+/* ---------- v7: refresh + reorder balances, aligned hero sums with hide, per-paycheck budgets ---------- */
+{
+  const bal = (itemId, institution, accounts) => ({ itemId, institution, accounts });
+  const A = (id, name, mask, available, extra) => Object.assign({ id, name, mask, type: 'depository', subtype: 'checking', available, current: available, limit: null, currency: 'USD', enabled: true }, extra || {});
+  const BAL3 = () => [
+    bal('enr_1', 'Chime', [A('acc1', 'Everyday Checking', '1234', 1924.05), A('acc2', 'Savings', '9876', 800, { subtype: 'savings' })]),
+    bal('enr_2', 'Citizens', [A('acc4', 'Checking', '4417', 300)]),
+    bal('enr_3', 'Wells', [A('acc5', 'Checking', '1111', 50)])
+  ];
+  const { page, errs, calls, mock } = await prepared(390, 844);
+  mock.balances = BAL3(); mock.refreshResp = { refreshed: true, notEnabled: false, results: [] };
+  mock.enrollments.push({ id: 'enr_2', institution: 'Citizens', needsReconnect: false, accounts: [] }, { id: 'enr_3', institution: 'Wells', needsReconnect: false, accounts: [] });
+  const TODAYS = () => page.evaluate(() => BT.iso(new Date()));
+  // Budgets and spending for the current pay cycle. "Food" is the old name (the migration has not run yet).
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('budtrack.v1'));
+    s.imports = (s.imports || []).filter(x => x !== 'pp-groceries-1');
+    s.perPeriod = [{ id: 'pp-gas', name: 'Gas', amount: 60, category: 'Gas' }, { id: 'pp-food', name: 'Food', amount: 150, category: '' }, { id: 'pp-pets', name: 'Pets', amount: 25, category: 'Pets' }];
+    s.income[0].perCycle = { '2026-11-19': 2724.05 };
+    localStorage.setItem('budtrack.v1', JSON.stringify(s));
+  });
+  await page.goto(BASE + '#overview', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => { const b = JSON.parse(localStorage.getItem('budtrack.v1')).bank; return b.balances && b.balances.items.length === 3; });
+  await page.waitForTimeout(300);
+
+  await step('Food becomes Groceries (category Groceries); other budgets are untouched', async () => {
+    const s = await getState(page);
+    assert.deepEqual(s.perPeriod.map(p => [p.name, p.category]), [['Gas', 'Gas'], ['Groceries', 'Groceries'], ['Pets', 'Pets']]);
+    assert.ok(s.imports.includes('pp-groceries-1'));
+  });
+
+  const align = label => alignHero(page, label);
+  await step('hero sums share one label row, value row, baseline and subline row (390, 951, 1000, 763)', async () => {
+    const m = await align('390x844'); assert.match(m.txt.join(' '), /3,074\.05/); assert.match(m.txt.join(' '), /2,626\.40/);
+    await noHScroll(page, '390 hero');
+    await page.evaluate(() => { const t = document.querySelector('#toast'); if (t) t.classList.remove('on'); });
+    await page.locator('.hero').screenshot({ path: SHOTS + '/hero-390.png' });
+    for (const [w, h] of [[951, 669], [1000, 703], [763, 390]]) {
+      await page.setViewportSize({ width: w, height: h }); await page.waitForTimeout(150);
+      await align(w + 'x' + h); await noHScroll(page, w + ' hero');
+      if (w === 951) { await page.evaluate(() => { const t = document.querySelector('#toast'); if (t) t.classList.remove('on'); }); await page.locator('.hero').screenshot({ path: SHOTS + '/hero-951.png' }); }
+    }
+    await page.emulateMedia({ colorScheme: 'dark' }); await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(150); await align('390 dark');
+    await page.emulateMedia({ colorScheme: 'light' });
+  });
+
+  await step('hide balances: one slim row, money masked, persisted in settings and backups', async () => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.click('[data-action="account"]'); await page.waitForSelector('.bal-total'); assert.match(await page.locator('.bal-total').innerText(), /\$3,074\.05/);
+    await page.evaluate(() => document.querySelector('.lad-tools .eye').click()); await page.waitForSelector('.lad-tools.hid');
+    assert.equal(await page.locator('.ladder').count(), 0);
+    assert.match(await page.locator('.lad-tools.hid').innerText(), /Balances hidden\s*·\s*Show/);
+    const hero = await page.locator('.hero').innerText(); assert.ok(!/\$\s?\d/.test(hero), 'no dollar amounts in the hero: ' + hero.replace(/\n/g, ' | '));
+    assert.deepEqual(await page.locator('.hero-stats dd').allInnerTexts(), ['••••', '••••', '••••']);
+    assert.equal((await getState(page)).settings.hideBalances, true);
+    const sh = await page.locator('#sheet').innerText(); assert.ok(!/\$\s?\d/.test(sh), 'sheet masked: ' + sh.replace(/\n/g, ' | ')); assert.match(sh, /••••/);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(100); await page.evaluate(() => { const t = document.querySelector('#toast'); if (t) t.classList.remove('on'); }); await page.locator('.hero').screenshot({ path: SHOTS + '/hero-hidden-390.png' });
+    await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.lad-tools.hid');
+    assert.equal((await getState(page)).settings.hideBalances, true, 'persists after reload');
+    await page.click('[data-action="hide-bal"] >> nth=0'); await page.waitForSelector('.ladder');
+    assert.equal((await getState(page)).settings.hideBalances, false);
+    assert.match(await page.locator('.lad.l3').innerText(), /3,074\.05/);
+    await page.click('.lad-tools .eye'); await page.waitForSelector('.lad-tools.hid'); await page.click('.lad-tools .linkbtn'); await page.waitForSelector('.ladder');
+    await page.click('.lad-tools .eye'); await page.waitForSelector('.lad-tools.hid');
+    await page.goto(BASE + '#income', { waitUntil: 'load' }); await page.click('[data-action="copy-backup"]'); await page.waitForSelector('#bk');
+    assert.equal(JSON.parse(await page.inputValue('#bk')).settings.hideBalances, true, 'in the backup'); await page.keyboard.press('Escape');
+    await page.goto(BASE + '#overview', { waitUntil: 'load' }); await page.click('[data-action="hide-bal"] >> nth=0'); await page.waitForSelector('.ladder');
+  });
+
+  await step('In account refresh icon: POST /refresh then /sync, spins, updates totals, toasts', async () => {
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.bank.refreshOK = { ok: false, at: new Date().toISOString() }; localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
+    await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.lad.l3');
+    await page.evaluate(() => { window.BT_FOLLOWUP_MS = 600000; });
+    await page.click('[data-action="account"]'); await page.waitForSelector('.bal-total');
+    assert.match(await page.locator('.bal-total').innerText(), /\$3,074\.05/);
+    const btn = page.getByRole('button', { name: 'Refresh balances' }); assert.equal(await btn.count(), 1);
+    mock.balances = BAL3(); mock.balances[1].accounts[0].available = 450.5; mock.balances[1].accounts[0].current = 450.5; mock.delay = 500;
+    const n = calls.length; await btn.click();
+    await page.waitForSelector('.icon-btn.spinning[aria-label="Refresh balances"]');
+    await page.waitForFunction(() => /Updated just now/.test(document.querySelector('#toast').innerText), null, { timeout: 8000 });
+    const after = calls.slice(n).map(c => c.p); assert.ok(after.indexOf('/refresh') >= 0 && after.indexOf('/sync') > after.indexOf('/refresh'), after.join(','));
+    assert.equal(calls.slice(n).find(c => c.p === '/refresh').m, 'POST'); assert.equal(calls.slice(n).find(c => c.p === '/refresh').q, '', 'all banks');
+    assert.match(await page.locator('.bal-total').innerText(), /\$3,224\.55/);
+    assert.equal(await page.locator('.icon-btn.spinning').count(), 0);
+    assert.equal((await getState(page)).bank.balances.items[1].accounts[0].available, 450.5);
+    mock.delay = 0; mock.offline = true;
+    await btn.click(); await page.waitForFunction(() => /Could not refresh/.test(document.querySelector('#toast').innerText));
+    await page.waitForFunction(() => !document.querySelector('.icon-btn.spinning')); mock.offline = false;
+    await sheetNoHScroll(page, '390 balance sheet header');
+    mock.errors = [{ institution: 'Chime', needsReconnect: true }];
+    await btn.click(); await page.waitForFunction(() => !document.querySelector('.icon-btn.spinning'));
+    const tt = await page.locator('#toast').innerText(); assert.match(tt, /needs reconnect/); assert.doesNotMatch(tt, /Updated just now/);
+    mock.errors = [];
+  });
+
+  const order = () => page.locator('#balbanks .bx-sh').allTextContents();
+  await step('drag a bank by its grip (pointer events), saved in state.bank.order and kept after reload and in backups', async () => {
+    assert.deepEqual(await order(), ['Chime', 'Citizens', 'Wells']);
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.grip')).touchAction), 'none');
+    const g = await page.locator('.bal-bank').nth(0).locator('.grip').boundingBox(), t = await page.locator('.bal-bank').nth(2).boundingBox();
+    await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2); await page.mouse.down();
+    await page.mouse.move(g.x + g.width / 2, g.y + 40, { steps: 4 });
+    await page.mouse.move(g.x + g.width / 2, t.y + t.height - 4, { steps: 10 });
+    await page.screenshot({ path: SHOTS + '/balances-drag-390.png' });
+    assert.equal(await page.locator('.bal-bank.dragging').count(), 1);
+    await page.mouse.up();
+    await page.waitForFunction(() => JSON.stringify(JSON.parse(localStorage.getItem('budtrack.v1')).bank.order) === '["enr_2","enr_3","enr_1"]');
+    assert.deepEqual(await order(), ['Citizens', 'Wells', 'Chime']);
+    await sheetNoHScroll(page, '390 after drag');
+    await page.keyboard.press('Escape'); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.lad.l3'); await page.click('[data-action="account"]'); await page.waitForSelector('#balbanks');
+    assert.deepEqual(await order(), ['Citizens', 'Wells', 'Chime'], 'persists');
+    await page.keyboard.press('Escape'); await page.goto(BASE + '#income', { waitUntil: 'load' }); await page.click('[data-action="copy-backup"]'); await page.waitForSelector('#bk');
+    assert.deepEqual(JSON.parse(await page.inputValue('#bk')).bank.order, ['enr_2', 'enr_3', 'enr_1']); await page.keyboard.press('Escape'); await page.goto(BASE + '#overview', { waitUntil: 'load' });
+  });
+  await step('touch-style pointer events also reorder (synthetic, pointerType touch)', async () => {
+    await page.click('[data-action="account"]'); await page.waitForSelector('#balbanks');
+    await page.evaluate(() => {
+      const g = document.querySelectorAll('.grip')[2], r = g.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2, top = document.querySelectorAll('.bal-bank')[0].getBoundingClientRect().top;
+      const ev = (type, tgt, cy) => tgt.dispatchEvent(new PointerEvent(type, { pointerId: 9, pointerType: 'touch', isPrimary: true, clientX: x, clientY: cy, bubbles: true, cancelable: true, button: 0 }));
+      ev('pointerdown', g, y); [y - 30, y - 120, top - 70].forEach(cy => ev('pointermove', window, cy)); ev('pointerup', window, top - 70);
+    });
+    await page.waitForFunction(() => JSON.stringify(JSON.parse(localStorage.getItem('budtrack.v1')).bank.order) === '["enr_1","enr_2","enr_3"]');
+    assert.deepEqual(await order(), ['Chime', 'Citizens', 'Wells']);
+  });
+  await step('Edit order: Move up / Move down buttons work, edges disabled, focus stays', async () => {
+    await page.click('[data-action="bal-edit"]');
+    const ups = page.locator('[data-action="bank-move"][aria-label="Move up"]'), downs = page.locator('[data-action="bank-move"][aria-label="Move down"]');
+    assert.equal(await ups.count(), 3); assert.equal(await ups.nth(0).isDisabled(), true); assert.equal(await downs.nth(2).isDisabled(), true);
+    await downs.nth(0).click();
+    assert.deepEqual(await order(), ['Citizens', 'Chime', 'Wells']); assert.deepEqual((await getState(page)).bank.order, ['enr_2', 'enr_1', 'enr_3']);
+    assert.equal(await page.evaluate(() => document.activeElement.getAttribute('data-id') + document.activeElement.dataset.dir), 'enr_11');
+    await ups.nth(2).click(); assert.deepEqual(await order(), ['Citizens', 'Wells', 'Chime']);
+    await sheetNoHScroll(page, '390 edit order');
+    await page.locator('#sheet .sheet').screenshot({ path: SHOTS + '/balances-reorder-390.png' });
+    await page.click('[data-action="bal-edit"]'); assert.equal(await page.locator('[data-action="bank-move"]').count(), 0);
+    await page.keyboard.press('Escape');
+  });
+  await step('same order in the Bank connections card and the Transactions bank filter', async () => {
+    await page.goto(BASE + '#income', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' }); await page.waitForFunction(() => document.querySelectorAll('.bk-enr').length === 3);
+    assert.deepEqual(await page.locator('.bk-enr .bk-eh b').allTextContents(), ['Citizens', 'Wells', 'Chime']);
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); const t = (id, inst, l4) => ({ id, date: '2026-11-18', desc: 'SHOP', rawDesc: 'SHOP', amount: 5, status: 'posted', account: { institution: inst, name: 'Checking', last4: l4 } }); s.bank.txns['pl:c1'] = t('pl:c1', 'Citizens', '4417'); s.bank.txns['pl:w1'] = t('pl:w1', 'Wells', '1111'); localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
+    await page.goto(BASE + '#transactions', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('#txbank');
+    const opts = await page.locator('#txbank option').allTextContents(); assert.deepEqual(opts, ['All banks', 'Citizens ••4417', 'Wells ••1111', 'Chime ••1234']);
+    await noHScroll(page, '390 transactions');
+  });
+  await step('a newly connected bank joins at the end of the order', async () => {
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.bank.balances.items.push({ itemId: 'enr_9', institution: 'Ally', accounts: [{ id: 'a9', name: 'Savings', mask: '0009', type: 'depository', available: 1, current: 1 }] }); localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
+    await page.goto(BASE + '#overview', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.lad.l3'); await page.click('[data-action="account"]'); await page.waitForSelector('#balbanks');
+    assert.deepEqual((await order()).slice(-1), ['Ally']); await page.keyboard.press('Escape');
+  });
+  assert.deepEqual(errs, [], 'page errors in v7 balances');
+  await page.context().close();
+}
+
+const BT_round = n => Math.round(n * 100) / 100;
+{
+  const { page, errs, mock } = await prepared(390, 844);
+  const today = await page.evaluate(() => BT.iso(new Date()));
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('budtrack.v1'));
+    s.perPeriod = [{ id: 'pp-gas', name: 'Gas', amount: 60, category: 'Gas' }, { id: 'pp-groc', name: 'Groceries', amount: 150, category: 'Groceries' }, { id: 'pp-off', name: 'Pets', amount: 0, category: 'Pets' }];
+    s.income[0].perCycle = { '2026-11-19': 2000 }; s.spends = [];
+    localStorage.setItem('budtrack.v1', JSON.stringify(s));
+  });
+  const num = () => page.evaluate(() => { const state = JSON.parse(localStorage.getItem('budtrack.v1')), TODAY = BT.iso(new Date()), r = BT.periodRange(state, 'biweekly', 0, TODAY), s = BT.summary(state, r, TODAY); return { needed: s.needed, paid: s.paid, left: s.left, due: s.due, acct: BT.accountBalance(state, TODAY), r }; });
+  await page.goto(BASE + '#overview', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.ov-bills');
+  const base = await num();
+  await step('budgets sit at the bottom of the bills list, undated, not checkable, never Up next or Past due', async () => {
+    const card = page.locator('.ov-bills');
+    assert.equal(await card.locator('.bud-h').textContent(), 'Budgets this cycle');
+    assert.equal(await card.evaluate(c => c.lastElementChild.classList.contains('bud-rows') && c.lastElementChild.previousElementSibling.classList.contains('bud-h')), true, 'last in the card');
+    const rows = card.locator('.row.bgt'); assert.equal(await rows.count(), 3);
+    assert.equal(await rows.locator('.check, .date, .pill').count(), 0);
+    assert.match(await rows.nth(1).innerText(), /Groceries[\s\S]*Spent \$0\.00 of \$150\.00 · \$150\.00 left/);
+    assert.match(await rows.nth(2).innerText(), /Pets[\s\S]*Not set · tap to set budget/); assert.equal(await rows.nth(2).evaluate(e => e.classList.contains('off')), true);
+    assert.equal(await page.locator('.ov-bills .rows:not(.bud-rows) .row.bgt').count(), 0);
+    assert.equal(base.needed, (await page.evaluate(() => { const state = JSON.parse(localStorage.getItem('budtrack.v1')), TODAY = BT.iso(new Date()); return BT.summary(state, BT.periodRange(state, 'biweekly', 0, TODAY), TODAY).items.filter(x => x.kind !== 'spend').reduce((a, x) => a + x.amount, 0); })) + 210, 'unspent budgets are reserved');
+  });
+  await step('$40 + $30 Groceries spends: "Spent $70.00 of $150.00 · $80.00 left"; money counted once', async () => {
+    await page.evaluate(([d]) => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.spends.push({ id: 'g1', category: 'Groceries', desc: 'Aldi', amount: 40, date: d, note: '' }, { id: 'g2', category: 'Groceries', desc: 'Kroger', amount: 30, date: d, note: 'Snacks' }); localStorage.setItem('budtrack.v1', JSON.stringify(s)); }, [today]);
+    await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.row.bgt');
+    assert.match(await page.locator('.row.bgt', { hasText: 'Groceries' }).innerText(), /Spent \$70\.00 of \$150\.00 · \$80\.00 left/);
+    const n = await num(); assert.equal(n.needed, base.needed); assert.equal(n.paid, base.paid + 70); assert.equal(n.left, base.left); assert.equal(n.acct, BT_round(base.acct - 70));
+    assert.equal(await page.locator('.ov-bills .rows:not(.bud-rows) .nm', { hasText: /Aldi|Kroger/ }).count(), 0, 'the purchases are inside the budget, not listed twice');
+    await page.locator('.ov-bills').screenshot({ path: SHOTS + '/budgets-390.png' });
+    await page.locator('.row.bgt', { hasText: 'Groceries' }).click(); await page.waitForSelector('.bud-strip');
+    const sh = await page.locator('#sheet').innerText(); assert.match(sh, /Aldi/); assert.match(sh, /Kroger/); assert.match(sh, /Snacks/); assert.match(sh, /\$40\.00/); assert.match(sh, /\$30\.00/); assert.match(sh, /Edit budget amount/);
+    await sheetNoHScroll(page, '390 budget sheet');
+    await page.locator('#sheet .sheet').screenshot({ path: SHOTS + '/budget-sheet-390.png' });
+  });
+  await step('a $100 more Groceries spend: "$20.00 over budget", red full bar, needed and left follow', async () => {
+    await page.click('#sheet [data-action="add"][data-type="extra"]'); await page.waitForSelector('#f-amount');
+    await page.fill('#f-amount', '100'); await page.fill('#f-desc', 'Costco'); await page.click('#form button[type=submit]'); await page.waitForSelector('.row.bgt');
+    const row = page.locator('.row.bgt', { hasText: 'Groceries' }); assert.match(await row.innerText(), /\$20\.00 over budget/);
+    assert.equal(await row.locator('.bud-bar.over').count(), 1); assert.equal(await row.locator('.bud-bar i').evaluate(e => e.style.width), '100%');
+    assert.notEqual(await row.locator('b.over').evaluate(e => getComputedStyle(e).color), await row.locator('.nm').evaluate(e => getComputedStyle(e).color));
+    const n = await num(); assert.equal(n.needed, BT_round(base.needed + 20)); assert.equal(n.paid, base.paid + 170); assert.equal(n.left, BT_round(base.left - 20)); assert.equal(n.acct, BT_round(base.acct - 170));
+    const leg = await page.locator('.cat-legend').innerText(); assert.match(leg, /Groceries\s*\$170\.00/);
+    const tip = await page.locator('.ov-bars g[data-tip]').first().getAttribute('data-tip'); assert.ok(tip.includes('Needed ' + ('$' + n.needed.toLocaleString('en-US', { minimumFractionDigits: 2 }))), tip);
+    assert.equal(await page.locator('.ov-bills .rows:not(.bud-rows) .nm', { hasText: 'Costco' }).count(), 0);
+    assert.doesNotMatch(leg, /Pets/, 'a budget that is not set adds no donut slice');
+    await noHScroll(page, '390 budgets');
+  });
+  await step('Bills tab lists the budgets of this cycle; edit budget opens the amount form', async () => {
+    await page.goto(BASE + '#bills', { waitUntil: 'load' }); await page.waitForSelector('.bud-rows');
+    assert.match(await page.locator('.bud-rows').innerText(), /Gas[\s\S]*Groceries[\s\S]*\$20\.00 over budget/);
+    await page.locator('.row.bgt', { hasText: 'Gas' }).click(); await page.waitForSelector('.bud-strip');
+    await page.click('#sheet [data-action="edit"][data-type="spend"]'); await page.waitForSelector('#form[data-type="spend"]');
+    assert.match(await page.locator('#sheet').innerText(), /Budget each pay cycle/); await page.keyboard.press('Escape'); await noHScroll(page, '390 bills');
+  });
+  await step('Match picker offers "Count toward Groceries budget": creates a Groceries spend, no paid mark; likely ignores budgets', async () => {
+    await page.evaluate(([d]) => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.bank.txns['pl:g9'] = { id: 'pl:g9', date: d, desc: 'GROCERY OUTLET', rawDesc: 'GROCERY OUTLET', amount: 55.25, status: 'posted', account: { institution: 'Chime', name: 'Checking', last4: '1234' } }; s.bank.txns['pl:g150'] = { id: 'pl:g150', date: d, desc: 'GROCERIES', rawDesc: 'GROCERIES', amount: 150, status: 'posted', account: { institution: 'Chime', name: 'Checking', last4: '1234' } }; localStorage.setItem('budtrack.v1', JSON.stringify(s)); }, [today]);
+    await page.goto(BASE + '#overview', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.row.bgt');
+    assert.equal(await page.locator('.bud-rows .likely, .bud-rows [data-action="likely-open"]').count(), 0);
+    const before = (await getState(page)).spends.length;
+    await page.goto(BASE + '#transactions', { waitUntil: 'load' }); await page.waitForSelector('.tx[data-id="pl:g9"]');
+    await page.locator('.tx[data-id="pl:g9"] .tx-main').click(); await page.locator('.tx[data-id="pl:g9"] [data-action="tx-match"]').click(); await page.waitForSelector('.pk-opt');
+    const opt = page.locator('.pk-opt', { hasText: 'Count toward Groceries budget' }); assert.equal(await opt.count(), 1);
+    assert.match(await page.locator('#sheet').innerText(), /Count toward Gas budget/); assert.doesNotMatch(await page.locator('#sheet').innerText(), /Pets budget/);
+    await opt.click(); await page.waitForFunction(n => JSON.parse(localStorage.getItem('budtrack.v1')).spends.length === n + 1, before);
+    const s = await getState(page), sp = s.spends.find(x => x.bank === 'pl:g9');
+    assert.ok(sp); assert.equal(sp.category, 'Groceries'); assert.equal(sp.amount, 55.25); assert.ok(!Object.keys(s.marks).some(k => k.startsWith('s:')), 'no paid mark on a budget');
+    await page.goto(BASE + '#overview', { waitUntil: 'load' }); await page.waitForSelector('.row.bgt'); assert.match(await page.locator('.row.bgt', { hasText: 'Groceries' }).innerText(), /\$75\.25 over budget/);
+  });
+  await step('Savings chip stays inside the In account subline: hero sums still aligned', async () => {
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.savings = { on: true, bank: '', tx: [{ id: 'sv1', type: 'open', amount: 250, date: '2026-11-01' }] }; localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
+    await page.goto(BASE + '#overview', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.lad.l3 .sv-chip');
+    assert.equal(await page.locator('.lad.l3 > .sv-chip').count(), 0); await alignHero(page, '390 savings chip');
+    await page.setViewportSize({ width: 951, height: 669 }); await page.waitForTimeout(150); await alignHero(page, '951 savings chip'); await page.setViewportSize({ width: 390, height: 844 });
+  });
+  await step('951x669 landscape and dark: budgets have no horizontal scroll', async () => {
+    await page.setViewportSize({ width: 951, height: 669 }); await page.emulateMedia({ colorScheme: 'dark' }); await page.waitForTimeout(200);
+    await noHScroll(page, '951 budgets dark'); await page.locator('.ov-bills').screenshot({ path: SHOTS + '/budgets-951-dark.png' });
+    await page.emulateMedia({ colorScheme: 'light' });
+  });
+  assert.deepEqual(errs, [], 'page errors in budgets'); await page.context().close();
 }
 
 await browser.close();

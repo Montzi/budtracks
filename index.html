@@ -273,22 +273,23 @@ textarea { width: 100%; min-height: 120px; border-radius: 10px; border: 1px soli
 .hero-split .mid { font-family: var(--display); font-size: clamp(24px, 6.4vw, 32px); line-height: 1; white-space: nowrap; color: var(--hero-ink); }
 .hs-s { font-size: 12px; color: var(--hero-ink-2); font-family: var(--mono); line-height: 1.4; }
 
-.ladder { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; margin: 16px -6px 6px; }
-.lad { display: grid; gap: 3px; justify-items: center; text-align: center; padding: 0 6px; min-width: 0; }
-.lad + .lad { display: grid; gap: 3px; justify-items: center; text-align: center; padding: 0 6px; min-width: 0; }
-.lad .v { font-family: var(--display); line-height: .95; letter-spacing: -0.02em; white-space: nowrap; color: var(--hero-ink); }
+/* Three sums on one grid: every column shares the same label, value and subline rows (subgrid), so nothing steps down. */
+.ladder { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: auto auto auto; row-gap: 4px; align-items: start; margin: 6px -6px 6px; container-type: inline-size; }
+.lad { display: grid; grid-row: span 3; grid-template-rows: subgrid; justify-items: center; align-content: start; text-align: center; padding: 0 6px; min-width: 0; }
+.lad .hs-k { align-self: end; font-size: clamp(9.5px, 3.7cqi, 11.5px); }
+.lad .v { font-family: var(--display); font-size: clamp(18px, 7.4cqi, 32px); line-height: 1.05; letter-spacing: -0.02em; white-space: nowrap; color: var(--hero-ink); font-variant-numeric: tabular-nums; min-width: 0; max-width: 100%; }
 .lad .v small { font-size: .52em; vertical-align: .6em; margin-right: 1px; color: var(--hero-ink-2); }
 .lad .v.neg { color: #ff9d9d; }
 .lad .v.dim { opacity: .45; }
-.l1 .v { font-size: clamp(30px, 8.2vw, 44px); }
-.l2 .v { font-size: clamp(25px, 6.9vw, 37px); }
-.l3 .v { font-size: clamp(21px, 5.8vw, 31px); }
-.l3 .v.set { font-family: var(--body); font-size: 15px; font-weight: 500; color: var(--brass-hi); text-decoration: underline; text-underline-offset: 3px; }
-.l2 { padding-bottom: 0; }
-button.lad { display: grid; gap: 3px; justify-items: center; text-align: center; padding: 0 6px; min-width: 0; }
-button.lad:hover .v { color: var(--brass-hi); }
-.lad .hs-s { font-size: 11px; }
-@media (max-width: 400px) { .lad { display: grid; gap: 3px; justify-items: center; text-align: center; padding: 0 6px; min-width: 0; } }
+.lad .v.set { font-family: var(--body); font-size: 15px; font-weight: 500; color: var(--brass-hi); text-decoration: underline; text-underline-offset: 3px; }
+.lad .hs-s { font-size: 11px; align-self: start; }
+button.lad:hover .v, button.lad:focus-visible .v { color: var(--brass-hi); }
+.lad-tools { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin: 10px 0 0; min-height: 28px; }
+.lad-tools .eye { width: 28px; height: 28px; border-radius: 8px; background: transparent; border-color: var(--hero-line); color: var(--hero-ink-2); }
+.lad-tools .eye:hover, .lad-tools .eye:focus-visible { color: var(--brass-hi); border-color: var(--brass-hi); }
+.lad-tools.hid { justify-content: space-between; margin: 12px 0 4px; padding: 5px 6px 5px 12px; border: 1px solid var(--hero-line); border-radius: 12px; font-size: 13px; color: var(--hero-ink-2); }
+.lad-tools .lt-msg { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
+.lad-tools .linkbtn { color: var(--brass-hi); }
 .subhead { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; padding: 6px 16px 2px; border-top: 1px solid var(--line); margin-top: 2px; }
 .tag.cat { border-color: color-mix(in srgb, var(--s8) 45%, var(--line-2)); color: var(--ink); }
 .add-big { width: 34px; height: 34px; border-radius: 50%; background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
@@ -320,7 +321,6 @@ button.lad:hover .v { color: var(--brass-hi); }
 #allocform .actions { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
 button.lad { background: none; border: 0; border-left: 1px solid var(--hero-line); color: inherit; font: inherit; cursor: pointer; border-radius: 0; padding: 0 6px; }
 .lad + .lad { border-left: 1px solid var(--hero-line); }
-button.lad:hover .v, button.lad:focus-visible .v { color: var(--brass-hi); }
 
 .cico { width: 14px; height: 14px; flex: none; color: var(--ink-2); }
 .bcat { color: var(--ink-2); font-weight: 500; }
@@ -870,6 +870,39 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 .oi-add .btn { width: 100%; justify-content: center; min-height: 44px; }
 .oi-coll .rows { margin-top: 0; }
 .oi-coll .oi-btn { padding: 0 16px 12px; }
+
+/* Budgets (per-paycheck items) */
+.bud-h { margin-top: 6px; }
+.row.bgt { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+.bud-ico { width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); display: grid; place-items: center; color: var(--ink-2); }
+.bud-ico .cico { width: 16px; height: 16px; }
+.row.bgt .sub { overflow-wrap: anywhere; }
+.row.bgt .sub b.over, .tile.over .v { color: var(--crit); font-weight: 600; }
+.row.bgt.off { opacity: .6; }
+.row.bgt.off .nm { color: var(--ink-2); }
+.bud-bar { height: 6px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line); margin-top: 7px; overflow: hidden; }
+.bud-bar i { display: block; height: 100%; border-radius: 99px; background: var(--accent); }
+.bud-bar.over i { background: var(--crit); }
+.bud-bar.big { height: 10px; margin: 0 0 6px; }
+.bud-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 12px; }
+.edit-hint { color: var(--ink-3); }
+/* In account sheet: refresh, reorder */
+.sh-btns { display: flex; gap: 8px; flex: none; }
+.icon-btn.spinning svg { animation: spin .8s linear infinite; }
+.icon-btn[disabled] { opacity: .6; }
+@media (prefers-reduced-motion: reduce) { .icon-btn.spinning svg { animation-duration: 2.4s; } }
+.bal-tools { display: flex; justify-content: flex-end; margin: -4px 0 6px; }
+.bal-banks { display: grid; }
+.bal-bank { position: relative; margin-bottom: 8px; background: var(--surface); transition: transform .18s ease; border-radius: 12px; }
+.bal-bank.dragging { z-index: 5; transition: none; box-shadow: 0 10px 28px #0004; background: var(--surface-2); outline: 1px solid var(--line-2); }
+.bal-bank.dragging.settle { transition: transform .16s ease; }
+.bx-hd { display: flex; align-items: center; gap: 6px; min-height: 34px; }
+.bx-hd .bx-sh { flex: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.grip { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: grab; width: 34px; height: 34px; display: grid; place-items: center; background: none; border: 0; color: var(--ink-3); border-radius: 8px; flex: none; margin-left: -8px; }
+.grip:hover, .grip:focus-visible { color: var(--ink); background: var(--surface-2); }
+body.dragging-bank { cursor: grabbing; -webkit-user-select: none; user-select: none; }
+.mvs { display: flex; gap: 4px; }
+.icon-btn.sm { width: 28px; height: 28px; }
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#15203a">
@@ -987,6 +1020,23 @@ const BT = (() => {
 
   const GROUPS = ['Fixed', 'Apple Subscriptions', 'Subscriptions', 'Other bills', 'Per paycheck', 'Pay plans', 'Credit cards', 'Spending'];
 
+  // Per-paycheck items are budgets (envelopes): no due date, never paid by a tick. What counts toward one is the real
+  // spending (state.spends) of its category inside its 14-day cycle. Each spend counts toward at most one budget
+  // (the first one listed wins) and is flagged `budgeted`, so totals use max(budget, spent) once and never add the spend again.
+  function applyBudgets(st, all, buds) {
+    const order = id => st.perPeriod.findIndex(p => p.id === id);
+    buds.slice().sort((a, b) => order(a.ref) - order(b.ref) || (a.natural < b.natural ? -1 : 1)).forEach(b => {
+      const budget = typeof b.amount === 'number' && b.amount > 0 ? b.amount : 0, on = !b.off && budget > 0 && !!b.category, end = addDays(b.natural, 14);
+      b.paid = false; b.auto = false; b.budget = budget; b.on = on; b.spends = []; b.spent = 0; b.winEnd = end;
+      if (!on) { b.amount = 0; return; }
+      all.forEach(e => { if (e.kind === 'extra' && !e.budgeted && e.paid && e.category === b.category && e.date >= b.natural && e.date < end) { e.budgeted = b.key; b.spends.push(e); } });
+      b.spent = round2(b.spends.reduce((a, e) => a + e.amount, 0));
+      b.amount = Math.max(budget, b.spent);
+    });
+  }
+  // How much of an item is paid for the money totals: budgets count what was spent, everything else all or nothing.
+  const paidOf = x => x.kind === 'spend' ? (x.spent || 0) : x.paid ? x.amount : 0;
+
   // Items are generated over a wide window, then placed by their effective date:
   // date paid if paid, else the (possibly moved) due date. Moving a date into
   // another pay cycle moves the amount into that cycle's totals.
@@ -1027,7 +1077,7 @@ const BT = (() => {
     for (const date of stepDates(anchor(st), 14, W)) {
       for (const s of st.perPeriod) {
         const key = 's:' + s.id + ':' + date + ':0';
-        out.push({ key, kind: 'spend', ref: s.id, name: s.name, note: 'Per paycheck', category: s.category || '', via: s.via || '', amount: s.amount, date, group: 'Per paycheck', paid: !!st.marks[key] });
+        out.push({ key, kind: 'spend', ref: s.id, name: s.name, note: 'Per paycheck', category: s.category || '', via: s.via || '', amount: s.amount, date, group: 'Per paycheck', paid: false, off: s.active === false });
       }
     }
     const occ = st.occ || {};
@@ -1053,8 +1103,11 @@ const BT = (() => {
       x.date = x.kind !== 'spend' && x.paid && x.paidOn ? x.paidOn : x.due;
       x.moved = x.date !== x.natural;
     });
+    applyBudgets(st, out, out.filter(x => x.kind === 'spend'));
     if (raw) return out;
     let res = out.filter(x => inR(x.date, r));
+    // A spend only belongs to a budget that is itself part of this range (weekly and monthly views can cut a cycle).
+    { const here = new Set(res.filter(x => x.kind === 'spend').map(x => x.key)); res.forEach(x => { if (x.budgeted && !here.has(x.budgeted)) { delete x.budgeted; } }); res.filter(x => x.kind === 'spend').forEach(b => { b.spends = b.spends.filter(e => e.budgeted === b.key); b.spent = round2(b.spends.reduce((a, e) => a + e.amount, 0)); if (b.on) b.amount = Math.max(b.budget, b.spent); }); }
     // Monthly view always counts per-paycheck items twice.
     if (r.view === 'monthly') {
       for (const s of st.perPeriod) {
@@ -1062,9 +1115,10 @@ const BT = (() => {
         const mine = res.filter(x => x.kind === 'spend' && x.ref === s.id);
         mine.slice(2).forEach(x => { res = res.filter(y => y !== x); });
         for (let i = mine.length; i < 2; i++) {
-          const key = 's:' + s.id + ':' + r.start + ':pad' + i, o = occ[key] || {}, paid = !!st.marks[key];
+          const key = 's:' + s.id + ':' + r.start + ':pad' + i, o = occ[key] || {};
           const amount = typeof o.amount === 'number' ? o.amount : s.amount;
-          res.push({ key, kind: 'spend', ref: s.id, name: s.name, note: 'Per paycheck', category: s.category || '', via: s.via || '', amount, base: s.amount, edited: amount !== s.amount, date: r.start, natural: r.start, due: r.start, paid, paidOn: paid ? (o.paidOn || '') : '', group: 'Per paycheck', moved: false });
+          const pad = { key, kind: 'spend', ref: s.id, name: s.name, note: 'Per paycheck', category: s.category || '', via: s.via || '', amount, base: s.amount, edited: amount !== s.amount, date: r.start, natural: r.start, due: r.start, paid: false, paidOn: '', group: 'Per paycheck', moved: false, off: s.active === false };
+          res.push(pad); applyBudgets(st, out, [pad]);
         }
       }
     }
@@ -1108,13 +1162,15 @@ const BT = (() => {
   }
 
   function summary(st, r, today) {
-    const items = occurrences(st, r, today), inc = incomeIn(st, r);
+    const all = occurrences(st, r, today), inc = incomeIn(st, r);
+    // Spends counted toward a budget live inside that budget's amount: they are left out of the totals and lists of one-time spending.
+    const items = all.filter(x => !x.budgeted), claimed = all.filter(x => x.budgeted);
     const needed = round2(items.reduce((a, x) => a + x.amount, 0));
-    const paid = round2(items.filter(x => x.paid).reduce((a, x) => a + x.amount, 0));
+    const paid = round2(items.reduce((a, x) => a + paidOf(x), 0));
     const income = round2(inc.reduce((a, x) => a + x.amount, 0));
     const byGroup = {};
     items.forEach(x => byGroup[x.group] = round2((byGroup[x.group] || 0) + x.amount));
-    return { range: r, items, inc, needed, paid, due: round2(needed - paid), income, left: round2(income - needed), byGroup };
+    return { range: r, items, claimed, inc, needed, paid, due: round2(needed - paid), income, left: round2(income - needed), byGroup };
   }
 
   // Running bank balance: set balance as of a date, plus deposits, minus payments made since.
@@ -1130,7 +1186,7 @@ const BT = (() => {
     const inc = incomeIn(st, r).reduce((s, i) => s + i.amount, 0);
     const adj = (a.adj || []).reduce((s, x) => s + x.amount, 0);
     const live = new Set((st.unalloc || []).filter(u => u.date >= r.start).map(u => u.id));
-    const paid = occurrences(st, r, today, true).filter(x => x.paid)
+    const paid = occurrences(st, r, today, true).filter(x => x.paid && x.kind !== 'spend')
       .filter(x => { if (x.from) return live.has(x.from); const d = x.checkedOn || x.paidOn || x.date; return d >= r.start && d < r.end; })
       .reduce((s, x) => s + x.amount, 0);
     // Savings transfers move money between checking and savings. They are not spending.
@@ -1535,7 +1591,7 @@ const BT = (() => {
     return round2(0.45 * (exact ? 1 : 0.8 * (1 - diff / tol)) + 0.3 * (1 - dist / 5) + 0.25 * (p2p ? 0.6 : sim) - (spend ? 0.15 : 0));
   }
   function likelyPairs(st, item, txns, linked) {
-    if (!item || item.paid || item.kind === 'extra' || item.kind === 'unalloc') return [];
+    if (!item || item.paid || item.kind === 'extra' || item.kind === 'unalloc' || item.kind === 'spend') return [];
     const o = (st.occ || {})[item.key], nm = ((st.bank && st.bank.notMatch) || {})[item.key] || [];
     if (o && (o.txn || o.skip)) return [];
     const out = [];
@@ -1563,7 +1619,7 @@ const BT = (() => {
     if (k && category) st.bank.rules[k] = category;
   }
 
-  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, strongCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
+  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, strongCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, paidOf, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
 })();
 
 
@@ -1667,6 +1723,9 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 const fmt = n => money.format(n || 0);
 const fmt0 = n => '$' + Math.round(n || 0).toLocaleString('en-US');
+const MASK = '••••';
+const hid = () => !!(state.settings && state.settings.hideBalances);
+const hm = n => hid() ? MASK : fmt(n);
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const md = s => { const d = BT.parse(s); return MON[d.getMonth()] + ' ' + d.getDate(); };
@@ -1735,7 +1794,13 @@ const ICON = {
   prev: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 3L5 8l5 5"/></svg>',
   next: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 3l5 5-5 5"/></svg>',
   plus: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>',
-  close: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>'
+  close: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
+  eye: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg>',
+  eyeoff: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2.5l11 11M6.4 4a6.6 6.6 0 0 1 1.6-.5c4 0 6.5 4.5 6.5 4.5a11 11 0 0 1-1.8 2.3M4.2 5.4A11 11 0 0 0 1.5 8S4 12.5 8 12.5c1 0 1.9-.3 2.7-.7"/><path d="M6.6 6.7A2 2 0 0 0 9.3 9.4"/></svg>',
+  refresh: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 3v3.2h-3.2"/><path d="M13.2 6.2A5.4 5.4 0 1 0 13.4 9"/></svg>',
+  grip: '<svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor"><circle cx="4.5" cy="4" r="1.5"/><circle cx="9.5" cy="4" r="1.5"/><circle cx="4.5" cy="9" r="1.5"/><circle cx="9.5" cy="9" r="1.5"/><circle cx="4.5" cy="14" r="1.5"/><circle cx="9.5" cy="14" r="1.5"/></svg>',
+  up: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10l4.5-4.5 4.5 4.5"/></svg>',
+  down: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6l4.5 4.5L12.5 6"/></svg>'
 };
 
 /* ---------- State + saving ---------- */
@@ -1819,6 +1884,9 @@ function normalize(s) {
   if (o.bank.balances && (typeof o.bank.balances !== 'object' || !Array.isArray(o.bank.balances.items))) o.bank.balances = null;
   if (o.bank.balances === undefined) o.bank.balances = null;
   if (!o.bank.refreshOK || typeof o.bank.refreshOK !== 'object') o.bank.refreshOK = null;
+  if (!Array.isArray(o.bank.order)) o.bank.order = [];
+  o.bank.order = o.bank.order.filter((x, i, l) => typeof x === 'string' && l.indexOf(x) === i);
+  if (typeof o.settings.hideBalances !== 'boolean') o.settings.hideBalances = false;
   if (!o.bank.notPay || typeof o.bank.notPay !== 'object') o.bank.notPay = {};
   if (!o.bank.notMatch || typeof o.bank.notMatch !== 'object') o.bank.notMatch = {};
   // Ledger of every bank transaction received (last 180 days). Seeded once from what older versions kept elsewhere.
@@ -1871,6 +1939,12 @@ function normalize(s) {
       if (!o.categories.includes(c) && !o.billCats.includes(c)) o.categories.push(c);
       if (c !== par && !(c in o.catParents)) o.catParents[c] = par;
     }));
+  }
+  // Per-paycheck items are budgets now: the default "Food" budget is "Groceries" (spending in the Groceries category counts toward it).
+  if (!o.imports.includes('pp-groceries-1')) {
+    o.imports.push('pp-groceries-1');
+    o.perPeriod.forEach(i => { if (i && String(i.name).trim() === 'Gas' && !i.category) i.category = 'Gas'; });
+    o.perPeriod.forEach(i => { if (i && String(i.name).trim() === 'Food') { i.name = 'Groceries'; i.category = 'Groceries'; if (!o.categories.includes('Groceries')) o.categories.push('Groceries'); } });
   }
   // Delivery apps and Instacart win over everything but the user's own learned rule. Redo the guess for lines still waiting for review.
   if (!o.imports.includes('strong-rules-1')) {
@@ -1999,7 +2073,7 @@ function likelyMap() {
   LIKELY = new Map();
   try {
     const txns = Object.values((state.bank && state.bank.txns) || {}); if (!txns.length) return LIKELY;
-    const items = BT.occurrences(state, BT.periodRange(state, state.settings.view, 0, TODAY), TODAY).filter(x => !x.paid && ['bill', 'card', 'plan', 'spend'].includes(x.kind));
+    const items = BT.occurrences(state, BT.periodRange(state, state.settings.view, 0, TODAY), TODAY).filter(x => !x.paid && ['bill', 'card', 'plan'].includes(x.kind));
     LIKELY = BT.likelyPaidAll(state, items, txns, TODAY);
     LIKELY.forEach((e, k) => { e.item = items.find(x => x.key === k); SEL.set(k, e.item); });
   } catch (e) { LIKELY = new Map(); }
@@ -2008,6 +2082,45 @@ function likelyMap() {
 const likelyPill = key => likelyMap().has(key) ? ` <button type="button" class="pill likely" data-action="likely-open" data-key="${esc(key)}">Likely completed</button>` : '';
 const likelyKeyFor = (kind, ref) => { let k = ''; likelyMap().forEach((e, key) => { if (!k && e.item && e.item.kind === kind && e.item.ref === ref) k = key; }); return k; };
 const likelyDetail = key => { const e = likelyMap().get(key); if (!e) return ''; const t = e.txn; return `<div class="sub lk-d">${esc(cleanMerchant(t))} · ${fmt(t.amount)} · ${lng(t.date)}${acctDots(t) ? ' · ' + esc(acctDots(t)) : ''}</div>`; };
+
+/* ---------- Budgets (per-paycheck items) ---------- */
+// What a budget row says: spent so far against the budget, what is left, or how far over.
+function budgetLine(x) {
+  if (!x.on) return 'Not set · tap to set budget';
+  const over = BT.round2(x.spent - x.budget);
+  return over > 0.004 ? `Spent ${fmt(x.spent)} of ${fmt(x.budget)} · <b class="over">${fmt(over)} over budget</b>` : `Spent ${fmt(x.spent)} of ${fmt(x.budget)} · ${fmt(BT.round2(x.budget - x.spent))} left`;
+}
+function budgetRow(x) {
+  const over = x.on && x.spent - x.budget > 0.004, pct = x.on ? Math.min(100, Math.max(0, x.spent / x.budget * 100)) : 0;
+  return `<li class="row bgt tap${x.on ? '' : ' off'}${over ? ' is-over' : ''}" data-action="budget" data-id="${esc(x.ref)}" data-key="${esc(x.key)}" tabindex="0" role="button" aria-label="${esc(x.name)} budget. ${esc(budgetLine(x).replace(/<[^>]+>/g, ''))}">
+    <span class="bud-ico" aria-hidden="true">${catIcon(x.category || 'Other')}</span>
+    <div class="main"><div class="nm">${esc(x.name)}</div><div class="sub">${budgetLine(x)}</div>${x.on ? `<div class="bud-bar${over ? ' over' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="${x.budget}" aria-valuenow="${Math.min(x.spent, x.budget)}"><i style="width:${pct}%"></i></div>` : ''}</div></li>`;
+}
+function budgetsHTML(list) {
+  if (!list.length) return '';
+  return `<div class="subhead bud-h">Budgets this cycle</div><ul class="rows bud-rows">${list.map(budgetRow).join('')}</ul>`;
+}
+// The budget of one per-paycheck item in the cycle the Overview shows (the Bills tab always uses the current pay cycle).
+function budgetOf(id) {
+  const view = currentTab() === 'overview' ? state.settings.view : 'biweekly', off = currentTab() === 'overview' ? offset : 0;
+  let r = BT.periodRange(state, view, off, TODAY), b = BT.summary(state, r, TODAY).items.find(x => x.kind === 'spend' && x.ref === id);
+  if (!b) { r = BT.periodRange(state, 'biweekly', view === 'biweekly' ? off : 0, TODAY); b = BT.summary(state, r, TODAY).items.find(x => x.kind === 'spend' && x.ref === id); }
+  return b ? { b, r: { start: b.natural, end: BT.addDays(b.natural, 14) } } : null;
+}
+function budgetSheet(id) {
+  const o = budgetOf(id), item = state.perPeriod.find(p => p.id === id);
+  if (!item) return;
+  if (!o) { openForm('spend', id); return; }
+  const { b, r } = o, over = b.on && b.spent - b.budget > 0.004, left = BT.round2(b.budget - b.spent);
+  openSheet(`<div class="sheet-h"><div><h3>${esc(b.name)}</h3><p class="lede">Budget for ${rangeLabel({ start: r.start, end: r.end, view: 'biweekly' })}</p></div>
+    <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    ${b.on ? `<div class="strip bud-strip"><div class="tile"><div class="k">Budget</div><div class="v">${fmt(b.budget)}</div></div><div class="tile"><div class="k">Spent</div><div class="v">${fmt(b.spent)}</div></div><div class="tile${over ? ' over' : ''}"><div class="k">${over ? 'Over budget' : 'Left'}</div><div class="v">${fmt(Math.abs(left))}</div></div></div>
+    <div class="bud-bar big${over ? ' over' : ''}" role="img" aria-label="${esc(budgetLine(b).replace(/<[^>]+>/g, ''))}"><i style="width:${Math.min(100, b.spent / b.budget * 100)}%"></i></div>` : '<p class="note">No budget set yet. Set an amount and spending in the ' + esc(b.category || 'matching') + ' category counts toward it each pay cycle.</p>'}
+    ${b.category ? '' : '<p class="note">Pick a category so spending can count toward this budget.</p>'}
+    <div class="subhead" style="border:0;padding-left:0;margin-top:12px">Counted toward it · ${b.spends.length}${b.category ? ' · ' + esc(b.category) : ''}</div>
+    <ul class="rows" style="padding:0">${b.spends.slice().sort((x, y) => x.date < y.date ? 1 : -1).map(e => `<li class="row tap" data-action="edit" data-type="extra" data-id="${esc(e.ref)}" tabindex="0" role="button" aria-label="Edit ${esc(e.name)}: ${fmt(e.amount)}"><div class="date" aria-hidden="true"><span class="dow">${DOW[BT.parse(e.date).getDay()]}</span><span class="dd">${BT.parse(e.date).getDate()}</span></div><div class="main"><div class="nm">${esc(e.name)}</div><div class="sub">${md(e.date)}${e.memo ? ' · ' + esc(e.memo) : ''}<span class="edit-hint"> · Edit</span></div></div><div class="amt">${fmt(e.amount)}</div></li>`).join('') || '<li class="empty">Nothing spent yet this cycle.</li>'}</ul>
+    <div class="actions"><button type="button" class="btn" data-action="add" data-type="extra">Add spending</button><div class="r"><button type="button" class="btn primary" data-action="edit" data-type="spend" data-id="${esc(id)}">Edit budget amount</button></div></div>`);
+}
 function viewOverview() {
   const view = state.settings.view;
   const r = BT.periodRange(state, view, offset, TODAY);
@@ -2018,13 +2131,15 @@ function viewOverview() {
   const pct = s.needed ? Math.min(100, (s.paid / s.needed) * 100) : 0;
   const pc = BT.paycheck(state);
   const shown = x => x.kind === 'spend' && x.paid && x.checkedOn ? x.checkedOn : x.date;
-  const dated = s.items.slice().sort((a, b) => a.pinned !== b.pinned ? (a.pinned ? -1 : 1) : shown(a) < shown(b) ? -1 : shown(a) > shown(b) ? 1 : (a.kind === 'spend' ? -1 : 0) - (b.kind === 'spend' ? -1 : 0)), living = [];
-  const nextKey = (dated.find(x => x.kind !== 'spend' && !x.paid && x.date >= TODAY) || {}).key;
+  const budgets = s.items.filter(x => x.kind === 'spend'), hide = hid();
+  const dated = s.items.filter(x => x.kind !== 'spend').sort((a, b) => a.pinned !== b.pinned ? (a.pinned ? -1 : 1) : shown(a) < shown(b) ? -1 : shown(a) > shown(b) ? 1 : (a.kind === 'spend' ? -1 : 0) - (b.kind === 'spend' ? -1 : 0)), living = [];
+  const nextKey = (dated.find(x => !x.paid && x.date >= TODAY) || {}).key;
   const remain = BT.round2(s.income - s.paid);
   const bt = bankTotal(), acct = bt !== null ? bt : BT.accountBalance(state, TODAY);
   const uaOpen = state.unalloc.filter(u => BT.unallocLeft(state, u) > 0.004);
   const uaTotal = BT.round2(uaOpen.reduce((a, u) => a + BT.unallocLeft(state, u), 0)), uaFirst = uaOpen[0];
   const big = n => { const a = Math.abs(n), d = Math.floor(a), c = String(Math.round((a - d) * 100)).padStart(2, '0'); return `${n < 0 ? '−' : ''}<small>$</small>${d.toLocaleString('en-US')}<small>.${c}</small>`; };
+  const chipHTML = state.savings.on && bt === null ? `<br><span class="sv-chip">Savings: ${hide ? MASK : fmt0(BT.savingsBalance(state))}</span>` : '';
   const dep = s.inc[0], dparts = dep ? BT.paycheckParts(state, dep.ref, dep.date).map(([, r]) => r) : [];
   const check = x => `<button class="check" data-action="toggle" data-key="${esc(x.key)}" data-auto="${x.auto ? 1 : 0}" aria-pressed="${x.paid}" aria-label="${x.paid ? 'Mark unpaid' : 'Mark paid'}: ${esc(x.name)}">${ICON.check}</button>`;
   const amtBtn = x => x.kind === 'extra'
@@ -2056,8 +2171,7 @@ function viewOverview() {
   const rows = dated.length ? `<ul class="rows">${pinned.map(one).join('')}${open.map(one).join('') || (pinned.length ? '' : '<li class="empty all-done">All paid for this ' + VIEWNAME[view] + '.</li>')}</ul>`
     + (done.length ? `<div class="subhead done-h"><span>Completed · ${done.length} · ${fmt(done.reduce((a, x) => a + x.amount, 0))}</span><label class="sr" for="donesort">Sort completed</label><select id="donesort" class="done-sort">${[['recent', 'Most recent'], ['oldest', 'Oldest first'], ['high', 'Amount: high to low'], ['low', 'Amount: low to high'], ['name', 'Name A to Z'], ['cat', 'Category']].map(([v, l]) => `<option value="${v}"${v === ds ? ' selected' : ''}>${l}</option>`).join('')}</select></div><ul class="rows done-rows">${done.map(one).join('')}</ul>` : '')
     : '<div class="empty">Nothing due in this period.</div>';
-  const rowsAll = rows + pausedHTML(r);
-;
+  const rowsAll = rows + pausedHTML(r) + budgetsHTML(budgets);
   OCC = new Map(s.items.map(x => [x.key, x]));
 
   const groups = byCategory(s.items, s.needed);
@@ -2070,30 +2184,31 @@ function viewOverview() {
       <div class="lbl"><div class="eyebrow">${label}</div><div class="range">${rangeLabel(r)}</div></div>
       <button class="navbtn" data-action="next" aria-label="Next ${VIEWNAME[view]}">${ICON.next}</button>
     </div>
-    <div class="ladder">
+    <div class="lad-tools${hide ? ' hid' : ''}">${hide ? `<span class="lt-msg">Balances hidden<i aria-hidden="true"> · </i><button type="button" class="linkbtn" data-action="hide-bal">Show</button></span>` : ''}<button type="button" class="icon-btn eye" data-action="hide-bal" aria-pressed="${hide}" aria-label="${hide ? 'Show balances' : 'Hide balances'}">${hide ? ICON.eyeoff : ICON.eye}</button></div>
+    ${hide ? '' : `<div class="ladder">
       <div class="lad l1"><span class="hs-k">Left in paycheck</span>
         ${s.income > 0 ? `<span class="v${remain < 0 ? ' neg' : ''}">${big(remain)}</span><span class="hs-s">${dep && isAsk(dep.ref) ? `<button class="pay-edit" data-action="pay-edit" data-date="${dep.date}">of ${fmt(s.income)}</button>` : 'of ' + fmt(s.income)}${dep ? '<br>' + lng(dep.date) : ''}${dparts.length > 1 ? ` · <button class="pay-edit" data-action="pay-split" aria-expanded="${HEROUI.split}">split</button>` : ''}</span>` : `<span class="v dim">${big(0)}</span><span class="hs-s">Paycheck not set</span>`}</div>
       <div class="lad l2"><span class="hs-k">${{ weekly: 'Week', biweekly: 'Cycle', monthly: 'Month' }[view]} needs</span><span class="v">${big(s.needed)}</span><span class="hs-s">${Math.round(pct)}% paid</span></div>
-      <button class="lad l3" data-action="account"><span class="hs-k">In account</span>${bt !== null ? `<span class="v${bt < 0 ? ' neg' : ''}">${big(bt)}</span><span class="hs-s">Live from ${bankCountedBanks()} ${bankCountedBanks() === 1 ? 'bank' : 'banks'} · updated ${esc(clockTime(state.bank.balances.at))}</span>` : acct === null ? '<span class="v set">Set</span><span class="hs-s">Tap to add</span>' : `<span class="v${acct < 0 ? ' neg' : ''}">${big(acct)}</span><span class="hs-s">${split(acct).prev > 0.004 ? 'incl. ' + fmt0(split(acct).prev) + ' carried' : state.account.auto ? 'Estimated' : 'Today'}</span>`}${state.savings.on && bt === null ? `<span class="sv-chip">Savings: ${fmt0(BT.savingsBalance(state))}</span>` : ''}</button>
-    </div>
-    ${HEROUI.split && dparts.length > 1 ? `<p class="hero-split">Split: ${splitLine(dparts.map(p => ({ acct: p.acct || (p.txn ? acctDots(p.txn) : ''), amount: p.amount })))}</p>` : ''}
-    ${uaTotal > 0 ? `<button class="ua-bar" data-action="allocate" data-id="${uaFirst.id}"><b>${fmt(uaTotal)} unallocated.</b> Record where it went to see your real spending this cycle.</button>` : ''}
+      <button class="lad l3" data-action="account"><span class="hs-k">In account</span>${bt !== null ? `<span class="v${bt < 0 ? ' neg' : ''}">${big(bt)}</span><span class="hs-s">Live from ${bankCountedBanks()} ${bankCountedBanks() === 1 ? 'bank' : 'banks'} · updated ${esc(clockTime(state.bank.balances.at))}</span>` : acct === null ? '<span class="v set">Set</span><span class="hs-s">Tap to add${chipHTML}</span>' : `<span class="v${acct < 0 ? ' neg' : ''}">${big(acct)}</span><span class="hs-s">${split(acct).prev > 0.004 ? 'incl. ' + fmt0(split(acct).prev) + ' carried' : state.account.auto ? 'Estimated' : 'Today'}${chipHTML}</span>`}</button>
+    </div>`}
+    ${!hide && HEROUI.split && dparts.length > 1 ? `<p class="hero-split">Split: ${splitLine(dparts.map(p => ({ acct: p.acct || (p.txn ? acctDots(p.txn) : ''), amount: p.amount })))}</p>` : ''}
+    ${uaTotal > 0 ? `<button class="ua-bar" data-action="allocate" data-id="${uaFirst.id}"><b>${hm(uaTotal)} unallocated.</b> Record where it went to see your real spending this cycle.</button>` : ''}
     ${(() => { const n = (state.bank.inbox || []).length; return n ? `<button class="ua-bar bx-bar" data-action="tx-review"><b>${n} new ${n === 1 ? 'transaction' : 'transactions'}</b> from your bank. Review</button>` : ''; })()}
     ${(() => { const n = s.items.filter(x => !x.paid && likelyMap().has(x.key)).length; return n ? `<button class="ua-bar lk-bar" data-action="likely-first"><b>${n} ${n === 1 ? 'bill' : 'bills'} likely completed.</b> Review</button>` : ''; })()}
     ${catBar()}
     <div class="meter" role="img" aria-label="${Math.round(pct)}% paid"><i style="width:${pct}%"></i></div>
     <dl class="hero-stats">
-      <div><dt>Spent so far</dt><dd>${fmt(s.paid)}</dd>${(() => { const ua = BT.round2(s.items.filter(x => x.kind === 'unalloc').reduce((a, x) => a + x.amount, 0)); return ua > 0 ? `<small class="ss-sub">incl. ${fmt(ua)} unallocated</small>` : ''; })()}</div>
-      <div><dt>Still due</dt><dd>${fmt(s.due)}</dd></div>
-      <div><dt>After all bills</dt><dd class="${s.left < 0 && s.income > 0 ? 'neg' : ''}">${s.income > 0 ? fmt(s.left) : 'Set income'}</dd></div>
+      <div><dt>Spent so far</dt><dd>${hm(s.paid)}</dd>${(() => { const ua = BT.round2(s.items.filter(x => x.kind === 'unalloc').reduce((a, x) => a + x.amount, 0)); return ua > 0 ? `<small class="ss-sub">incl. ${hm(ua)} unallocated</small>` : ''; })()}</div>
+      <div><dt>Still due</dt><dd>${hm(s.due)}</dd></div>
+      <div><dt>After all bills</dt><dd class="${!hide && s.left < 0 && s.income > 0 ? 'neg' : ''}">${s.income > 0 ? hm(s.left) : 'Set income'}</dd></div>
     </dl>
     ${payPrompt(r) || (pc && !pc.amount && !pc.askFrom ? `<button class="cta" data-action="edit" data-type="income" data-id="${pc.id}">Add your paycheck amount to see what is left over each ${VIEWNAME[view]}.</button>` : '')}
-    <div class="hero-foot"><span>Next ${VIEWNAME[view]} needs <b>${fmt(ns.needed)}</b></span>${isNow ? '' : '<button class="linkbtn" data-action="today">Back to now</button>'}<span class="sync" data-s="${SYNC.s}" role="status">${esc(SYNC.t)}</span></div>
+    <div class="hero-foot"><span>Next ${VIEWNAME[view]} needs <b>${hm(ns.needed)}</b></span>${isNow ? '' : '<button class="linkbtn" data-action="today">Back to now</button>'}<span class="sync" data-s="${SYNC.s}" role="status">${esc(SYNC.t)}</span></div>
   </section>
     <section class="card ov-donut"><header class="card-h"><h2>Where this ${VIEWNAME[view]} goes</h2><span class="meta">${fmt(s.needed)}</span></header>
       <div class="card-b">${groups.length ? `<div class="donut-wrap">${donut(groups, s.needed)}</div>${catScroller(groups, s.needed)}<ul class="legend cat-legend">${groups.map((g, gi) => `<li data-i="${gi}" class="${OPEN_CATS.has(g.label) ? 'open' : ''}"><button class="sw-btn" data-action="cat-expand" data-cat="${esc(g.label)}" aria-expanded="${OPEN_CATS.has(g.label)}" aria-label="Show items in ${esc(g.label)}"><span class="sw" style="--c:${g.color}"></span><span class="chev" aria-hidden="true">›</span></button><button class="icon-pick sm" data-action="pick-icon" data-cat="${esc(g.label)}" aria-label="Change icon for ${esc(g.label)}">${catIcon(g.label)}</button><button class="lc" data-action="cat-detail" data-cat="${esc(g.label)}">${esc(g.label)}</button><span class="lv">${fmt(g.value)}</span><span class="lp">${Math.round(g.value / s.needed * 100)}%</span><span class="li">${g.detail}</span></li>`).join('')}</ul>` : '<div class="empty">No spending yet.</div>'}</div>
     </section>
-  <section class="card ov-bills"><header class="card-h"><div><h2>Bills this ${VIEWNAME[view]}</h2><span class="meta">${s.items.length} items · ${fmt(s.due)} left</span></div><button class="icon-btn add-big" data-action="add" data-type="extra" aria-label="Add a spending">${ICON.plus}</button></header>
+  <section class="card ov-bills"><header class="card-h"><div><h2>Bills this ${VIEWNAME[view]}</h2><span class="meta">${s.items.length - budgets.length} items · ${fmt(s.due)} left</span></div><button class="icon-btn add-big" data-action="add" data-type="extra" aria-label="Add a spending">${ICON.plus}</button></header>
     ${rowsAll}
   </section>
     <section class="card ov-bars"><header class="card-h"><h2>Next 6 ${view === 'biweekly' ? 'pay cycles' : view === 'weekly' ? 'weeks' : 'months'}</h2><span class="meta">Needed vs income</span></header>
@@ -2124,15 +2239,15 @@ function viewBills() {
     <div class="strip">
       <div class="tile"><div class="k"><span class="dot" style="--c:var(--s1)"></span>Fixed</div><div class="v">${fmt0(monthlyTotal(fixed))}<small>/mo</small></div></div>
       <div class="tile"><div class="k"><span class="dot" style="--c:var(--s3)"></span>Subscriptions</div><div class="v">${fmt0(monthlyTotal(subs))}<small>/mo</small></div></div>
-      <div class="tile"><div class="k"><span class="dot" style="--c:var(--s5)"></span>Per paycheck</div><div class="v">${fmt0(per)}<small>×2/mo</small></div></div>
+      <div class="tile"><div class="k"><span class="dot" style="--c:var(--s5)"></span>Budgets</div><div class="v">${fmt0(per)}<small>×2/mo</small></div></div>
       <div class="tile"><div class="k">All recurring</div><div class="v">${fmt0(all)}<small>/mo</small></div></div>
     </div>
     <div class="grid-2"><div class="stack">${cards.slice(0, 2).join('')}</div>
     <div class="stack">${cards.slice(2).join('')}
-      <section class="card"><header class="card-h"><div><h2><span class="dot" style="--c:var(--s5);display:inline-block;margin-right:8px"></span>Per paycheck</h2></div>
-        <div class="r"><span class="meta">${fmt(per)} each cycle</span><button class="icon-btn" data-action="add" data-type="spend" aria-label="Add per-paycheck spending">${ICON.plus}</button></div></header>
-        <div class="card-b note" style="padding-bottom:6px">No fixed dates. Counted once per pay cycle, twice per month.</div>
-        <ul class="rows">${live(state.perPeriod).map(s => `<li class="row tap" data-action="edit" data-type="spend" data-id="${s.id}" tabindex="0" role="button" aria-label="Edit ${esc(s.name)}"><span></span><div class="daybadge">×2</div><div class="main"><div class="nm">${esc(s.name)}</div><div class="sub">${fmt(s.amount * 2)} a month</div></div><div class="amt">${fmt(s.amount)}</div></li>`).join('')}</ul>
+      <section class="card"><header class="card-h"><div><h2><span class="dot" style="--c:var(--s5);display:inline-block;margin-right:8px"></span>Budgets</h2></div>
+        <div class="r"><span class="meta">${fmt(per)} each cycle</span><button class="icon-btn" data-action="add" data-type="spend" aria-label="Add a budget">${ICON.plus}</button></div></header>
+        <div class="card-b note" style="padding-bottom:6px">No due dates. Spending in a budget's category counts toward it, once per pay cycle.</div>
+        ${(() => { const cyc = BT.summary(state, BT.periodRange(state, 'biweekly', 0, TODAY), TODAY).items.filter(x => x.kind === 'spend'); return cyc.length ? `<div class="subhead bud-h">Budgets this cycle</div><ul class="rows bud-rows">${cyc.map(budgetRow).join('')}</ul>` : '<div class="empty">No budgets yet.</div>'; })()}
       </section>
       ${archived.length ? `<section class="card"><header class="card-h"><h2>Archived</h2><span class="meta">No longer scheduled</span></header>
         <ul class="rows">${archived.map(a => `<li class="row"><span></span><div class="daybadge">${catIcon(a.i.category || 'Other bills')}</div><div class="main"><div class="nm">${esc(a.nm)}</div><div class="sub">Stopped ${md(a.i.endDate)}</div></div><button class="btn sm" data-action="restore-item" data-type="${a.type}" data-id="${a.i.id}">Restore</button></li>`).join('')}</ul></section>` : ''}
@@ -2216,7 +2331,7 @@ function payPrompt(r) {
   const d = `data-id="${a.ref}" data-date="${a.date}"`;
   return `<div class="pay-ask"><label for="payamt"><b>${esc(a.name)} · ${lng(a.date)}</b>How much was deposited this pay cycle?</label>
     <div class="pay-row"><span class="money-in"><i>$</i><input id="payamt" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${cur === null ? '' : cur.toFixed(2)}"></span><button class="btn primary sm" data-action="pay-set" ${d}>Save</button></div>
-    <div class="pay-opts">${a.prev ? `<button class="pay-same" data-action="pay-same" ${d} data-amt="${a.prev}">Same as previous paycheck · ${fmt(a.prev)}</button>` : ''}${cur !== null || HEROUI.hand ? '<button class="linkbtn" data-action="pay-cancel">Cancel</button>' : ''}</div></div>`;
+    <div class="pay-opts">${a.prev ? `<button class="pay-same" data-action="pay-same" ${d} data-amt="${a.prev}">Same as previous paycheck · ${hm(a.prev)}</button>` : ''}${cur !== null || HEROUI.hand ? '<button class="linkbtn" data-action="pay-cancel">Cancel</button>' : ''}</div></div>`;
 }
 
 function otherIncomeHTML() {
@@ -2417,7 +2532,7 @@ function catDetail(cat, mode) {
   const r = month ? BT.periodRange(state, 'monthly', 0, rv.start) : rv;
   const unit = month ? 'month' : VIEWNAME[view];
   const items = BT.summary(state, r, TODAY).items.filter(x => chartCat(x) === cat).sort((a, b) => a.date < b.date ? -1 : 1);
-  const total = BT.round2(items.reduce((a, x) => a + x.amount, 0)), paid = BT.round2(items.filter(x => x.paid).reduce((a, x) => a + x.amount, 0));
+  const total = BT.round2(items.reduce((a, x) => a + x.amount, 0)), paid = BT.round2(items.reduce((a, x) => a + BT.paidOf(x), 0));
   const hist = Array.from({ length: 6 }, (_, i) => {
     const rr = month ? BT.periodRange(state, 'monthly', i - 5, rv.start) : BT.periodRange(state, view, offset - 5 + i, TODAY);
     return { r: rr, v: BT.round2(BT.summary(state, rr, TODAY).items.filter(x => chartCat(x) === cat).reduce((a, x) => a + x.amount, 0)) };
@@ -2457,7 +2572,7 @@ function byCategory(items, total) {
     const bc = baseCat(x), part = c === 'Subscriptions' && x.group === 'Apple Subscriptions' ? 'Apple' : bc !== c ? bc : x.name;
     g.parts[part] = (g.parts[part] || 0) + x.amount;
   });
-  let list = Object.values(m).map(g => ({ ...g, value: BT.round2(g.value) })).sort((a, b) => (a.label === 'Other') - (b.label === 'Other') || b.value - a.value);
+  let list = Object.values(m).map(g => ({ ...g, value: BT.round2(g.value) })).filter(g => g.value > 0).sort((a, b) => (a.label === 'Other') - (b.label === 'Other') || b.value - a.value);
   return list.map((g, i) => ({ label: g.label, value: g.value, color: 'var(--s' + (i % 12 + 1) + ')',
     detail: Object.entries(g.parts).sort((a, b) => b[1] - a[1]).map(([n, v]) => esc(n) + ' ' + fmt0(v)).join(' · ') }));
 }
@@ -2547,7 +2662,7 @@ function periodBars(view) {
 const F = (k, label, type, extra) => Object.assign({ k, label, type }, extra || {});
 const SPECS = {
   bill: { title: 'Bill', fields: [F('name', 'Name', 'text'), F('amount', 'Amount', 'money', { half: 1 }), F('day', 'Due day of month', 'day', { half: 1 }), F('group', 'Section', 'select', { opts: BILL_GROUPS }), F('category', 'Category', 'select', { half: 1, optsFn: () => [{ v: '', t: 'None' }, ...state.billCats] }), F('via', 'Paid via', 'via', { opt: 1 }), F('note', 'Note', 'text', { opt: 1 }), F('active', 'Active (uncheck to pause)', 'check')] },
-  spend: { title: 'Per-paycheck spending', fields: [F('name', 'Name', 'text'), F('amount', 'Amount each pay cycle', 'money', { half: 1 }), F('category', 'Category', 'select', { half: 1, optsFn: () => [{ v: '', t: 'None' }, ...state.categories, ...state.billCats.filter(c => !state.categories.includes(c))] }), F('via', 'Paid via', 'via', { opt: 1 })] },
+  spend: { title: 'Budget', fields: [F('name', 'Name', 'text'), F('amount', 'Budget each pay cycle (0 = not set)', 'money', { half: 1 }), F('category', 'Category', 'select', { half: 1, optsFn: () => [{ v: '', t: 'None' }, ...state.categories, ...state.billCats.filter(c => !state.categories.includes(c))] }), F('via', 'Paid via', 'via', { opt: 1 })] },
   income: { title: 'Income', fields: [F('name', 'Name', 'text'), F('amount', 'Usual amount', 'money', { half: 1 }), F('freq', 'How often', 'select', { half: 1, opts: Object.entries(FREQ).map(([v, t]) => ({ v, t })) }), F('date', 'A paycheck date (last or next)', 'date')] },
   plan: { title: 'Pay plan', fields: [F('provider', 'Service', 'select', { opts: PROVIDERS }), F('merchant', 'What you bought', 'text'), F('amount', 'Payment amount', 'money', { half: 1 }), F('freq', 'Payment schedule', 'select', { half: 1, opts: ['weekly', 'biweekly', 'monthly'].map(v => ({ v, t: FREQ[v] })) }), F('lastDate', 'Date of last payment made', 'date'), F('paid', 'Payments made', 'int', { half: 1, min: 0 }), F('total', 'Total payments', 'int', { half: 1, min: 1 }), F('category', 'Category', 'select', { grouped: 1, lead: 'Pick a category', optsFn: () => [] }), F('via', 'Paid via', 'via', { opt: 1 }), F('autopay', 'Autopay (count past due dates as paid)', 'check')] },
   extra: { title: 'Spending', fields: [F('category', 'Category', 'select', { grouped: 1, optsFn: () => [], half: 1 }), F('newcat', 'Or new category', 'text', { opt: 1, half: 1, noStore: 1 }), F('note', 'Note (optional)', 'text', { opt: 1, noEm: 1, half: 1 }), F('desc', 'What was it', 'text', { opt: 1 }), F('amount', 'Amount', 'money', { half: 1 }), F('date', 'Date', 'date', { half: 1 }), F('via', 'Paid via', 'via', { opt: 1 }), F('from', 'Part of unallocated spending', 'unalloc', { editOnly: 1 }), F('recurring', 'Recurring: add it every month on this day', 'check', { newOnly: 1 })] },
@@ -2600,7 +2715,7 @@ function openForm(type, id, extra) {
   if (type === 'extra' && item.note === 'Bank sync') item.note = '';
   EDIT_AMT = item.amount || 0;
   openSheet(`<div class="sheet-h"><div><h3>${isNew ? (type === 'plan' ? 'Log a purchase' : 'Add ' + spec.title.toLowerCase()) : 'Edit ' + spec.title.toLowerCase()}</h3>
-    <p class="lede">${type === 'plan' ? 'Klarna, Afterpay or PayPal. Next payments schedule themselves.' : type === 'bill' ? 'Repeats every month on the due day.' : type === 'income' ? 'Your main paycheck sets the start of every pay cycle.' : type === 'card' ? 'The minimum payment joins your cycle on its due day.' : type === 'extra' ? 'Spending outside your bills. It comes out of the pay cycle of its date.' : 'Counted once per pay cycle.'}</p></div>
+    <p class="lede">${type === 'plan' ? 'Klarna, Afterpay or PayPal. Next payments schedule themselves.' : type === 'bill' ? 'Repeats every month on the due day.' : type === 'income' ? 'Your main paycheck sets the start of every pay cycle.' : type === 'card' ? 'The minimum payment joins your cycle on its due day.' : type === 'extra' ? 'Spending outside your bills. It comes out of the pay cycle of its date.' : 'A budget for each pay cycle. Spending in its category counts toward it.'}</p></div>
     <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
     ${isNew && !inbox && !hist && !txf && (type === 'extra' || type === 'plan') ? `<div class="seg kind-seg" role="group" aria-label="Type of spending"><button type="button" data-action="add" data-type="extra" aria-pressed="${type === 'extra'}">One-time spending</button><button type="button" data-action="add" data-type="plan" aria-pressed="${type === 'plan'}">Klarna · Afterpay · PayPal</button></div>` : ''}
     ${type === 'plan' && !isNew ? planSummary(item) : ''}
@@ -2832,35 +2947,108 @@ function bankTotal() {
 }
 const bankCountedBanks = () => state.bank.balances.items.filter(it => it.accounts.some(a => countedAcct(a) && balOf(a) !== null)).length;
 const clockTime = iso => { try { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } };
+// Banks in the order the user chose (state.bank.order). Banks not in the list yet go last, in their own order.
+function orderBanks(list, idOf) {
+  const ord = (state.bank && state.bank.order) || [], rank = x => { const i = ord.indexOf(idOf(x)); return i < 0 ? 1e6 : i; };
+  return list.map((x, i) => [x, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(x => x[0]);
+}
+const bankIds = () => [...new Set([...((state.bank.balances && state.bank.balances.items) || []).map(it => it.itemId), ...(BANKUI.enr || []).map(e => e.id)].filter(Boolean))];
+// Saves a new visual order for the banks in `subset` (the ones on screen); others keep their places.
+function setBankOrder(subset) {
+  const known = bankIds(), cur = orderBanks([...new Set([...(state.bank.order || []), ...known])], id => id).filter(id => known.includes(id) || subset.includes(id));
+  const out = cur.slice(); let k = 0; cur.forEach((id, i) => { if (subset.includes(id)) out[i] = subset[k++]; });
+  state.bank.order = out; commit();
+}
+const bankRank = key => { const names = orderBanks((state.bank.balances && state.bank.balances.items) || [], it => it.itemId).map(it => it.institution || ''); const i = names.findIndex(n => n && String(key).startsWith(n)); return i < 0 ? 1e6 : i; };
+const shownBanks = () => orderBanks(state.bank.balances.items, it => it.itemId).filter(it => it.accounts.some(a => !OWED_TYPES.includes(a.type)));
 function balanceSheet() {
-  const bal = state.bank.balances, total = bankTotal() || 0, owed = [];
-  const rows = bal.items.map(it => {
+  if (DRAG.on) { DRAG.again = true; return; }
+  const bal = state.bank.balances, total = bankTotal() || 0, owed = [], ordered = orderBanks(bal.items, it => it.itemId), shown = shownBanks(), multi = shown.length > 1, edit = BALUI.edit && multi;
+  const rows = ordered.map(it => {
     const accs = it.accounts.filter(a => !OWED_TYPES.includes(a.type));
     it.accounts.filter(a => OWED_TYPES.includes(a.type)).forEach(a => owed.push([it, a]));
     if (!accs.length) return '';
-    return `<div class="bal-bank"><div class="bx-sh">${esc(it.institution || 'Bank')}</div><ul class="bal-acc">${accs.map(a => {
+    const i = shown.indexOf(it), hid_ = 'bh-' + esc(it.itemId);
+    return `<div class="bal-bank" data-item="${esc(it.itemId)}"><div class="bx-hd">${multi ? `<button type="button" class="grip" data-grip="${esc(it.itemId)}" aria-label="Drag to reorder ${esc(it.institution || 'bank')}" aria-describedby="${hid_}">${ICON.grip}</button>` : ''}<div class="bx-sh" id="${hid_}">${esc(it.institution || 'Bank')}</div>${edit ? `<span class="mvs"><button type="button" class="icon-btn sm" data-action="bank-move" data-id="${esc(it.itemId)}" data-dir="-1" aria-label="Move up" aria-describedby="${hid_}"${i === 0 ? ' disabled' : ''}>${ICON.up}</button><button type="button" class="icon-btn sm" data-action="bank-move" data-id="${esc(it.itemId)}" data-dir="1" aria-label="Move down" aria-describedby="${hid_}"${i === shown.length - 1 ? ' disabled' : ''}>${ICON.down}</button></span>` : ''}</div><ul class="bal-acc">${accs.map(a => {
       const v = balOf(a), cur = typeof a.current === 'number' && typeof a.available === 'number' && Math.abs(a.current - a.available) > 0.004 ? a.current : null;
-      return `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}${a.mask ? ' <span class="mask">••' + esc(a.mask) + '</span>' : ''}</div><div class="sub">${v === null ? 'No balance from the bank' : fmt(v) + (typeof a.available === 'number' ? ' available' : ' current')}${cur !== null ? ' · ' + fmt(cur) + ' current' : ''}</div></div>
+      return `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}${a.mask ? ' <span class="mask">••' + esc(a.mask) + '</span>' : ''}</div><div class="sub">${v === null ? 'No balance from the bank' : hm(v) + (typeof a.available === 'number' ? ' available' : ' current')}${cur !== null ? ' · ' + hm(cur) + ' current' : ''}</div></div>
         <label class="tgl"><input type="checkbox" data-action="bal-count" data-id="${esc(a.id)}"${countedAcct(a) ? ' checked' : ''} aria-label="Count ${esc((it.institution || '') + ' ' + (a.name || 'account'))} in total"><span aria-hidden="true"></span></label></li>`;
     }).join('')}</ul></div>`;
   }).join('');
-  const owedHTML = owed.length ? `<div class="bx-sh">Owed · not counted</div><ul class="bal-acc">${owed.map(([it, a]) => `<li><div class="main"><div class="nm">${esc(it.institution || 'Bank')} ${esc(a.name || 'Card')}${a.mask ? ' <span class="mask">••' + esc(a.mask) + '</span>' : ''}</div><div class="sub">Owed ${fmt(typeof a.current === 'number' ? a.current : 0)}${typeof a.limit === 'number' ? ' of ' + fmt(a.limit) + ' limit' : ''}</div></div></li>`).join('')}</ul>` : '';
-  bankSheet(`<div class="sheet-h"><div><h3>In account</h3><div class="bal-total"><b>${fmt(total)}</b><span>${bankCountedBanks()} ${bankCountedBanks() === 1 ? 'bank' : 'banks'} · counted accounts</span></div><p class="lede">Live from your banks. Updated ${esc(clockTime(bal.at))}. Banks may take a little while to show new activity.</p></div>
-    <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
-    ${rows}${owedHTML}
+  const owedHTML = owed.length ? `<div class="bx-sh">Owed · not counted</div><ul class="bal-acc">${owed.map(([it, a]) => `<li><div class="main"><div class="nm">${esc(it.institution || 'Bank')} ${esc(a.name || 'Card')}${a.mask ? ' <span class="mask">••' + esc(a.mask) + '</span>' : ''}</div><div class="sub">Owed ${hm(typeof a.current === 'number' ? a.current : 0)}${typeof a.limit === 'number' ? ' of ' + hm(a.limit) + ' limit' : ''}</div></div></li>`).join('')}</ul>` : '';
+  const busy = BALUI.busy || BANKUI.syncing;
+  bankSheet(`<div class="sheet-h"><div><h3>In account</h3><div class="bal-total"><b>${hm(total)}</b><span>${bankCountedBanks()} ${bankCountedBanks() === 1 ? 'bank' : 'banks'} · counted accounts</span></div><p class="lede">Live from your banks. Updated ${esc(clockTime(bal.at))}. Banks may take a little while to show new activity.</p></div>
+    <div class="sh-btns"><button type="button" class="icon-btn${busy ? ' spinning' : ''}" data-action="bal-refresh" aria-label="Refresh balances"${busy ? ' disabled aria-busy="true"' : ''}>${ICON.refresh}</button><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div></div>
+    ${multi ? `<div class="bal-tools"><button type="button" class="linkbtn" data-action="bal-edit" aria-pressed="${edit}">${edit ? 'Done' : 'Edit order'}</button></div>` : ''}
+    <div class="bal-banks" id="balbanks">${rows}</div>${owedHTML}
     <div class="actions"><button type="button" class="btn" data-action="bal-hand">Set balance by hand</button><div class="r"><button type="button" class="btn primary" data-action="bal-sync"${BANKUI.syncing ? ' disabled' : ''}>${BANKUI.syncing ? 'Syncing…' : 'Sync now'}</button></div></div>`);
   BALUI.open = true;
 }
+// Refresh icon: ask every bank for new activity (when the plan allows it), sync, and say how it went.
+async function balRefresh() {
+  if (!bankReady() || BALUI.busy || BANKUI.syncing) return;
+  BALUI.busy = true; BANKUI.syncErr = ''; if (BALUI.open && !$('#sheet').hidden) balanceSheet();
+  try { await bankSyncNow(true); } catch (e) { BANKUI.syncErr = e.message; }
+  BALUI.busy = false;
+  if (BALUI.open && !$('#sheet').hidden) balanceSheet();
+  toast(BANKUI.syncErr ? 'Could not refresh: ' + BANKUI.syncErr : 'Updated just now');
+}
+// Drag a bank by its grip (pointer events: mouse, pen and touch). Rows slide aside while dragging; the sheet scrolls near its edges.
+const DRAG = { on: false, again: false };
+document.addEventListener('pointerdown', e => {
+  const g = e.target.closest && e.target.closest('.grip'); if (!g || DRAG.on || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  const wrap = g.closest('.bal-bank'), host = wrap && wrap.parentElement, sc = $('#sheet .sheet'); if (!host || !sc) return;
+  e.preventDefault();
+  const items = [...host.children].filter(c => c.classList.contains('bal-bank')), n = items.length, i0 = items.indexOf(wrap);
+  const top = el => el.getBoundingClientRect().top + sc.scrollTop, gap = parseFloat(getComputedStyle(wrap).marginBottom) || 0;
+  const tops = items.map(top), hs = items.map(el => el.offsetHeight + gap), mids = items.map((el, k) => tops[k] + el.offsetHeight / 2);
+  const d = { on: true, id: wrap.dataset.item, y0: e.clientY, s0: sc.scrollTop, y: e.clientY, t: i0, raf: 0 };
+  Object.assign(DRAG, d, { again: false });
+  try { g.setPointerCapture(e.pointerId); } catch (er) {}
+  wrap.classList.add('dragging'); document.body.classList.add('dragging-bank');
+  const layout = () => {
+    const dy = DRAG.y - DRAG.y0 + sc.scrollTop - DRAG.s0, c = mids[i0] + dy;
+    let t = 0; items.forEach((el, k) => { if (k !== i0 && mids[k] < c) t++; });
+    DRAG.t = t; wrap.style.transform = `translateY(${dy}px)`;
+    items.forEach((el, k) => { if (k === i0) return; el.style.transform = i0 < t && k > i0 && k <= t ? `translateY(${-hs[i0]}px)` : t < i0 && k >= t && k < i0 ? `translateY(${hs[i0]}px)` : ''; });
+  };
+  const tick = () => {
+    if (!DRAG.on) return;
+    const r = sc.getBoundingClientRect(), edge = 56, y = DRAG.y;
+    const v = y < r.top + edge ? -Math.ceil((r.top + edge - y) / 5) : y > r.bottom - edge ? Math.ceil((y - (r.bottom - edge)) / 5) : 0;
+    if (v) { const before = sc.scrollTop; sc.scrollTop += v; if (sc.scrollTop !== before) layout(); }
+    DRAG.raf = requestAnimationFrame(tick);
+  };
+  const move = ev => { if (ev.pointerId !== e.pointerId) return; DRAG.y = ev.clientY; layout(); };
+  const end = ev => {
+    if (ev.pointerId !== e.pointerId || !DRAG.on) return;
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end);
+    cancelAnimationFrame(DRAG.raf);
+    try { g.releasePointerCapture(e.pointerId); } catch (er) {}
+    const t = ev.type === 'pointercancel' ? i0 : DRAG.t, ids = items.map(el => el.dataset.item);
+    // Settle the dragged row into its slot, then save.
+    let slot = 0; if (t > i0) for (let k = i0 + 1; k <= t; k++) slot += hs[k]; else for (let k = t; k < i0; k++) slot -= hs[k];
+    wrap.classList.add('settle'); wrap.style.transform = `translateY(${slot}px)`;
+    setTimeout(() => {
+      DRAG.on = false; document.body.classList.remove('dragging-bank');
+      if (t !== i0) { const o = ids.slice(); o.splice(i0, 1); o.splice(t, 0, ids[i0]); setBankOrder(o); }
+      balanceSheet(); DRAG.again = false;
+    }, 170);
+  };
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
+  DRAG.raf = requestAnimationFrame(tick); layout();
+});
+document.addEventListener('contextmenu', e => { if (DRAG.on && e.target.closest && e.target.closest('.grip')) e.preventDefault(); });
 
 /* ---------- Account balance ---------- */
 function accountSheet(force) {
   if (!force && bankTotal() !== null) return balanceSheet();
   const cur = BT.accountBalance(state, TODAY), est = !!(state.account && state.account.auto);
-  openSheet(`<div class="sheet-h"><div><h3>In account</h3>${(() => { const sp = split(cur); return `<div class="split"><div><span>From previous paychecks</span><b>${fmt(sp.prev)}</b></div><div><span>From this paycheck${sp.date ? ' (' + md(sp.date) + ')' : ''}</span><b>${fmt(sp.cur)}</b></div><div class="tot"><span>In account${est ? ' (estimated)' : ''}</span><b>${fmt(cur)}</b></div></div>`; })()}<p class="lede">Enter what your bank shows. If it's less than BudTracks expects, the difference becomes unallocated spending at the top of your list so you can record where it went.</p></div>
+  openSheet(`<div class="sheet-h"><div><h3>In account</h3>${(() => { const sp = split(cur); return `<div class="split"><div><span>From previous paychecks</span><b>${hm(sp.prev)}</b></div><div><span>From this paycheck${sp.date ? ' (' + md(sp.date) + ')' : ''}</span><b>${hm(sp.cur)}</b></div><div class="tot"><span>In account${est ? ' (estimated)' : ''}</span><b>${hm(cur)}</b></div></div>`; })()}<p class="lede">Enter what your bank shows. If it's less than BudTracks expects, the difference becomes unallocated spending at the top of your list so you can record where it went.</p></div>
     <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
     ${bankHas() ? `<div class="sv-box off"><div><b>Live bank balance</b><span>${state.bank.useBankBalance === false ? 'Your own balance is showing. Saving here keeps it that way.' : 'Saving a balance here switches In account to your own number.'}</span></div><button type="button" class="btn" data-action="bal-live">${state.bank.useBankBalance === false ? 'Use live balance' : 'Back to live balance'}</button></div>` : ''}
     <form class="form" id="acctform" novalidate>
-      <div class="calc"><span>${est ? 'Estimated balance' : 'Calculated balance'}</span><b>${fmt(cur)}</b></div>
+      <div class="calc"><span>${est ? 'Estimated balance' : 'Calculated balance'}</span><b>${hm(cur)}</b></div>
       <label class="fld" for="a-bal"><span>What your bank shows</span><div class="money-in"><i>$</i><input id="a-bal" name="bal" type="number" inputmode="decimal" step="0.01" value=""></div></label>
       <div class="preview" id="a-diff" aria-live="polite"></div>
       <label class="fld chk" for="a-fresh"><input type="checkbox" id="a-fresh" name="fresh"><span>Start fresh from this balance (no unallocated spending)</span></label>
@@ -3048,7 +3236,7 @@ function chime() {
 /* ---------- Sheet ---------- */
 let lastFocus = null;
 function openSheet(html) { BALUI.open = false; lastFocus = document.activeElement; $('#sheetBody').innerHTML = html; $('#sheet').hidden = false; document.body.style.overflow = 'hidden'; }
-function closeSheet() { BALUI.open = false; $('#sheet').hidden = true; document.body.style.overflow = ''; if (lastFocus && lastFocus.focus) try { lastFocus.focus(); } catch (e) {} }
+function closeSheet() { BALUI.open = false; BALUI.edit = false; $('#sheet').hidden = true; document.body.style.overflow = ''; if (lastFocus && lastFocus.focus) try { lastFocus.focus(); } catch (e) {} }
 
 function backupSheet(mode) {
   const json = JSON.stringify(state, null, 1);
@@ -3187,8 +3375,8 @@ const KEYLS = 'budtrack.bankkey';
 const bankKey = () => { try { return localStorage.getItem(KEYLS) || ''; } catch (e) { return ''; } };
 const bankApi = () => String((state.bank && state.bank.api) || '').trim().replace(/\/+$/, '');
 const bankReady = () => !!(bankApi() && bankKey());
-const BALUI = { open: false };
-let BANKUI = { enr: null, loading: false, loadErr: '', syncing: false, rowBusy: '', busy: false, err: '', url: '', tried: 0 };
+const BALUI = { open: false, edit: false, busy: false };
+let BANKUI = { syncErr: '', enr: null, loading: false, loadErr: '', syncing: false, rowBusy: '', busy: false, err: '', url: '', tried: 0 };
 let INBOXUI = { open: null, mode: '' };
 async function bankFetch(path, o) {
   o = o || {};
@@ -3235,7 +3423,7 @@ function bankCard() {
     <p class="bk-err" role="alert">${esc(BANKUI.err)}</p></div></section>`;
   const enr = BANKUI.enr;
   const list = enr === null ? (BANKUI.loadErr ? `<p class="bk-err" role="alert">${esc(BANKUI.loadErr)}</p>` : '<p class="bk-ok">Loading your banks…</p>')
-    : enr.length ? enr.map(e => `<div class="bk-enr"><div class="bk-eh"><b>${esc(e.institution || 'Bank')}</b>${e.needsReconnect ? '<span class="pill soft warn">Needs reconnect</span>' : ''}<span class="bk-sp"></span>${e.needsReconnect ? `<button class="btn sm" data-action="bk-reconnect" data-id="${esc(e.id)}">Reconnect</button>` : `<button class="btn sm" data-action="bk-item-sync" data-id="${esc(e.id)}" aria-label="Refresh ${esc(e.institution || 'bank')}"${BANKUI.syncing || BANKUI.rowBusy ? ' disabled' : ''}${BANKUI.rowBusy === e.id ? ' aria-busy="true"' : ''}>${BANKUI.rowBusy === e.id ? '<span class="spin" aria-hidden="true"></span>Refreshing…' : 'Refresh'}</button>`}<button class="btn sm danger" data-action="bk-disc" data-id="${esc(e.id)}">Disconnect</button></div>
+    : enr.length ? orderBanks(enr, e => e.id).map(e => `<div class="bk-enr"><div class="bk-eh"><b>${esc(e.institution || 'Bank')}</b>${e.needsReconnect ? '<span class="pill soft warn">Needs reconnect</span>' : ''}<span class="bk-sp"></span>${e.needsReconnect ? `<button class="btn sm" data-action="bk-reconnect" data-id="${esc(e.id)}">Reconnect</button>` : `<button class="btn sm" data-action="bk-item-sync" data-id="${esc(e.id)}" aria-label="Refresh ${esc(e.institution || 'bank')}"${BANKUI.syncing || BANKUI.rowBusy ? ' disabled' : ''}${BANKUI.rowBusy === e.id ? ' aria-busy="true"' : ''}>${BANKUI.rowBusy === e.id ? '<span class="spin" aria-hidden="true"></span>Refreshing…' : 'Refresh'}</button>`}<button class="btn sm danger" data-action="bk-disc" data-id="${esc(e.id)}">Disconnect</button></div>
       <ul class="bk-acc">${(e.accounts || []).map(a => `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}</div><div class="sub">${esc([a.subtype || a.type, a.last_four ? '··' + a.last_four : ''].filter(Boolean).join(' · '))}</div></div>
         <label class="tgl"><input type="checkbox" data-action="bk-toggle" data-id="${esc(a.id)}" data-eid="${esc(e.id)}"${a.enabled ? ' checked' : ''} aria-label="Sync ${esc(a.name || 'account')}"><span aria-hidden="true"></span></label></li>`).join('') || '<li><div class="sub">No accounts found.</div></li>'}</ul></div>`).join('')
     : '<p class="bk-ok">No banks connected yet. Tap Connect a bank.</p>';
@@ -3449,29 +3637,30 @@ async function bankSync(o) {
     const news = applied || fresh || dropped ? [applied ? applied + ' matched automatically' : '', fresh ? fresh + ' to review' : '', dropped ? dropped + ' updated by your bank' : ''].filter(Boolean).join(', ') : '';
     const msg = em || (one && !auto ? [(o.label || 'Bank') + ' refreshed', news].filter(Boolean).join(' · ') : [news, asked].filter(Boolean).join(' · ') || (auto ? '' : 'Up to date'));
     if (applied || fresh || dropped || !auto) commit(msg); else saveQuiet();
+    if (em) BANKUI.syncErr = em;
     if (em && (applied || fresh || dropped || auto)) toast(em);
     if (errs.some(e => e.needsReconnect)) { BANKUI.enr = null; BANKUI.loadErr = ''; }
-  } catch (e) { purgeInbox(state); if (!auto) toast(e.message); }
+  } catch (e) { purgeInbox(state); BANKUI.syncErr = e.message; if (!auto) toast(e.message); }
   BANKUI.syncing = false;
   if (['income', 'transactions', 'overview', 'bills'].includes(currentTab())) render();
   if (!$('#sheet').hidden && BALUI.open) balanceSheet();
 }
 // "Sync now": ask the banks to refresh (when the plan allows it), sync right away, then once more shortly after (quietly)
 // to pick up whatever the banks answered with.
-async function bankRefresh() {
+async function bankRefresh(force) {
   const ro = state.bank.refreshOK;
-  if (ro && ro.ok === false && ro.at && Date.now() - new Date(ro.at).getTime() < 864e5) return false; // not enabled: recheck once a day
+  if (!force && ro && ro.ok === false && ro.at && Date.now() - new Date(ro.at).getTime() < 864e5) return false; // not enabled: recheck once a day
   try {
     const r = await bankFetch('/refresh', { method: 'POST', body: {} });
     state.bank.refreshOK = { ok: !r.notEnabled, at: new Date().toISOString() };
     return !!r.refreshed;
   } catch (e) { return false; }
 }
-async function bankSyncNow() {
+async function bankSyncNow(force) {
   if (!bankReady() || BANKUI.syncing) return;
   BANKUI.syncing = true; if (currentTab() === 'income') render(); if (BALUI.open && !$('#sheet').hidden) balanceSheet();
   let refreshed = false;
-  try { refreshed = await bankRefresh(); } finally { BANKUI.syncing = false; }
+  try { refreshed = await bankRefresh(force === true); } finally { BANKUI.syncing = false; }
   await bankSync({ auto: false, refreshed });
   clearTimeout(BANKUI.follow);
   BANKUI.follow = setTimeout(() => { if (document.visibilityState === 'visible') bankSync({ auto: true }); }, window.BT_FOLLOWUP_MS || 45000);
@@ -3873,7 +4062,7 @@ function viewTransactions() {
   const has = Object.keys(state.bank.txns).length > 0;
   if (!has && !bankReady()) return `<div class="stack"><section class="card"><header class="card-h"><h2>Transactions</h2></header><div class="card-b"><div class="empty">Connect a bank and every transaction shows up here, with what BudTracks did with it. <a class="linkbtn" href="#income">Go to Income → Bank connections</a></div></div></section></div>`;
   const cnt = f => Object.values(state.bank.txns).filter(t => txStatus(t).f === f).length;
-  const banks = [...new Set(Object.values(state.bank.txns).map(txBankKey))].sort();
+  const banks = [...new Set(Object.values(state.bank.txns).map(txBankKey))].sort((a, b) => bankRank(a) - bankRank(b) || a.localeCompare(b));
   const n = cnt('review'), ready = state.bank.inbox.filter(bulkOk).length;
   const F = [['all', 'All'], ['review', 'Needs review' + (n ? ' · ' + n : '')], ['added', 'Added'], ['matched', 'Matched'], ['ignored', 'Ignored']];
   return `<div class="stack"><section class="card tx-card"><header class="card-h"><div><h2>Transactions</h2><span class="meta">${bankReady() && state.bank.lastSync ? 'Last synced ' + esc(relTime(state.bank.lastSync)) : 'From your connected banks'}</span></div>${bankReady() ? `<button class="btn sm" data-action="bk-sync"${BANKUI.syncing ? ' disabled' : ''}>${BANKUI.syncing ? 'Syncing…' : 'Sync now'}</button>` : ''}</header>
@@ -3940,7 +4129,7 @@ function txSetCat(id, cat) {
 /* ---------- Match picker, warnings, and Likely completed ---------- */
 const P2PTXT = /venmo|cash ?app|zelle/i;
 let PICK = { id: '', q: '', paid: false, conf: null };
-const KINDLBL = { bill: 'Bill', card: 'Credit card payment', plan: 'Pay plan', spend: 'Per paycheck' };
+const KINDLBL = { bill: 'Bill', card: 'Credit card payment', plan: 'Pay plan', spend: 'Budget' };
 function kindText(x) { return x.kind === 'plan' ? 'Pay plan · ' + String(x.note || '').replace(' · ', ' ') : KINDLBL[x.kind] || 'Item'; }
 const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
 // One plain sentence per reason a match looks off. Empty list: nothing looks off.
@@ -3969,8 +4158,16 @@ const suggestedKey = t => { const ib = inboxOf(t.id); return ib && ib.pick && ib
 function pickUniverse(t) {
   const c0 = BT.periodRange(state, 'biweekly', 0, TODAY), c1 = BT.periodRange(state, 'biweekly', 1, TODAY);
   const lo = [BT.addDays(t.date, -14), c0.start].sort()[0], hi = [BT.addDays(t.date, 15), c1.end].sort().reverse()[0];
-  const list = BT.occurrences(state, { start: lo, end: hi, view: 'biweekly' }, TODAY, true).filter(x => ['bill', 'card', 'plan', 'spend'].includes(x.kind) && x.due >= lo && x.due < hi && !(state.occ[x.key] && state.occ[x.key].txn) && (PICK.paid || !x.paid || x.key === suggestedKey(t)));
-  return { list, c0, c1 };
+  const all = BT.occurrences(state, { start: lo, end: hi, view: 'biweekly' }, TODAY, true);
+  const list = all.filter(x => ['bill', 'card', 'plan'].includes(x.kind) && x.due >= lo && x.due < hi && !(state.occ[x.key] && state.occ[x.key].txn) && (PICK.paid || !x.paid || x.key === suggestedKey(t)));
+  // Budgets are not payments: the one whose pay cycle holds the transaction date (or the current cycle) is offered as "Count toward ...".
+  const inCyc = x => x.natural <= t.date && t.date < BT.addDays(x.natural, 14), buds = all.filter(x => x.kind === 'spend' && x.on && x.category), cyc = buds.filter(inCyc);
+  const budgets = cyc.length ? cyc : buds.filter(x => x.natural === c0.start);
+  return { list, budgets, c0, c1 };
+}
+function budOpt(x, t) {
+  const left = BT.round2(x.budget - x.spent);
+  return `<button type="button" class="bm pk-opt" data-action="pk-pick" data-key="${esc(x.key)}"><span class="pk-r1"><b>Count toward ${esc(x.name)} budget</b></span><span class="pk-r2">Adds ${fmt(Math.abs(t.amount))} to ${esc(x.category)} spending · ${left >= 0 ? fmt(left) + ' left' : fmt(-left) + ' over'} this cycle</span></button>`;
 }
 function pkOpt(x, t) {
   const amt = Math.abs(t.amount), diff = BT.round2(x.amount - amt), dd = BT.diffDays(x.due, t.date), tol = Math.max(1, x.amount * 0.02);
@@ -3982,8 +4179,8 @@ function pkOpt(x, t) {
 }
 function pkListHTML() {
   const t = txnOf(PICK.id); if (!t) return '';
-  const { list, c0, c1 } = pickUniverse(t), amt = Math.abs(t.amount), q = PICK.q.trim().toLowerCase();
-  list.forEach(x => SEL.set(x.key, x));
+  const { list, budgets, c0, c1 } = pickUniverse(t), amt = Math.abs(t.amount), q = PICK.q.trim().toLowerCase();
+  list.forEach(x => SEL.set(x.key, x)); budgets.forEach(x => SEL.set(x.key, x));
   const hay = x => [x.name, x.note, kindText(x), x.category, fmt(x.amount), x.amount.toFixed(2)].join(' ').toLowerCase();
   const rows = list.filter(x => !q || hay(x).includes(q)).map(x => ({ x, sc: pairScore(t, x), dd: Math.abs(BT.diffDays(x.due, t.date)), tol: Math.max(1, x.amount * 0.02) }));
   const sk = suggestedKey(t);
@@ -3994,7 +4191,9 @@ function pkListHTML() {
   const near = take(rows.filter(r => r.dd <= 14).sort((a, b) => a.dd - b.dd || b.sc - a.sc), 99);
   const up = take(rows.filter(r => !r.x.paid && r.x.due >= c0.start && r.x.due < c1.end).sort(by), 99);
   const sec = (title, arr) => arr.length ? `<div class="pk-sec">${title}</div><div class="pk-grp">${arr.map(r => pkOpt(r.x, t)).join('')}</div>` : '';
-  const body = sec('Best match', best) + sec('Same amount', same) + sec('Near this date', near) + sec('Everything upcoming', up);
+  const bq = budgets.filter(x => !q || ['count toward', x.name, x.category, 'budget'].join(' ').toLowerCase().includes(q));
+  const bsec = bq.length && t.amount > 0 ? `<div class="pk-sec">Budgets</div><div class="pk-grp">${bq.map(x => budOpt(x, t)).join('')}</div>` : '';
+  const body = sec('Best match', best) + sec('Same amount', same) + sec('Near this date', near) + sec('Everything upcoming', up) + bsec;
   return (body || `<p class="note" style="margin-top:14px">${q ? 'Nothing matches that search.' : 'Nothing you entered is waiting for a payment around this date.'}</p>`)
     + `<div class="pk-more"><button type="button" class="linkbtn" data-action="pk-paid">${PICK.paid ? 'Hide paid items' : 'Show paid items too'}</button></div>`;
 }
@@ -4025,6 +4224,13 @@ function cmpHTML(t, x) {
 // Links one bank line to one scheduled item exactly like the picker always did, replacing whatever was decided for the line before.
 function doMatch(id, x) {
   const t = txnOf(id); if (!t || !x) return false;
+  if (x.kind === 'spend') { // a budget: the transaction becomes spending in its category, nothing is marked paid
+    if (state.bank.seen[id]) absorbChange(state, () => revertSeen(id), 'Bank sync');
+    closeSheet();
+    const ok = txDo(id, { kind: 'spend', category: x.category }, '', true);
+    if (ok) toast('Counted toward ' + x.name + ' budget', () => txUndo(id));
+    return ok;
+  }
   const p = x.kind === 'plan' ? state.plans.find(z => z.id === x.ref) : null;
   const ch = x.kind === 'plan' ? { kind: 'plan', pick: { key: x.key, provider: x.provider, merchant: x.name, n: +x.key.split(':')[2], total: p ? p.total : 0, date: x.due } }
     : { kind: x.kind === 'card' ? 'transfer' : 'bill', pick: { key: x.key, name: x.name, date: x.due, kind: x.kind } };
@@ -4037,7 +4243,7 @@ function doMatch(id, x) {
 }
 function pickItem(tid, key, back) {
   const t = txnOf(tid), x = SEL.get(key); if (!t || !x) return;
-  if (!matchIssues(t, x).length) { doMatch(tid, x); return; }
+  if (x.kind === 'spend' || !matchIssues(t, x).length) { doMatch(tid, x); return; }
   PICK.conf = { tid, key, back }; confirmSheet();
 }
 
@@ -4188,6 +4394,17 @@ document.addEventListener('click', async e => {
       commit(now ? (living ? 'Marked spent' : 'Marked paid') : 'Marked unpaid'); break;
     }
     case 'account': accountSheet(); break;
+    case 'hide-bal': state.settings.hideBalances = !state.settings.hideBalances; commit(); if (BALUI.open && !$('#sheet').hidden) balanceSheet(); break;
+    case 'budget': budgetSheet(a.dataset.id); break;
+    case 'bal-refresh': balRefresh(); break;
+    case 'bal-edit': BALUI.edit = !BALUI.edit; balanceSheet(); break;
+    case 'bank-move': {
+      const ids = shownBanks().map(it => it.itemId), i = ids.indexOf(a.dataset.id), j = i + (+a.dataset.dir);
+      if (i < 0 || j < 0 || j >= ids.length) break;
+      [ids[i], ids[j]] = [ids[j], ids[i]]; setBankOrder(ids); balanceSheet();
+      const again = document.querySelector(`[data-action="bank-move"][data-id="${a.dataset.id}"][data-dir="${a.dataset.dir}"]`) || document.querySelector(`[data-action="bank-move"][data-id="${a.dataset.id}"]:not([disabled])`);
+      if (again) again.focus(); break;
+    }
     case 'bal-count': { const id = a.dataset.id, acc = state.bank.balances.items.flatMap(it => it.accounts).find(x => x.id === id); if (acc) { state.bank.countIn[id] = !countedAcct(acc); commit(); balanceSheet(); } break; }
     case 'bal-sync': bankSyncNow(); break;
     case 'bal-hand': accountSheet(true); break;
