@@ -924,6 +924,9 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 body.dragging-bank { cursor: grabbing; -webkit-user-select: none; user-select: none; }
 .mvs { display: flex; gap: 4px; }
 .icon-btn.sm { width: 28px; height: 28px; }
+/* Cycle | Month switch under the chart title */
+.ch-range { padding: 0 16px 8px; }
+.ch-range .seg button { padding: 5px 12px; font-size: 12.5px; }
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#15203a">
@@ -1821,9 +1824,9 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const TODAY = BT.iso(new Date());
 
 // Parent groups and the default categories under each. A parent is itself a pickable category.
-const CAT_TREE = [['Food', ['Groceries', 'Dining Out', 'Takeout Food', 'Coffee', 'Snacks & Drinks']], ['Transportation', ['Gas', 'Parking & Tolls', 'Rideshare', 'Car Maintenance']],
+const CAT_TREE = [['Food', ['Groceries', 'Dining Out', 'Takeout Food', 'Coffee', 'Snacks & Drinks']], ['Transportation', ['Gas', 'Parking & Tolls', 'Rideshare', 'Car Maintenance', 'Insurance']],
   ['Home', ['Housing', 'Utilities', 'Household', 'Laundry', 'Repairs']], ['Shopping', ['Clothing', 'Electronics', 'Electronics Repair', 'Gifts']], ['Health & Personal', ['Personal care', 'Health']],
-  ['Entertainment', ['Entertainment', 'Gaming', 'Subscriptions', 'Software']], ['Bills & Finance', ['Phone & Internet', 'Insurance', 'Loans', 'Taxes', 'Fees']], ['Other', []]];
+  ['Entertainment', ['Entertainment', 'Gaming', 'Subscriptions', 'Software']], ['Bills & Finance', ['Phone & Internet', 'Loans', 'Taxes', 'Fees']], ['Other', []]];
 const DEFAULT_PARENT = {};
 CAT_TREE.forEach(([p, ch]) => ch.forEach(c => { if (c !== p) DEFAULT_PARENT[c] = p; }));
 const BILL_GROUPS = ['Fixed', 'Apple Subscriptions', 'Subscriptions', 'Other bills'];
@@ -1996,6 +1999,8 @@ function normalize(s) {
     }
     if (!('Electronics Repair' in o.catParents)) o.catParents['Electronics Repair'] = 'Shopping';
   }
+  // Insurance here is car insurance: it belongs with Transportation.
+  if (!o.imports.includes('cats-v4')) { o.imports.push('cats-v4'); o.catParents['Insurance'] = 'Transportation'; }
   // Per-paycheck items are budgets now: the default "Food" budget is "Groceries" (spending in the Groceries category counts toward it).
   if (!o.imports.includes('pp-groceries-1')) {
     o.imports.push('pp-groceries-1');
@@ -2190,7 +2195,9 @@ function viewOverview() {
   const budgets = s.items.filter(x => x.kind === 'spend'), hide = hid();
   const dated = s.items.filter(x => x.kind !== 'spend').sort((a, b) => a.pinned !== b.pinned ? (a.pinned ? -1 : 1) : shown(a) < shown(b) ? -1 : shown(a) > shown(b) ? 1 : (a.kind === 'spend' ? -1 : 0) - (b.kind === 'spend' ? -1 : 0)), living = [];
   const nextKey = (dated.find(x => !x.paid && x.date >= TODAY) || {}).key;
-  const remain = BT.round2(s.income - s.paid);
+  // Bank money out in this period that isn't recorded yet still counts as spent (shown as "to review").
+  const unrev = unreviewedOut(r), spentAll = BT.round2(s.paid + unrev);
+  const remain = BT.round2(s.income - spentAll);
   const bt = bankTotal(), acct = bt !== null ? bt : BT.accountBalance(state, TODAY);
   const uaOpen = state.unalloc.filter(u => BT.unallocLeft(state, u) > 0.004);
   const uaTotal = BT.round2(uaOpen.reduce((a, u) => a + BT.unallocLeft(state, u), 0)), uaFirst = uaOpen[0];
@@ -2230,7 +2237,11 @@ function viewOverview() {
   const rowsAll = rows + pausedHTML(r) + skippedHTML(r) + budgetsHTML(budgets);
   OCC = new Map(s.items.map(x => [x.key, x]));
 
-  const groups = byCategory(s.items, r), chartTotal = BT.round2(groups.reduce((a, g) => a + g.value, 0));
+  // The chart can show the whole calendar month around this cycle. Same math as the monthly view (budgets count per cycle).
+  const chartMonth = state.settings.chartRange === 'month' && view !== 'monthly';
+  const cr = chartMonth ? BT.periodRange(state, 'monthly', 0, r.start) : r, cs = chartMonth ? BT.summary(state, cr, TODAY) : s;
+  const chartTitle = chartMonth ? 'Where ' + BT.parse(cr.start).toLocaleString('en-US', { month: 'long' }) + ' goes' : 'Where this ' + VIEWNAME[view] + ' goes';
+  const groups = byCategory(cs.items, cr), chartTotal = BT.round2(groups.reduce((a, g) => a + g.value, 0));
 
   return `<div class="ov">
   <section class="hero" aria-label="Pay cycle summary">
@@ -2254,7 +2265,7 @@ function viewOverview() {
     ${catBar()}
     <div class="meter" role="img" aria-label="${Math.round(pct)}% paid"><i style="width:${pct}%"></i></div>
     <dl class="hero-stats">
-      <div><dt>Spent so far</dt><dd>${hm(s.paid)}</dd>${(() => { const ua = BT.round2(s.items.filter(x => x.kind === 'unalloc').reduce((a, x) => a + x.amount, 0)); return ua > 0 ? `<small class="ss-sub">incl. ${hm(ua)} unallocated</small>` : ''; })()}</div>
+      <div><dt>Spent so far</dt><dd>${hm(spentAll)}</dd>${(() => { const ua = BT.round2(s.items.filter(x => x.kind === 'unalloc').reduce((a, x) => a + x.amount, 0)); return (ua > 0 ? `<small class="ss-sub">incl. ${hm(ua)} unallocated</small>` : '') + (unrev > 0 ? `<small class="ss-sub">incl. ${hm(unrev)} to review</small>` : ''); })()}</div>
       <div><dt>Still due</dt><dd>${hm(s.due)}</dd></div>
       <div><dt>After all bills</dt><dd class="${!hide && s.left < 0 && s.income > 0 ? 'neg' : ''}">${s.income > 0 ? hm(s.left) : 'Set income'}</dd></div>
     </dl>
@@ -2262,7 +2273,8 @@ function viewOverview() {
     ${payPrompt(r) || (pc && !pc.amount && !pc.askFrom ? `<button class="cta" data-action="edit" data-type="income" data-id="${pc.id}">Add your paycheck amount to see what is left over each ${VIEWNAME[view]}.</button>` : '')}
     <div class="hero-foot"><span>Next ${VIEWNAME[view]} needs <b>${hm(ns.needed)}</b></span>${isNow ? '' : '<button class="linkbtn" data-action="today">Back to now</button>'}<span class="sync" data-s="${SYNC.s}" role="status">${esc(SYNC.t)}</span></div>
   </section>
-    <section class="card ov-donut"><header class="card-h"><h2>Where this ${VIEWNAME[view]} goes</h2><span class="meta">${fmt(chartTotal)}</span></header>
+    <section class="card ov-donut"><header class="card-h"><h2>${chartTitle}</h2><span class="meta">${fmt(chartTotal)}</span></header>
+      ${view === 'monthly' ? '' : `<div class="ch-range"><div class="seg" role="group" aria-label="Chart period"><button type="button" data-action="chart-range" data-r="cycle" aria-pressed="${!chartMonth}">${view === 'weekly' ? 'Week' : 'Cycle'}</button><button type="button" data-action="chart-range" data-r="month" aria-pressed="${chartMonth}">Month</button></div></div>`}
       <div class="card-b">${groups.length ? `<div class="donut-wrap">${donut(groups, chartTotal)}</div>${catScroller(groups, chartTotal)}${legendHTML(groups, chartTotal)}` : '<div class="empty">No spending yet.</div>'}</div>
     </section>
   <section class="card ov-bills"><header class="card-h"><div><h2>Bills this ${VIEWNAME[view]}</h2><span class="meta">${s.items.length - budgets.length} items · ${fmt(s.due)} left</span></div><button class="icon-btn add-big" data-action="add" data-type="extra" aria-label="Add a spending">${ICON.plus}</button></header>
@@ -2596,11 +2608,14 @@ function iconSheet(cat) {
 const SUB_GROUPS = ['Apple Subscriptions', 'Subscriptions'];
 // Chart groups: every item rolls up to its parent group (Food, Transportation, Home...). Anything without a parent goes under "Other".
 function baseCat(x) {
+  if (x.kind === 'bill' && x.group === 'Apple Subscriptions') return 'Apple Subscriptions';
   if (x.kind === 'bill' && SUB_GROUPS.includes(x.group)) return 'Subscriptions';
   return x.category || (x.kind === 'bill' ? 'Other bills' : x.kind === 'spend' ? 'Living expenses' : 'Uncategorized');
 }
 const chartCat = baseCat;
-const chartGroup = x => parentOf(baseCat(x));
+// The chart makes one exception to the category groups: Subscriptions (with Apple inside) is its own slice.
+const chartParent = c => c === 'Subscriptions' || c === 'Apple Subscriptions' ? 'Subscriptions' : parentOf(c);
+const chartGroup = x => chartParent(baseCat(x));
 // Which groups are open in the Overview legend. Food is open until the user says otherwise; the choice is saved in settings.
 const legendOpen = g => { const m = state.settings.legendOpen; return m && typeof m[g] === 'boolean' ? m[g] : g === 'Food'; };
 function setLegendOpen(g, on) {
@@ -2650,7 +2665,7 @@ function catDetail(cat, mode, grp) {
 }
 // Savings moves in the cycle show as their own "Savings" group, only when savings is on.
 function byCategory(items, r) {
-  const list = BT.rollup(items, baseCat, parentOf).map(g => ({ ...g }));
+  const list = BT.rollup(items, baseCat, chartParent).map(g => ({ ...g }));
   list.forEach((g, i) => { g.color = 'var(--s' + (i % 12 + 1) + ')'; });
   const sv = state.savings && state.savings.on ? BT.savedIn(state, r) : 0;
   if (sv > 0) list.push({ label: 'Savings', value: sv, sv: true, color: 'var(--brass)', kids: [{ label: 'Moved to savings', value: sv, sv: true }] });
@@ -4199,6 +4214,17 @@ function setTxNote(id, text) {
   }
   TXUI.mode = ''; commit(text ? 'Note saved' : 'Note removed');
 }
+// Bank money out in a range that isn't recorded anywhere yet: lines waiting for review, or earlier lines not added.
+// Transfers, card payments and ignored lines are left out, and anything already decided is counted through its spend or bill.
+const XFER_RX = /\btransfer\b|\bxfer\b|to savings|from savings|zelle to self|payment thank you|autopay|(?:credit )?card payment|online payment|add to balance/i;
+function unreviewedOut(r) {
+  const b = state.bank; if (!b || !b.txns) return 0;
+  return BT.round2(Object.values(b.txns).filter(t => t && t.amount > 0 && t.date >= r.start && t.date < r.end && !b.seen[t.id]).filter(t => {
+    const sg = inboxOf(t.id);
+    if (sg) return sg.kind !== 'transfer' || !!sg.p2p;
+    return !XFER_RX.test(t.desc || '') && !XFER_RX.test(t.rawDesc || '');
+  }).reduce((a, t) => a + t.amount, 0));
+}
 function txStatus(t) {
   const b = state.bank, r = b.seen[t.id];
   // A recorded decision wins over any stale review-list row.
@@ -4629,6 +4655,7 @@ document.addEventListener('click', async e => {
     case 'sv-del': state.savings.tx = state.savings.tx.filter(t => t.id !== a.dataset.id); commit('Removed'); accountSheet(true); break;
     case 'sound': state.settings.sound = state.settings.sound === false; commit(state.settings.sound ? 'Sound on' : 'Sound off'); if (state.settings.sound) chime(); break;
     case 'occ': openOcc(a.dataset.key); break;
+    case 'chart-range': state.settings.chartRange = a.dataset.r === 'month' ? 'month' : 'cycle'; try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} clearTimeout(timer); timer = setTimeout(flush, 600); render(); break;
     case 'lg-toggle': { const g = a.dataset.g, li = a.closest('li'), on = !li.classList.contains('open'); li.classList.toggle('open', on); a.setAttribute('aria-expanded', on); const k = li.querySelector('.lg-kids'); if (k) k.hidden = !on; setLegendOpen(g, on); break; }
     case 'lg-pick': { const i = +a.dataset.i; if (SEL_CAT === a.dataset.g && !a.dataset.sv) catDetail(a.dataset.g, undefined, true); else if (SEL_CAT === a.dataset.g) selectSlice(-1, true); else selectSlice(i, true); break; }
     case 'cat-detail': catDetail(a.dataset.cat); break;

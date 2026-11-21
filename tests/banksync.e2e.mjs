@@ -672,9 +672,12 @@ const splitSeed = async page => page.evaluate(() => {
   });
   await step('Set balance by hand opens the manual sheet; saving keeps your own number; Use live balance returns', async () => {
     await page.click('[data-action="bal-hand"]'); await page.waitForSelector('#acctform');
-    await page.fill('#a-bal', '1234.56'); await page.click('#acctform button[type=submit]');
+    // "Start fresh" so the lower balance doesn't open the "Where did $X go?" sheet a moment later and cover the next step.
+    await page.fill('#a-bal', '1234.56'); await page.check('#a-fresh'); await page.click('#acctform button[type=submit]');
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.useBankBalance === false);
     assert.doesNotMatch(await page.locator('.lad.l3').innerText(), /Live from/);
+    // The saved sheet must be fully closed before reopening, or the wait below can match the closing one.
+    await page.waitForFunction(() => document.querySelector('#sheet').hidden);
     await page.click('[data-action="account"]'); await page.waitForSelector('#acctform');
     // Let the sheet finish sliding in before tapping inside it.
     await page.waitForTimeout(350);
@@ -1437,7 +1440,7 @@ const alignHero = async (page, label) => {
 
   const align = label => alignHero(page, label);
   await step('hero sums share one label row, value row, baseline and subline row (390, 951, 1000, 763)', async () => {
-    const m = await align('390x844'); assert.match(m.txt.join(' '), /3,074\.05/); assert.match(m.txt.join(' '), /2,626\.40/);
+    const m = await align('390x844'); assert.match(m.txt.join(' '), /3,074\.05/); assert.match(m.txt.join(' '), /2,601\.90/); // 2,626.40 minus the $24.50 bank line still to review
     await noHScroll(page, '390 hero');
     await page.evaluate(() => { const t = document.querySelector('#toast'); if (t) t.classList.remove('on'); });
     await page.locator('.hero').screenshot({ path: SHOTS + '/hero-390.png' });

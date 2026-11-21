@@ -85,7 +85,7 @@ const heroNeeds = page => page.locator('.lad.l2 .v').innerText().then(num);
     assert.equal(food.v, FOOD); assert.ok(food.open); assert.deepEqual(food.kids.slice().sort(), ['Coffee', 'Food', 'Groceries', 'Snacks & Drinks', 'Takeout Food']);
     assert.ok(groups.filter(g => g.g !== 'Food').every(g => !g.open), 'other groups collapsed');
     assert.ok(groups.some(g => g.g === 'Home' && g.kids.includes('Housing') && g.kids.includes('Utilities')), 'bills roll up under Home');
-    assert.ok(groups.some(g => g.g === 'Entertainment' && g.kids.includes('Subscriptions')), 'subscriptions roll up under their parent');
+    assert.ok(groups.some(g => g.g === 'Subscriptions' && g.kids.includes('Subscriptions')), 'subscriptions are their own chart group');
     assert.equal(groups[groups.length - 1].g, 'Other', 'Other last');
     const total = num(await page.locator('.ov-donut .card-h .meta').innerText());
     assert.ok(Math.abs(groups.reduce((a, g) => a + g.v, 0) - total) < 0.011, 'group totals add up to the chart total');
