@@ -368,20 +368,24 @@ select.cat-par { max-width: 128px; min-width: 0; padding: 5px 6px; border-radius
 .cat-list .cn { white-space: normal; overflow: visible; line-height: 1.2; }
 
 .cat-legend { margin-top: 14px; gap: 10px; }
-.cat-legend li { grid-template-columns: 10px minmax(0, 1fr) auto 36px; row-gap: 1px; }
 .cat-legend .lc { display: flex; align-items: center; gap: 6px; font-weight: 500; min-width: 0; }
 .cat-legend .lc .cico { width: 15px; height: 15px; margin: 0; }
-.cat-legend .li { grid-column: 2 / -1; font-size: 11.5px; color: var(--ink-3); line-height: 1.35; }
 .card-b > .donut-wrap { display: grid; grid-template-columns: 1fr; justify-items: center; }
 .bought { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
 
-.cat-legend li { grid-template-columns: auto minmax(0, 1fr) auto 36px; column-gap: 8px; }
-.cat-legend .li { display: none; grid-column: 2 / -1; }
-.cat-legend li.open .li { display: block; }
 .sw-btn { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; padding: 4px 2px; border-radius: 6px; color: var(--ink-3); }
 .sw-btn .sw { width: 12px; height: 12px; border-radius: 3px; background: var(--c); }
 .sw-btn .chev { font-size: 14px; line-height: 1; transition: transform .15s; }
-li.open .sw-btn .chev { transform: rotate(90deg); }
+li.open > .sw-btn .chev { transform: rotate(90deg); }
+.cat-legend > li.lg-g { grid-template-columns: auto auto minmax(0, 1fr) auto 38px; column-gap: 8px; row-gap: 2px; padding: 3px 4px; }
+.cat-legend > li.lg-g > .lc { font-weight: 600; }
+.cat-legend .lg-kids { grid-column: 1 / -1; display: grid; gap: 4px; padding: 2px 0 6px 34px; }
+.cat-legend .lg-kids[hidden] { display: none; }
+.cat-legend .lg-k { display: grid; grid-template-columns: minmax(0, 1fr) auto 38px; column-gap: 8px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
+.cat-legend .lg-k .kn { min-width: 0; text-align: left; background: none; border: 0; padding: 1px 0; font: inherit; color: inherit; overflow-wrap: anywhere; }
+.cat-legend .lg-k button.kn { text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; cursor: pointer; }
+.cat-legend .lg-k .lv { font-size: 12px; }
+.cat-legend > li.lg-g > .lc { min-width: 0; overflow-wrap: anywhere; }
 .cat-legend button.lc { background: none; border: 0; padding: 2px 0; text-align: left; font: inherit; font-weight: 500; color: var(--ink); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; cursor: pointer; }
 .cat-legend button.lc:hover { text-decoration-color: var(--accent); color: var(--accent); }
 .rm-confirm { grid-column: span 2; background: color-mix(in srgb, var(--crit) 8%, var(--surface)); border: 1px solid color-mix(in srgb, var(--crit) 35%, var(--line)); border-radius: 12px; padding: 12px; font-size: 13.5px; }
@@ -500,13 +504,12 @@ li.open .sw-btn .chev { transform: rotate(90deg); }
   .ov-donut .card-b { flex: 1; display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; align-items: center; }
   .ov-donut .donut-wrap svg { width: 150px; height: 150px; }
   .ov-donut .cat-legend { margin-top: 0; gap: 6px; }
-  .ov-donut .cat-legend li { font-size: 12.5px; }
 }
 @media (min-width: 900px), (orientation: landscape) and (min-width: 740px) {
   .ov-donut .card-b { grid-template-columns: minmax(180px, .9fr) minmax(0, 1.25fr); gap: 22px; }
   .ov-donut .donut-wrap svg { width: 100%; height: auto; max-width: 230px; }
-  .ov-donut .cat-legend li { grid-template-columns: auto minmax(0, 1fr) auto 30px; font-size: 12.5px; }
-  .ov-donut .cat-legend .lc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; min-width: 0; }
+  .ov-donut .cat-legend > li.lg-g { font-size: 12.5px; grid-template-columns: auto auto minmax(0, 1fr) auto 32px; column-gap: 6px; }
+  .ov-donut .cat-legend .lg-kids { padding-left: 28px; }
   .ov-donut .cat-legend .lv { font-size: 12px; }
 }
 
@@ -596,8 +599,6 @@ li.open .sw-btn .chev { transform: rotate(90deg); }
 .icon-pick.sm { width: 24px; height: 24px; border-radius: 6px; display: inline-grid; vertical-align: middle; margin-right: 6px; flex: none; }
 .icon-pick.sm .cico { width: 14px; height: 14px; }
 h3 > .icon-pick { display: inline-grid; vertical-align: middle; width: 38px; height: 38px; }
-.cat-legend li { grid-template-columns: auto auto minmax(0, 1fr) auto 36px; }
-.cat-legend .li { grid-column: 3 / -1; }
 .cat-legend .icon-pick.sm { margin: 0; }
 .cat-scroll-wrap { margin: 12px 0 4px; }
 .cs-hint { margin: 0 0 6px; text-align: center; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
@@ -612,12 +613,10 @@ h3 > .icon-pick { display: inline-grid; vertical-align: middle; width: 38px; hei
 .donut-wrap svg .slice { transition: opacity .15s, transform .15s; transform-origin: 85px 85px; cursor: pointer; }
 .donut-wrap svg.has-sel .slice { opacity: .25; }
 .donut-wrap svg.has-sel .slice.sel { opacity: 1; transform: scale(1.06); }
-.cat-legend li.sel { background: var(--surface-2); border-radius: 8px; }
+.cat-legend > li.sel { background: var(--surface-2); border-radius: 8px; }
 @media (prefers-reduced-motion: reduce) { .cs-chip, .donut-wrap svg .slice { transition: none; } }
 @media (min-width: 900px), (orientation: landscape) and (min-width: 740px) {
   .ov-donut .cat-scroll-wrap { grid-column: 1 / -1; order: -1; margin: 0; }
-  .ov-donut .cat-legend li { grid-template-columns: auto auto minmax(0, 1fr) auto 30px; }
-  .ov-donut .cat-legend .li { grid-column: 3 / -1; }
 }
 .cat-scroll { position: relative; }
 .cs-top { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 26px; margin-bottom: 6px; }
@@ -1040,7 +1039,7 @@ const BT = (() => {
   // Items are generated over a wide window, then placed by their effective date:
   // date paid if paid, else the (possibly moved) due date. Moving a date into
   // another pay cycle moves the amount into that cycle's totals.
-  function occurrences(st, r, today, raw) {
+  function occurrences(st, r, today, raw, withSkipped) {
     let out = [];
     const W = { start: addDays(r.start, -100), end: addDays(r.end, 100), view: r.view };
     for (const b of st.bills) {
@@ -1084,7 +1083,7 @@ const BT = (() => {
     // Removed items: skipped once (occ.skip) or archived from a date on (item.endDate).
     const ends = {};
     [['bill', st.bills], ['card', st.cards], ['plan', st.plans], ['spend', st.perPeriod]].forEach(([k, l]) => l.forEach(i => { if (i.endDate) ends[k + ':' + i.id] = i.endDate; }));
-    out = out.filter(x => { const e = ends[x.kind + ':' + x.ref]; if (e && x.date >= e) return false; return !(occ[x.key] && occ[x.key].skip); });
+    out = out.filter(x => { const e = ends[x.kind + ':' + x.ref]; if (e && x.date >= e) return false; return withSkipped || !(occ[x.key] && occ[x.key].skip); });
     // Anything due before tracking started is assumed paid unless the user unchecks it.
     if (st.since) out.forEach(x => { if (!x.auto && x.date < st.since) { x.auto = true; x.paid = x.key in st.marks ? !!st.marks[x.key] : true; } });
     const notes = (st.bank && st.bank.notes) || {};
@@ -1193,6 +1192,29 @@ const BT = (() => {
     const sv = ((st.savings && st.savings.tx) || []).filter(t => t.type !== 'open' && t.date >= r.start && t.date < r.end)
       .reduce((s, t) => s + (t.type === 'in' ? -t.amount : t.amount), 0);
     return round2(a.balance + adj + inc - paid + sv);
+  }
+  // Roll items up into groups: [{ label, value, kids: [{ label, value }] }]. Biggest group first, "Other" last.
+  // leafOf(item) names the child, groupOf(leaf) names its group. Uses each item's amount (budgets already count max(budget, spent)).
+  function rollup(items, leafOf, groupOf) {
+    const m = {};
+    items.forEach(x => {
+      if (!(x.amount > 0)) return;
+      const leaf = leafOf(x), g = groupOf(leaf), e = m[g] || (m[g] = { label: g, value: 0, kids: {} });
+      e.value += x.amount; e.kids[leaf] = (e.kids[leaf] || 0) + x.amount;
+    });
+    return Object.values(m).map(e => ({ label: e.label, value: round2(e.value), kids: Object.entries(e.kids).map(([label, v]) => ({ label, value: round2(v) })).filter(k => k.value > 0).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label)) }))
+      .filter(e => e.value > 0).sort((a, b) => (a.label === 'Other') - (b.label === 'Other') || b.value - a.value || a.label.localeCompare(b.label));
+  }
+  // Items skipped with "Skip this cycle" (occ.skipped) that would have fallen in the range. Paused subscriptions have their own list.
+  function skippedIn(st, r, today) {
+    const occ = st.occ || {};
+    return occurrences(st, r, today, true, true).filter(x => occ[x.key] && occ[x.key].skip && occ[x.key].skipped && !occ[x.key].paused && x.date >= r.start && x.date < r.end)
+      .map(x => ({ key: x.key, kind: x.kind, ref: x.ref, name: x.name, date: x.date, amount: x.kind === 'spend' ? x.budget : x.amount }));
+  }
+  // Net money moved into savings during a range (moves in minus moves out; the opening balance is not a move).
+  function savedIn(st, r) {
+    const v = ((st.savings && st.savings.tx) || []).filter(t => t.type !== 'open' && t.date >= r.start && t.date < r.end).reduce((a, t) => a + (t.type === 'in' ? t.amount : -t.amount), 0);
+    return round2(Math.max(0, v));
   }
   // Savings balance: starting amount plus moves into savings minus moves out.
   function savingsBalance(st) {
@@ -1620,7 +1642,7 @@ const BT = (() => {
     if (k && category) st.bank.rules[k] = category;
   }
 
-  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, strongCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, paidOf, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
+  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, strongCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, savedIn, skippedIn, rollup, paidOf, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
 })();
 
 
@@ -1888,6 +1910,8 @@ function normalize(s) {
   if (!Array.isArray(o.bank.order)) o.bank.order = [];
   o.bank.order = o.bank.order.filter((x, i, l) => typeof x === 'string' && l.indexOf(x) === i);
   if (typeof o.settings.hideBalances !== 'boolean') o.settings.hideBalances = false;
+  if (!o.settings.legendOpen || typeof o.settings.legendOpen !== 'object' || Array.isArray(o.settings.legendOpen)) o.settings.legendOpen = {};
+  if (typeof o.settings.billsView !== 'string') o.settings.billsView = 'all';
   if (!o.bank.notPay || typeof o.bank.notPay !== 'object') o.bank.notPay = {};
   if (!o.bank.notMatch || typeof o.bank.notMatch !== 'object') o.bank.notMatch = {};
   // Ledger of every bank transaction received (last 180 days). Seeded once from what older versions kept elsewhere.
@@ -2176,7 +2200,7 @@ function viewOverview() {
   const pinned = dated.filter(x => x.pinned), open = dated.filter(x => !x.pinned && !x.paid);
   const ds = state.settings.doneSort || 'recent', pd = x => x.paidOn || shown(x);
   const SORTS = { recent: (a, b) => pd(b).localeCompare(pd(a)), oldest: (a, b) => pd(a).localeCompare(pd(b)), high: (a, b) => b.amount - a.amount, low: (a, b) => a.amount - b.amount,
-    name: (a, b) => a.name.localeCompare(b.name), cat: (a, b) => chartCat(a).localeCompare(chartCat(b)) || pd(b).localeCompare(pd(a)) };
+    name: (a, b) => a.name.localeCompare(b.name), cat: (a, b) => baseCat(a).localeCompare(baseCat(b)) || pd(b).localeCompare(pd(a)) };
   const done = dated.filter(x => !x.pinned && x.paid).sort(SORTS[ds] || SORTS.recent);
   const rows = dated.length ? `<ul class="rows">${pinned.map(one).join('')}${open.map(one).join('') || (pinned.length ? '' : '<li class="empty all-done">All paid for this ' + VIEWNAME[view] + '.</li>')}</ul>`
     + (done.length ? `<div class="subhead done-h"><span>Completed · ${done.length} · ${fmt(done.reduce((a, x) => a + x.amount, 0))}</span><label class="sr" for="donesort">Sort completed</label><select id="donesort" class="done-sort">${[['recent', 'Most recent'], ['oldest', 'Oldest first'], ['high', 'Amount: high to low'], ['low', 'Amount: low to high'], ['name', 'Name A to Z'], ['cat', 'Category']].map(([v, l]) => `<option value="${v}"${v === ds ? ' selected' : ''}>${l}</option>`).join('')}</select></div><ul class="rows done-rows">${done.map(one).join('')}</ul>` : '')
@@ -2184,7 +2208,7 @@ function viewOverview() {
   const rowsAll = rows + pausedHTML(r) + budgetsHTML(budgets);
   OCC = new Map(s.items.map(x => [x.key, x]));
 
-  const groups = byCategory(s.items, s.needed);
+  const groups = byCategory(s.items, r), chartTotal = BT.round2(groups.reduce((a, g) => a + g.value, 0));
 
   return `<div class="ov">
   <section class="hero" aria-label="Pay cycle summary">
@@ -2215,8 +2239,8 @@ function viewOverview() {
     ${payPrompt(r) || (pc && !pc.amount && !pc.askFrom ? `<button class="cta" data-action="edit" data-type="income" data-id="${pc.id}">Add your paycheck amount to see what is left over each ${VIEWNAME[view]}.</button>` : '')}
     <div class="hero-foot"><span>Next ${VIEWNAME[view]} needs <b>${hm(ns.needed)}</b></span>${isNow ? '' : '<button class="linkbtn" data-action="today">Back to now</button>'}<span class="sync" data-s="${SYNC.s}" role="status">${esc(SYNC.t)}</span></div>
   </section>
-    <section class="card ov-donut"><header class="card-h"><h2>Where this ${VIEWNAME[view]} goes</h2><span class="meta">${fmt(s.needed)}</span></header>
-      <div class="card-b">${groups.length ? `<div class="donut-wrap">${donut(groups, s.needed)}</div>${catScroller(groups, s.needed)}<ul class="legend cat-legend">${groups.map((g, gi) => `<li data-i="${gi}" class="${OPEN_CATS.has(g.label) ? 'open' : ''}"><button class="sw-btn" data-action="cat-expand" data-cat="${esc(g.label)}" aria-expanded="${OPEN_CATS.has(g.label)}" aria-label="Show items in ${esc(g.label)}"><span class="sw" style="--c:${g.color}"></span><span class="chev" aria-hidden="true">›</span></button><button class="icon-pick sm" data-action="pick-icon" data-cat="${esc(g.label)}" aria-label="Change icon for ${esc(g.label)}">${catIcon(g.label)}</button><button class="lc" data-action="cat-detail" data-cat="${esc(g.label)}">${esc(g.label)}</button><span class="lv">${fmt(g.value)}</span><span class="lp">${Math.round(g.value / s.needed * 100)}%</span><span class="li">${g.detail}</span></li>`).join('')}</ul>` : '<div class="empty">No spending yet.</div>'}</div>
+    <section class="card ov-donut"><header class="card-h"><h2>Where this ${VIEWNAME[view]} goes</h2><span class="meta">${fmt(chartTotal)}</span></header>
+      <div class="card-b">${groups.length ? `<div class="donut-wrap">${donut(groups, chartTotal)}</div>${catScroller(groups, chartTotal)}${legendHTML(groups, chartTotal)}` : '<div class="empty">No spending yet.</div>'}</div>
     </section>
   <section class="card ov-bills"><header class="card-h"><div><h2>Bills this ${VIEWNAME[view]}</h2><span class="meta">${s.items.length - budgets.length} items · ${fmt(s.due)} left</span></div><button class="icon-btn add-big" data-action="add" data-type="extra" aria-label="Add a spending">${ICON.plus}</button></header>
     ${rowsAll}
@@ -2526,33 +2550,39 @@ function iconSheet(cat) {
 /* ---------- Charts ---------- */
 // Chart category for any item: subscriptions combine into one slice (Apple is a sub-category).
 const SUB_GROUPS = ['Apple Subscriptions', 'Subscriptions'];
-// Chart sections. Related categories roll up into one section, so nothing is hidden in an "Everything else" slice.
-const SECTION_OF = { Gas: 'Car', Transportation: 'Car', Insurance: 'Car', 'Takeout Food': 'Food Out', 'Dining Out': 'Food Out', Dining: 'Food Out',
-  Utilities: 'Bills', 'Phone & Internet': 'Bills', Lotto: 'Entertainment', Gaming: 'Entertainment' };
-function sectionOf(c) { return SECTION_OF[c] || (/edeeste|electric/i.test(c) ? 'Bills' : c); }
+// Chart groups: every item rolls up to its parent group (Food, Transportation, Home...). Anything without a parent goes under "Other".
 function baseCat(x) {
   if (x.kind === 'bill' && SUB_GROUPS.includes(x.group)) return 'Subscriptions';
   return x.category || (x.kind === 'bill' ? 'Other bills' : x.kind === 'spend' ? 'Living expenses' : 'Uncategorized');
 }
-function chartCat(x) { return sectionOf(baseCat(x)); }
-const OPEN_CATS = new Set();
-function catDetail(cat, mode) {
+const chartCat = baseCat;
+const chartGroup = x => parentOf(baseCat(x));
+// Which groups are open in the Overview legend. Food is open until the user says otherwise; the choice is saved in settings.
+const legendOpen = g => { const m = state.settings.legendOpen; return m && typeof m[g] === 'boolean' ? m[g] : g === 'Food'; };
+function setLegendOpen(g, on) {
+  if (!state.settings.legendOpen || typeof state.settings.legendOpen !== 'object') state.settings.legendOpen = {};
+  state.settings.legendOpen[g] = on;
+  try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {}
+  clearTimeout(timer); timer = setTimeout(flush, 600);
+}
+function catDetail(cat, mode, grp) {
   const view = state.settings.view, rv = BT.periodRange(state, view, offset, TODAY);
   const month = mode === 'month' && view !== 'monthly';
   const r = month ? BT.periodRange(state, 'monthly', 0, rv.start) : rv;
   const unit = month ? 'month' : VIEWNAME[view];
-  const items = BT.summary(state, r, TODAY).items.filter(x => chartCat(x) === cat).sort((a, b) => a.date < b.date ? -1 : 1);
+  const inCat = x => (grp ? chartGroup(x) : baseCat(x)) === cat;
+  const items = BT.summary(state, r, TODAY).items.filter(inCat).sort((a, b) => a.date < b.date ? -1 : 1);
   const total = BT.round2(items.reduce((a, x) => a + x.amount, 0)), paid = BT.round2(items.reduce((a, x) => a + BT.paidOf(x), 0));
   const hist = Array.from({ length: 6 }, (_, i) => {
     const rr = month ? BT.periodRange(state, 'monthly', i - 5, rv.start) : BT.periodRange(state, view, offset - 5 + i, TODAY);
-    return { r: rr, v: BT.round2(BT.summary(state, rr, TODAY).items.filter(x => chartCat(x) === cat).reduce((a, x) => a + x.amount, 0)) };
+    return { r: rr, v: BT.round2(BT.summary(state, rr, TODAY).items.filter(inCat).reduce((a, x) => a + x.amount, 0)) };
   });
   // Only periods since tracking started count; the average shows once 3 periods are collected.
   const tracked = hist.filter(h => h.r.end > state.since && h.r.start <= TODAY);
   const n = tracked.length, avg = n >= 3 ? BT.round2(tracked.reduce((a, h) => a + h.v, 0) / n) : null;
   const shownHist = hist.filter(h => h.r.end > state.since);
   const max = Math.max(1, ...shownHist.map(h => h.v));
-  const subs = cat === 'Subscriptions' ? live(state.bills).filter(b => SUB_GROUPS.includes(b.group) && b.active !== false) : null;
+  const subs = !grp && cat === 'Subscriptions' ? live(state.bills).filter(b => SUB_GROUPS.includes(b.group) && b.active !== false) : null;
   const subBox = subs ? (() => {
     const apple = subs.filter(b => b.group === 'Apple Subscriptions'), other = subs.filter(b => b.group !== 'Apple Subscriptions');
     const sum = l => BT.round2(l.reduce((a, b) => a + b.amount, 0)), all = sum(subs);
@@ -2565,31 +2595,35 @@ function catDetail(cat, mode) {
   const label = h => month || view === 'monthly' ? MON[BT.parse(h.r.start).getMonth()] : md(h.r.start);
   const html = `<div class="sheet-h"><div><h3><button class="icon-pick" data-action="pick-icon" data-cat="${esc(cat)}" aria-label="Change icon for ${esc(cat)}">${catIcon(cat).replace('cico', 'cico big')}</button> ${esc(cat)}</h3><p class="lede">${month ? MON[BT.parse(r.start).getMonth()] + ' ' + BT.parse(r.start).getFullYear() + ' · ' : ''}${rangeLabel(r)}</p></div>
     <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
-    ${view === 'monthly' ? '' : `<div class="seg kind-seg" role="group" aria-label="Period"><button type="button" data-action="cat-mode" data-cat="${esc(cat)}" data-mode="period" aria-pressed="${!month}">This ${VIEWNAME[view]}</button><button type="button" data-action="cat-mode" data-cat="${esc(cat)}" data-mode="month" aria-pressed="${month}">Whole month</button></div>`}
+    ${view === 'monthly' ? '' : `<div class="seg kind-seg" role="group" aria-label="Period"><button type="button" data-action="cat-mode" data-cat="${esc(cat)}"${grp ? ' data-grp="1"' : ''} data-mode="period" aria-pressed="${!month}">This ${VIEWNAME[view]}</button><button type="button" data-action="cat-mode" data-cat="${esc(cat)}"${grp ? ' data-grp="1"' : ''} data-mode="month" aria-pressed="${month}">Whole month</button></div>`}
     ${subBox}
     <div class="strip" style="margin-bottom:14px"><div class="tile"><div class="k">This ${unit}</div><div class="v">${fmt(total)}</div></div><div class="tile"><div class="k">Paid so far</div><div class="v">${fmt(paid)}</div></div>${avg !== null ? `<div class="tile"><div class="k">${n} ${unit} average</div><div class="v">${fmt(avg)}</div></div>` : `<div class="tile"><div class="k">Average</div><div class="v sm">After 3 ${unit === 'pay cycle' ? 'pay cycles' : unit + 's'}</div><div class="k">Tracking since ${md(state.since)}</div></div>`}</div>
     <div class="subhead" style="border:0;padding-left:0">${shownHist.length > 1 ? 'Last ' + shownHist.length + ' ' + (month || view === 'monthly' ? 'months' : view === 'biweekly' ? 'pay cycles' : 'weeks') : 'History builds as you use BudTrack'}</div>
     <div class="mini-bars" style="grid-template-columns:repeat(6,1fr)">${shownHist.map((h, i) => `<div class="mb" data-tip="${esc(rangeLabel(h.r))}\n${fmt(h.v)}"><span class="mbv">${h.v ? fmt0(h.v) : ''}</span><span class="mbb${i === shownHist.length - 1 ? ' cur' : ''}" style="height:${Math.max(2, h.v / max * 70)}px"></span><span class="mbl">${label(h)}</span></div>`).join('')}</div>
     <div class="subhead" style="border:0;padding-left:0;margin-top:12px">Items · ${items.length}</div>
-    <ul class="rows" style="padding:0">${items.map(x => `<li class="row"><span class="check-dot${x.paid ? ' on' : ''}" aria-label="${x.paid ? 'Paid' : 'Not paid'}">${x.paid ? ICON.check : ''}</span><div class="daybadge">${md(x.date).split(' ')[1]}</div><div class="main"><div class="nm"><button class="icon-pick sm" data-action="pick-icon" data-cat="${esc(x.name)}" aria-label="Change icon for ${esc(x.name)}">${state.icons[x.name] ? iconSVG(iconFor(state, x.name)) : catIcon(baseCat(x))}</button>${esc(x.name)}</div><div class="sub">${month ? md(x.date) + ' · ' : ''}${baseCat(x) !== cat && baseCat(x) !== 'Subscriptions' ? esc(baseCat(x)) + ' · ' : ''}${esc(x.note || x.group)}${x.via ? ' · via ' + esc(viaText(x.via)) : ''}</div></div><div class="amt">${fmt(x.amount)}</div></li>`).join('') || '<li class="empty">Nothing in this period.</li>'}</ul>${outBox}`;
+    <ul class="rows" style="padding:0">${items.map(x => `<li class="row"><span class="check-dot${x.paid ? ' on' : ''}" aria-label="${x.paid ? 'Paid' : 'Not paid'}">${x.paid ? ICON.check : ''}</span><div class="daybadge">${md(x.date).split(' ')[1]}</div><div class="main"><div class="nm"><button class="icon-pick sm" data-action="pick-icon" data-cat="${esc(x.name)}" aria-label="Change icon for ${esc(x.name)}">${state.icons[x.name] ? iconSVG(iconFor(state, x.name)) : catIcon(baseCat(x))}</button>${esc(x.name)}</div><div class="sub">${month ? md(x.date) + ' · ' : ''}${baseCat(x) !== cat && (grp || baseCat(x) !== 'Subscriptions') ? esc(baseCat(x)) + ' · ' : ''}${esc(x.note || x.group)}${x.via ? ' · via ' + esc(viaText(x.via)) : ''}</div></div><div class="amt">${fmt(x.amount)}</div></li>`).join('') || '<li class="empty">Nothing in this period.</li>'}</ul>${outBox}`;
   if (!$('#sheet').hidden && mode) $('#sheetBody').innerHTML = html; else openSheet(html);
 }
-function byCategory(items, total) {
-  const m = {};
-  items.forEach(x => {
-    const c = chartCat(x), g = m[c] || (m[c] = { label: c, value: 0, parts: {} });
-    g.value += x.amount;
-    const bc = baseCat(x), part = c === 'Subscriptions' && x.group === 'Apple Subscriptions' ? 'Apple' : bc !== c ? bc : x.name;
-    g.parts[part] = (g.parts[part] || 0) + x.amount;
-  });
-  let list = Object.values(m).map(g => ({ ...g, value: BT.round2(g.value) })).filter(g => g.value > 0).sort((a, b) => (a.label === 'Other') - (b.label === 'Other') || b.value - a.value);
-  return list.map((g, i) => ({ label: g.label, value: g.value, color: 'var(--s' + (i % 12 + 1) + ')',
-    detail: Object.entries(g.parts).sort((a, b) => b[1] - a[1]).map(([n, v]) => esc(n) + ' ' + fmt0(v)).join(' · ') }));
+// Savings moves in the cycle show as their own "Savings" group, only when savings is on.
+function byCategory(items, r) {
+  const list = BT.rollup(items, baseCat, parentOf).map(g => ({ ...g }));
+  list.forEach((g, i) => { g.color = 'var(--s' + (i % 12 + 1) + ')'; });
+  const sv = state.savings && state.savings.on ? BT.savedIn(state, r) : 0;
+  if (sv > 0) list.push({ label: 'Savings', value: sv, sv: true, color: 'var(--brass)', kids: [{ label: 'Moved to savings', value: sv, sv: true }] });
+  return list;
+}
+function legendHTML(groups, total) {
+  const pc = v => Math.round(v / total * 100) + '%';
+  return `<ul class="legend cat-legend">${groups.map((g, gi) => {
+    const open = legendOpen(g.label);
+    return `<li class="lg-g${open ? ' open' : ''}" data-i="${gi}" data-g="${esc(g.label)}"><button class="sw-btn" data-action="lg-toggle" data-g="${esc(g.label)}" aria-expanded="${open}" aria-label="Show items in ${esc(g.label)}"><span class="sw" style="--c:${g.color}"></span><span class="chev" aria-hidden="true">›</span></button>${g.sv ? '' : `<button class="icon-pick sm" data-action="pick-icon" data-cat="${esc(g.label)}" aria-label="Change icon for ${esc(g.label)}">${catIcon(g.label)}</button>`}<button class="lc" data-action="lg-pick" data-i="${gi}" data-g="${esc(g.label)}"${g.sv ? ' data-sv="1"' : ''}>${esc(g.label)}</button><span class="lv">${fmt(g.value)}</span><span class="lp">${pc(g.value)}</span>
+      <div class="lg-kids"${open ? '' : ' hidden'}>${g.kids.map(k => `<div class="lg-k">${g.sv ? `<span class="kn">${esc(k.label)}</span>` : `<button class="kn" data-action="cat-detail" data-cat="${esc(k.label)}">${esc(k.label)}</button>`}<span class="lv">${fmt(k.value)}</span><span class="lp">${pc(k.value)}</span></div>`).join('')}</div></li>`;
+  }).join('')}</ul>`;
 }
 let SEL_CAT = null;
 function catScroller(groups, total) {
   const chips = (copy) => `<button type="button" class="cs-chip cs-allchip" role="option" aria-selected="true" data-i="-1" data-copy="${copy}" data-action="cs-pick" data-label="" data-amt="${fmt(total)}" style="--c:var(--ink-3)"><span class="cs-n">All</span><b>${fmt(total)}</b></button>${groups.map((g, i) =>
-    `<button type="button" class="cs-chip" role="option" aria-selected="false" data-i="${i}" data-copy="${copy}" data-action="cs-pick" data-label="${esc(g.label)}" data-amt="${fmt(g.value)}" data-pct="${Math.round(g.value / total * 100)}" style="--c:${g.color}"><span class="cs-dot"></span>${catIcon(g.label)}<span class="cs-n">${esc(g.label)}</span><b>${fmt(g.value)}</b></button>`).join('')}`;
+    `<button type="button" class="cs-chip" role="option" aria-selected="false" data-i="${i}" data-copy="${copy}" data-action="cs-pick" data-label="${esc(g.label)}"${g.sv ? ' data-sv="1"' : ''} data-amt="${fmt(g.value)}" data-pct="${Math.round(g.value / total * 100)}" style="--c:${g.color}"><span class="cs-dot"></span>${catIcon(g.label)}<span class="cs-n">${esc(g.label)}</span><b>${fmt(g.value)}</b></button>`).join('')}`;
   // Three copies in a row make the scroller loop: left of All is the last section, right of the last section is All.
   return `<div class="cat-scroll-wrap"><div class="cs-top"><p class="cs-hint">Slide to pick a section</p><button type="button" class="cs-all" id="csall" data-action="cs-pick" data-i="-1" hidden>Show all</button></div><div class="cat-scroll" id="catscroll" role="listbox" aria-label="Sections of this chart">${chips(0)}${chips(1)}${chips(2)}</div></div>`;
 }
@@ -2607,7 +2641,7 @@ function selectSlice(i, center, instant) {
   const a = $('#dn-amt'), l = $('#dn-lbl');
   if (a) { a.textContent = chip.dataset.amt.replace(/\.00$/, ''); a.setAttribute('y', i < 0 ? '91' : '82'); }
   if (l) l.textContent = i < 0 ? '' : chip.dataset.label.toUpperCase() + ' · ' + chip.dataset.pct + '%';
-  document.querySelectorAll('.cat-legend li').forEach(li => li.classList.toggle('sel', +li.dataset.i === i));
+  document.querySelectorAll('.cat-legend > li').forEach(li => li.classList.toggle('sel', +li.dataset.i === i));
   const all = $('#csall'); if (all) all.hidden = i < 0;
   if (center) sc.scrollTo({ left: csCenter(chip) - sc.clientWidth / 2, behavior: instant ? 'auto' : 'smooth' });
 }
@@ -2641,7 +2675,7 @@ function donut(groups, total) {
     a0 = a1;
     return `<path d="${d}" class="slice" data-i="${gi}" data-action="cs-pick" fill="${g.color}" stroke="var(--surface)" stroke-width="2" stroke-linejoin="round" data-tip="${esc(g.label)}\n${fmt(g.value)} · ${Math.round(g.value / total * 100)}%"/>${ic}`;
   }).join('');
-  return `<svg viewBox="0 0 170 170" role="img" aria-label="Spending by section">${paths}
+  return `<svg viewBox="0 0 170 170" role="img" aria-label="Spending by group">${paths}
     <text id="dn-amt" x="85" y="91" text-anchor="middle" style="font:400 26px var(--display);fill:var(--ink)">${fmt0(total)}</text>
     <text id="dn-lbl" x="85" y="101" text-anchor="middle" style="font:500 10px var(--body);fill:var(--ink-3);letter-spacing:.1em"></text></svg>`;
 }
@@ -4425,14 +4459,16 @@ document.addEventListener('click', async e => {
     case 'sv-del': state.savings.tx = state.savings.tx.filter(t => t.id !== a.dataset.id); commit('Removed'); accountSheet(true); break;
     case 'sound': state.settings.sound = state.settings.sound === false; commit(state.settings.sound ? 'Sound on' : 'Sound off'); if (state.settings.sound) chime(); break;
     case 'occ': openOcc(a.dataset.key); break;
-    case 'cat-expand': { const c = a.dataset.cat, li = a.closest('li'); if (OPEN_CATS.has(c)) OPEN_CATS.delete(c); else OPEN_CATS.add(c); li.classList.toggle('open'); a.setAttribute('aria-expanded', OPEN_CATS.has(c)); break; }
+    case 'lg-toggle': { const g = a.dataset.g, li = a.closest('li'), on = !li.classList.contains('open'); li.classList.toggle('open', on); a.setAttribute('aria-expanded', on); const k = li.querySelector('.lg-kids'); if (k) k.hidden = !on; setLegendOpen(g, on); break; }
+    case 'lg-pick': { const i = +a.dataset.i; if (SEL_CAT === a.dataset.g && !a.dataset.sv) catDetail(a.dataset.g, undefined, true); else if (SEL_CAT === a.dataset.g) selectSlice(-1, true); else selectSlice(i, true); break; }
     case 'cat-detail': catDetail(a.dataset.cat); break;
     case 'cs-pick': { const i = +a.dataset.i, sc = $('#catscroll'), cur = sc && sc.querySelector('.cs-chip[aria-selected="true"]'), same = cur && +cur.dataset.i === i;
-      if (i >= 0 && same && a.classList.contains('cs-chip')) catDetail(cur.dataset.label);
+      if (i >= 0 && same && a.classList.contains('cs-chip') && !cur.dataset.sv) catDetail(cur.dataset.label, undefined, true);
+      else if (i >= 0 && same && a.classList.contains('cs-chip')) selectSlice(-1, true);
       else if (i >= 0 && same) selectSlice(-1, true);
       else selectSlice(i, true);
       break; }
-    case 'cat-mode': catDetail(a.dataset.cat, a.dataset.mode); break;
+    case 'cat-mode': catDetail(a.dataset.cat, a.dataset.mode, !!a.dataset.grp); break;
     case 'icon-toggle': { const box = a.closest('form').querySelector('.icon-inline'); box.hidden = !box.hidden; a.setAttribute('aria-expanded', !box.hidden); break; }
     case 'icon-inline': { const f = a.closest('form'); f.elements.icon.value = a.dataset.icon; const btn = f.querySelector('.icon-now'); btn.firstElementChild.outerHTML = iconSVG(a.dataset.icon); f.querySelectorAll('.icon-inline .ig').forEach(b => b.setAttribute('aria-pressed', b === a)); f.querySelector('.icon-inline').hidden = true; btn.setAttribute('aria-expanded', 'false'); break; }
     case 'pause-sub': {
