@@ -9,12 +9,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <style>
 /* Layout: one column on phones, overview splits into ledger + charts on wide screens.
-   Bold moment: the navy "cycle card" with a serif figure. Everything else stays quiet. */
+   Bold moment: the "cycle card" with a serif figure (navy in dark mode, a light card in light mode). Everything else stays quiet. */
 :root {
   --bg: #eceef2; --surface: #ffffff; --surface-2: #f5f6f9; --line: #e0e3e9; --line-2: #c9ced8;
   /* Light: muted text, brass, good and crit are dark enough for 4.5:1 on --bg and --surface-2. */
   --ink: #111726; --ink-2: #454f62; --ink-3: #5d6577;
   --hero: #15203a; --hero-2: #22305180; --hero-ink: #f5f1e7; --hero-ink-2: #b7bdcb; --hero-line: #2c3a5a;
+  /* Navy cycle card details (the light theme redefines these below) */
+  --hero-neg: #ff9d9d; --hero-hover: #ffffff10; --hero-fill: #ffffff0f; --hero-track: #ffffff1a; --hero-input: #0000004d; --hero-border: var(--hero-line);
+  --hero-logo: #f2a48a; --hero-glow-l: 65%; --hero-dim: .45; --hero-stamp: #c9cfdc; --hero-stamp-sh: 0 1px 0 #0b1222, 0 2px 0 #0a101e, 0 2px 3px #0008, 0 -1px 0 #ffffff22;
   --brass: #845c1a; --brass-hi: #d8b26a;
   --accent: #1d3a72; --accent-ink: #ffffff; --accent-soft: #e5ebf6;
   --good: #0a7f0a; --warn: #fab219; --crit: #b8322f; --on-brass: #ffffff;
@@ -45,6 +48,23 @@
   --shadow: 0 1px 2px #0006, 0 8px 24px -12px #0009;
   color-scheme: dark;
 }
+/* Light theme (chosen, or Auto with a light phone): the cycle card is a light card too. Dark keeps the navy card. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --hero: #ffffff; --hero-2: #f5f6f9; --hero-ink: #111726; --hero-ink-2: #454f62; --hero-line: #dde1e8; --hero-border: var(--line);
+    --hero-neg: #b8322f; --hero-hover: #1117260a; --hero-fill: #f5f6f9; --hero-track: #e3e6ec; --hero-input: #ffffff;
+    --hero-logo: #c2532f; --hero-glow-l: 48%; --hero-glow-sh: #0000; --hero-dim: .62; --hero-stamp: #5d6577; --hero-stamp-sh: 0 1px 0 #ffffff;
+  }
+  :root:not([data-theme="dark"]) .hero { --brass-hi: #845c1a; }
+  :root:not([data-theme="dark"]) .hero .lad .v.dim small { color: inherit; }
+}
+:root[data-theme="light"] {
+  --hero: #ffffff; --hero-2: #f5f6f9; --hero-ink: #111726; --hero-ink-2: #454f62; --hero-line: #dde1e8; --hero-border: var(--line);
+  --hero-neg: #b8322f; --hero-hover: #1117260a; --hero-fill: #f5f6f9; --hero-track: #e3e6ec; --hero-input: #ffffff;
+  --hero-logo: #c2532f; --hero-glow-l: 48%; --hero-glow-sh: #0000; --hero-dim: .62; --hero-stamp: #5d6577; --hero-stamp-sh: 0 1px 0 #ffffff;
+}
+:root[data-theme="light"] .hero { --brass-hi: #845c1a; }
+:root[data-theme="light"] .hero .lad .v.dim small { color: inherit; }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -75,32 +95,32 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .stack { display: grid; gap: 16px; }
 
 /* Cycle card */
-.hero { background: var(--hero); color: var(--hero-ink); border-radius: 22px; padding: 18px 18px 16px; position: relative; overflow: hidden; box-shadow: var(--shadow); border: 1px solid var(--hero-line); }
+.hero { background: var(--hero); color: var(--hero-ink); border-radius: 22px; padding: 18px 18px 16px; position: relative; overflow: hidden; box-shadow: var(--shadow); border: 1px solid var(--hero-border); }
 .hero::before { content: ""; position: absolute; inset: 0 0 auto; height: 2px; background: linear-gradient(90deg, transparent, var(--brass-hi), transparent); opacity: .8; }
 .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .hero-top .lbl { text-align: center; }
 .eyebrow { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--brass-hi); font-weight: 600; }
 .range { font-size: 14px; color: var(--hero-ink-2); margin-top: 2px; }
 .navbtn { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--hero-line); background: transparent; color: var(--hero-ink); display: grid; place-items: center; }
-.navbtn:hover { background: #ffffff10; }
+.navbtn:hover { background: var(--hero-hover); }
 .hero-num { text-align: center; margin: 14px 0 4px; }
 .hero-num .big { font-family: var(--display); font-size: clamp(52px, 13vw, 72px); line-height: .95; letter-spacing: -0.02em; display: block; }
 .hero-num .big small { font-size: .5em; vertical-align: .62em; margin-right: 2px; color: var(--hero-ink-2); }
 .hero-num .cap { font-size: 13px; color: var(--hero-ink-2); }
-.meter { height: 6px; border-radius: 99px; background: #ffffff1a; margin: 14px 2px 12px; overflow: hidden; }
+.meter { height: 6px; border-radius: 99px; background: var(--hero-track); margin: 14px 2px 12px; overflow: hidden; }
 .meter i { display: block; height: 100%; border-radius: 99px; background: var(--brass-hi); }
 /* Same tracks as the ladder above (margin -6px, no gap, 6px cell padding, centered) so each stat sits under its sum. */
 .hero-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 0; row-gap: 8px; margin: 0 -6px; text-align: center; container-type: inline-size; }
 .hero-stats > div { min-width: 0; padding: 0 6px; }
 .hero-stats dt { font-size: 11px; color: var(--hero-ink-2); }
 .hero-stats dd { margin: 2px 0 0; font-family: var(--mono); font-size: clamp(12px, 4.4cqi, 14px); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hero-stats .neg { color: #ff9d9d; }
+.hero-stats .neg { color: var(--hero-neg); }
 
 .hero-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--hero-line); font-size: 13px; color: var(--hero-ink-2); }
 .hero-foot b { color: var(--hero-ink); font-family: var(--mono); font-weight: 500; }
 .linkbtn { background: none; border: 0; padding: 0; color: var(--brass); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
 .hero .linkbtn { color: var(--brass-hi); }
-.cta { display: block; width: 100%; margin-top: 12px; text-align: left; background: #ffffff0f; border: 1px dashed var(--brass-hi); color: var(--hero-ink); border-radius: 12px; padding: 10px 12px; font-size: 13px; }
+.cta { display: block; width: 100%; margin-top: 12px; text-align: left; background: var(--hero-fill); border: 1px dashed var(--brass-hi); color: var(--hero-ink); border-radius: 12px; padding: 10px 12px; font-size: 13px; }
 
 /* Cards */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); min-width: 0; }
@@ -289,8 +309,8 @@ textarea { width: 100%; min-height: 120px; border-radius: 10px; border: 1px soli
 .lad .hs-k { align-self: end; font-size: clamp(9.5px, 3.7cqi, 11.5px); }
 .lad .v { font-family: var(--display); font-size: clamp(18px, 7.4cqi, 32px); line-height: 1.05; letter-spacing: -0.02em; white-space: nowrap; color: var(--hero-ink); font-variant-numeric: tabular-nums; min-width: 0; max-width: 100%; }
 .lad .v small { font-size: .52em; vertical-align: .6em; margin-right: 1px; color: var(--hero-ink-2); }
-.lad .v.neg { color: #ff9d9d; }
-.lad .v.dim { opacity: .45; }
+.lad .v.neg { color: var(--hero-neg); }
+.lad .v.dim { opacity: var(--hero-dim); }
 .lad .v.set { font-family: var(--body); font-size: 15px; font-weight: 500; color: var(--brass-hi); text-decoration: underline; text-underline-offset: 3px; }
 .lad .hs-s { font-size: 11px; line-height: 1.4; align-self: start; width: 100%; min-width: 0; }
 .lad .fl { display: block; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: center; }
@@ -308,9 +328,12 @@ button.lad.l1 { border-left: 0; }
 @media (prefers-reduced-motion: reduce) { .btn .spin { animation-duration: 2.4s; } }
 button.lad:hover .v, button.lad:focus-visible .v { color: var(--brass-hi); }
 .lad-tools { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin: 10px 0 0; min-height: 28px; }
-.lad-tools .eye { width: 28px; height: 28px; border-radius: 8px; background: transparent; border-color: var(--hero-line); color: var(--hero-ink-2); }
+.lad-tools .eye { width: 36px; height: 36px; border-radius: 10px; background: transparent; border-color: var(--hero-line); color: var(--hero-ink-2); }
+/* The eye sits inside the sums: last row of the In account column, right-aligned, under "Updated …". */
+.ladder { grid-template-rows: auto auto auto auto; }
+.ladder .lad-eye { grid-column: 3; grid-row: 4; justify-self: end; margin: 0; min-height: 0; padding: 0 6px 0 0; }
 .lad-tools .eye:hover, .lad-tools .eye:focus-visible { color: var(--brass-hi); border-color: var(--brass-hi); }
-.lad-tools.hid { justify-content: space-between; margin: 12px 0 4px; padding: 5px 6px 5px 12px; border: 1px solid var(--hero-line); border-radius: 12px; font-size: 13px; color: var(--hero-ink-2); }
+.lad-tools.hid { justify-content: space-between; margin: 12px 0 4px; padding: 3px 4px 3px 12px; border: 1px solid var(--hero-line); border-radius: 12px; font-size: 13px; color: var(--hero-ink-2); }
 .lad-tools .lt-msg { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
 .lad-tools .linkbtn { color: var(--brass-hi); }
 .subhead { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; padding: 6px 16px 2px; border-top: 1px solid var(--line); margin-top: 2px; }
@@ -463,12 +486,12 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .hero-brand .brandlock .logo { height: 76px; }
 .brand .brandlock .logo { height: 70px; }
 
-/* BudTracks wordmark: coral, one color. Hero is always navy, so it uses the light coral. */
+/* BudTracks wordmark: coral, one color. The navy hero uses the light coral; the light hero uses the darker one (--hero-logo). */
 :root { --logo: #c2532f; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --logo: #f2a48a; } }
 :root[data-theme="dark"] { --logo: #f2a48a; }
 .wm { position: relative; display: inline-flex; align-items: flex-end; font: 400 32px/1 var(--display); letter-spacing: -.01em; padding-top: 1.5em; color: var(--logo); white-space: nowrap; }
-.hero .wm { --logo: #f2a48a; font-size: 30px; }
+.hero .wm { --logo: var(--hero-logo); font-size: 30px; }
 .wm .r { font-style: italic; }
 .wm .stem { display: inline-block; width: .1em; height: .68em; margin: 0 0 .1em .1em; visibility: hidden; }
 .wm svg.arms { position: absolute; overflow: visible; color: var(--logo); }
@@ -538,13 +561,13 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 
 /* Top glow behind Bud: drifts through colors, rainbow burst after a change */
 @property --gh { syntax: '<number>'; inherits: false; initial-value: 40; }
-.hero::before { --gh: 40; height: 2px; background: linear-gradient(90deg, transparent, hsl(var(--gh) 75% 65%), transparent); opacity: .9; animation: glowDrift 14s linear infinite; }
+.hero::before { --gh: 40; height: 2px; background: linear-gradient(90deg, transparent, hsl(var(--gh) 75% var(--hero-glow-l)), transparent); opacity: .9; animation: glowDrift 14s linear infinite; }
 @keyframes glowDrift { to { --gh: 400; } }
 /* Rainbow layer fades in and out and dissolves toward the edges */
 .hero::after { content: ""; position: absolute; top: 0; left: 6%; right: 6%; height: 3px; pointer-events: none;
   background: linear-gradient(90deg, #ff4d4d, #ffa64d, #ffe14d, #4dff88, #4dc3ff, #8f6bff, #ff4dc4, #ff4d4d); background-size: 200% 100%;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent); mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
-  filter: drop-shadow(0 0 5px #ffffff55); opacity: 0; transition: opacity 1.6s ease; animation: rainbow .9s linear infinite; }
+  filter: drop-shadow(0 0 5px var(--hero-glow-sh, #ffffff55)); opacity: 0; transition: opacity 1.6s ease; animation: rainbow .9s linear infinite; }
 .hero.party::after { opacity: 1; }
 .hero::before { -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); }
 @keyframes rainbow { to { background-position: 200% 0; } }
@@ -560,8 +583,8 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .hero .byline::before { content: ""; display: inline-block; width: 18px; height: 1px; background: currentColor; vertical-align: middle; margin-right: 7px; opacity: .7; }
 @media (max-width: 420px) { .hero .byline { position: static; } }
 /* Stamp: smaller, no dash, engraved 3D letters */
-.hero .byline { font-size: 11px; opacity: .8; color: #c9cfdc; letter-spacing: .04em;
-  text-shadow: 0 1px 0 #0b1222, 0 2px 0 #0a101e, 0 2px 3px #0008, 0 -1px 0 #ffffff22; }
+.hero .byline { font-size: 11px; opacity: .8; color: var(--hero-stamp); letter-spacing: .04em;
+  text-shadow: var(--hero-stamp-sh); }
 .hero .byline::before { display: none; }
 
 .subhead.done-h { margin-top: 6px; }
@@ -604,7 +627,7 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .hero-stats .hs-tap{position:relative;border-radius:8px}
 .hero-stats .hs-tap dt::after{content:"›";display:inline-block;margin-left:4px;opacity:.65;font-size:13px;line-height:1;transform:translateY(1px)}
 .hs-hit{position:absolute;inset:-4px 0;border:0;background:transparent;border-radius:8px;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
-.hs-hit:hover,.hs-hit:active{background:rgba(255,255,255,.07)}
+.hs-hit:hover,.hs-hit:active{background:var(--hero-hover)}
 .hs-hit:focus-visible{outline:2px solid var(--brass-hi);outline-offset:0}
 .hl-total{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 14px;margin:12px 0 4px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);font-size:13px;color:var(--ink-2)}
 .hl-total b{font-family:var(--mono);font-size:20px;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
@@ -637,13 +660,14 @@ details.skipped > summary { list-style: none; cursor: pointer; }
 details.skipped > summary::-webkit-details-marker { display: none; }
 details.skipped > summary .chev { transition: transform .15s; }
 details.skipped[open] > summary .chev { transform: rotate(90deg); }
-.sv-chip { display: inline-block; margin-top: 4px; font-size: 11px; font-family: var(--mono); color: var(--brass-hi); border: 1px solid var(--hero-line); border-radius: 99px; padding: 2px 8px; white-space: nowrap; }
+.sv-chip { display: inline-block; max-width: 100%; margin-top: 4px; font-size: 11px; font-family: var(--mono); color: var(--brass-hi); border: 1px solid var(--hero-line); border-radius: 99px; padding: 2px 8px; white-space: nowrap; }
 .sv-box { margin-top: 16px; padding: 14px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); display: grid; gap: 12px; }
 .sv-box.off { grid-template-columns: 1fr auto; align-items: center; gap: 12px; }
 .sv-box.off span { display: block; font-size: 13px; color: var(--ink-2); margin-top: 2px; }
 .sv-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .sv-k { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
 .sv-bal { font-family: var(--display); font-size: 28px; font-weight: 500; }
+.sv-src { display: block; font-size: 12px; color: var(--ink-3); }
 .sv-bank { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
 .sv-tx { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .sv-tx li { display: grid; grid-template-columns: 56px 1fr auto 28px; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
@@ -763,16 +787,16 @@ h3 > .icon-pick { display: inline-grid; vertical-align: middle; width: 38px; hei
 html.rotating *, html.rotating *::before, html.rotating *::after { transition: none !important; scroll-behavior: auto !important; }
 html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 /* Paycheck prompt inside the navy cycle card */
-.pay-ask { margin-top: 12px; padding: 12px; border: 1px dashed var(--brass-hi); border-radius: 12px; background: #ffffff0f; display: grid; gap: 10px; font-size: 13px; color: var(--hero-ink-2); }
+.pay-ask { margin-top: 12px; padding: 12px; border: 1px dashed var(--brass-hi); border-radius: 12px; background: var(--hero-fill); display: grid; gap: 10px; font-size: 13px; color: var(--hero-ink-2); }
 .pay-ask label b { display: block; color: var(--hero-ink); font-size: 14px; margin-bottom: 2px; }
 .pay-row { display: flex; gap: 8px; }
 .pay-row .money-in { flex: 1; min-width: 0; }
-.pay-row input { width: 100%; min-width: 0; padding: 10px 12px 10px 24px; border-radius: 10px; border: 1px solid var(--hero-line); background: #0000004d; color: var(--hero-ink); font: 16px var(--mono); }
+.pay-row input { width: 100%; min-width: 0; padding: 10px 12px 10px 24px; border-radius: 10px; border: 1px solid var(--hero-line); background: var(--hero-input); color: var(--hero-ink); font: 16px var(--mono); }
 .pay-row input:focus { outline: 2px solid var(--brass-hi); outline-offset: 0; }
 .pay-ask .money-in i { color: var(--hero-ink-2); }
 .pay-opts { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 .pay-same { background: none; border: 1px solid var(--brass-hi); color: var(--brass-hi); border-radius: 99px; padding: 7px 12px; font-size: 13px; font-weight: 500; }
-.pay-same:hover { background: #ffffff10; }
+.pay-same:hover { background: var(--hero-hover); }
 .bx-split { color: var(--ink-2); font-size: 12px; opacity: .85; overflow-wrap: anywhere; }
 .bal-total { display: grid; gap: 2px; margin: 6px 0 8px; }
 .bal-total b { font-family: var(--display); font-size: 38px; line-height: 1; letter-spacing: -0.02em; }
@@ -784,6 +808,17 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 .bal-acc .nm { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
 .bal-acc .sub { font-size: 13px; color: var(--ink-2); }
 .bal-acc .mask { color: var(--ink-2); font-weight: 400; }
+/* "Savings" switch on each bank account row: a small checkbox pill. Checked accounts move to the Savings list. */
+.sv-mark { position: relative; display: inline-flex; align-items: center; flex: none; min-height: 36px; cursor: pointer; }
+.sv-mark input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
+.sv-mark span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line-2); color: var(--ink-2); background: var(--surface); white-space: nowrap; }
+.sv-mark span::before { content: ""; width: 10px; height: 10px; border-radius: 3px; border: 1.5px solid currentColor; flex: none; }
+.sv-mark input:checked + span { background: color-mix(in srgb, var(--brass) 14%, var(--surface)); border-color: var(--brass); color: var(--ink); }
+.sv-mark input:checked + span::before { background: var(--brass); border-color: var(--brass); }
+.sv-mark input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bal-sv { margin-bottom: 8px; }
+.sv-sh { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.sv-sh b { font-family: var(--mono); font-weight: 500; color: var(--ink); }
 /* iPhone Duo and notched phones: the camera can sit on a side edge, with different insets on each side.
    Keep sheets, toasts and floating bubbles inside the safe area. */
 .sheet-wrap { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
@@ -806,9 +841,12 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 /* Plans segmented control, Transactions tab, Latest paycheck */
 .plans-seg { justify-self: start; }
 .tabs a { min-width: 0; white-space: nowrap; letter-spacing: -.01em; }
-.tx-filters { padding: 0 12px 6px; display: grid; gap: 10px; }
-.tx-chips { margin: 0; gap: 6px; }
-.tx-chips .chip { padding: 6px 11px; font-size: 13px; }
+.tx-filters { padding: 0 10px 6px; display: grid; gap: 10px; }
+.tx-filters { grid-template-columns: minmax(0, 1fr); }
+/* Filter chips stay on one line; if a very narrow screen can't fit them, the row scrolls by itself (no page scroll). */
+.tx-chips { margin: 0; gap: 4px; flex-wrap: nowrap; overflow-x: auto; min-width: 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.tx-chips::-webkit-scrollbar { display: none; }
+.tx-chips .chip { padding: 6px 7px; font-size: 13px; letter-spacing: -.01em; flex: none; white-space: nowrap; }
 .tx-find { display: flex; gap: 8px; min-width: 0; }
 .tx-find input, .tx-find select { min-width: 0; flex: 1 1 0; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
 .tx-find select { flex: 0 1 45%; }
@@ -925,10 +963,12 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 .dc-in:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .dc-note { font-size: 13.5px; color: var(--ink-2); margin: 0 0 10px; }
 .btn[disabled] { opacity: .5; cursor: not-allowed; }
-.oi-add { margin: 0; }
-.oi-add .btn { width: 100%; justify-content: center; min-height: 44px; }
+/* Income tab: "Add income" and "Add to savings" side by side, equal width; stacked only on very narrow screens. */
+.inc-acts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin: 0; }
+.inc-acts .btn { width: 100%; justify-content: center; min-height: 44px; white-space: nowrap; }
+@media (max-width: 339px) { .inc-acts { grid-template-columns: minmax(0, 1fr); } }
+.inc-sv { margin: -8px 0 0; font-size: 13px; color: var(--ink-3); text-align: right; font-family: var(--mono); }
 .oi-coll .rows { margin-top: 0; }
-.oi-coll .oi-btn { padding: 0 16px 12px; }
 
 /* Budgets (per-paycheck items) */
 .bud-h { margin-top: 6px; }
@@ -1295,6 +1335,29 @@ const BT = (() => {
   // Savings balance: starting amount plus moves into savings minus moves out.
   function savingsBalance(st) {
     return round2(((st.savings && st.savings.tx) || []).reduce((s, t) => s + (t.type === 'out' ? -t.amount : t.amount), 0));
+  }
+  // Is this bank line a move between checking and an account marked as savings? (Bank sign: money in is negative.)
+  // svIds: ids of the savings accounts. all: every known bank line, to find the other half of a transfer.
+  //  - On a savings account: money in is a move into savings (not a paycheck); money out is a move back only with
+  //    transfer wording or a matching money in on another account within 2 days.
+  //  - On checking: only transfer wording plus the matching opposite line on a savings account within 2 days.
+  // Returns { sv: 'in' | 'out', leg: 'savings' | 'checking', pair } or null. Only the savings leg records the move.
+  const SVXFER_RX = /\btransfer\b|\bxfer\b|\btrnsfr\b|to savings|from savings|to checking|from checking|to share|from share/i;
+  function savingsMove(t, svIds, all, st) {
+    const acc = t && t.account && t.account.id;
+    if (!acc || !svIds || !svIds.size || typeof t.amount !== 'number' || Math.abs(t.amount) < 0.005) return null;
+    const amt = Math.abs(t.amount), txt = (t.desc || '') + ' ' + (t.rawDesc || '');
+    const near = x => x && x.id !== t.id && x.account && x.account.id && x.account.id !== acc && typeof x.amount === 'number'
+      && Math.abs(Math.abs(x.amount) - amt) < 0.005 && Math.sign(x.amount) === -Math.sign(t.amount) && Math.abs(diffDays(x.date, t.date)) <= 2;
+    const pay = PAYROLL_RX.test(txt) || ((st && st.income) || []).some(i => payerMatch(i, t.desc || ''));
+    if (svIds.has(acc)) {
+      if (t.amount < 0) return pay ? null : { sv: 'in', leg: 'savings', pair: ((all || []).find(near) || {}).id || null };
+      const p = (all || []).find(near);
+      return SVXFER_RX.test(txt) || p ? { sv: 'out', leg: 'savings', pair: p ? p.id : null } : null;
+    }
+    if (!SVXFER_RX.test(txt) || pay) return null;
+    const p = (all || []).find(x => near(x) && svIds.has(x.account.id));
+    return p ? { sv: t.amount > 0 ? 'in' : 'out', leg: 'checking', pair: p.id } : null;
   }
 
   // ---- Bank transactions (CSV) and plan matching ----
@@ -1718,7 +1781,7 @@ const BT = (() => {
     if (k && category) st.bank.rules[k] = category;
   }
 
-  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, strongCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, savedIn, skippedIn, rollup, chartSlot, paidOf, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
+  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, strongCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, savingsMove, savedIn, skippedIn, rollup, chartSlot, paidOf, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
 })();
 
 
@@ -1981,6 +2044,9 @@ function normalize(s) {
   if (typeof o.bank.api !== 'string') o.bank.api = '';
   if (!o.savings || !Array.isArray(o.savings.tx)) o.savings = { on: false, bank: '', tx: [] };
   if (!o.bank.countIn || typeof o.bank.countIn !== 'object') o.bank.countIn = {};
+  // Accounts the user marked as savings. null = never chosen (accounts the bank calls savings are suggested).
+  if (!o.bank.savingsAccts || typeof o.bank.savingsAccts !== 'object' || Array.isArray(o.bank.savingsAccts)) o.bank.savingsAccts = null;
+  if (!o.bank.notSv || typeof o.bank.notSv !== 'object') o.bank.notSv = {};
   if (o.bank.balances && (typeof o.bank.balances !== 'object' || !Array.isArray(o.bank.balances.items))) o.bank.balances = null;
   if (o.bank.balances === undefined) o.bank.balances = null;
   if (!o.bank.refreshOK || typeof o.bank.refreshOK !== 'object') o.bank.refreshOK = null;
@@ -2311,16 +2377,17 @@ function viewOverview() {
   const uaOpen = state.unalloc.filter(u => BT.unallocLeft(state, u) > 0.004);
   const uaTotal = BT.round2(uaOpen.reduce((a, u) => a + BT.unallocLeft(state, u), 0)), uaFirst = uaOpen[0];
   const big = n => { const a = Math.abs(n), d = Math.floor(a), c = String(Math.round((a - d) * 100)).padStart(2, '0'); return `${n < 0 ? '−' : ''}<small>$</small>${d.toLocaleString('en-US')}<small>.${c}</small>`; };
-  const chipHTML = state.savings.on && bt === null ? `<span class="sv-chip">Savings: ${hide ? MASK : fmt0(BT.savingsBalance(state))}</span>` : '';
   const dep = s.inc[0];
   // Sublines under the three sums: at most two short lines each; fitLines() swaps in shorter wording when a line would not fit.
   const fitLine = vs => `<span class="fl" data-fit="${esc(JSON.stringify(vs))}">${esc(vs[0])}</span>`;
   const acctLines = () => {
     const at = state.bank.balances.at, d = at ? BT.iso(new Date(at)) : TODAY, t = clockTime(at);
     const when = d === TODAY ? [t] : d === BT.addDays(TODAY, -1) ? ['yesterday'] : [md(d)];
-    const n = state.bank.balances.items.reduce((a, it) => a + it.accounts.filter(x => countedAcct(x) && balOf(x) !== null).length, 0);
-    return fitLine(['Updated ' + when[0], 'Upd. ' + when[0], when[0][0].toUpperCase() + when[0].slice(1)]) + fitLine(n === 1 ? ['1 account', '1 acct'] : [n + ' accounts', n + ' accts']);
+    return fitLine(['Updated ' + when[0], 'Upd. ' + when[0], when[0][0].toUpperCase() + when[0].slice(1)]);
   };
+  // Beside a live bank balance the chip only shows savings accounts from the bank (a typed ledger total would be stale there).
+  const chipHTML = (bt !== null ? (bankSavings() || 0) > 0 : svOn()) ? `<span class="sv-chip">${hide ? fitLine(['Savings: ' + MASK, MASK]) : fitLine(['Savings: ', 'Savings ', 'Sav. ', ''].map(w => w + fmt0(svBal())))}</span>` : '';
+  const eyeBtn = `<button type="button" class="icon-btn eye" data-action="hide-bal" aria-pressed="${hide}" aria-label="${hide ? 'Show balances' : 'Hide balances'}">${hide ? ICON.eyeoff : ICON.eye}</button>`;
   const check = x => `<button class="check" data-action="toggle" data-key="${esc(x.key)}" data-auto="${x.auto ? 1 : 0}" aria-pressed="${x.paid}" aria-label="${x.paid ? 'Mark unpaid' : 'Mark paid'}: ${esc(x.name)}">${ICON.check}</button>`;
   const amtBtn = x => x.kind === 'extra'
     ? `<button class="amt amt-btn" data-action="edit" data-type="extra" data-id="${x.ref}" aria-label="Edit ${esc(x.name)}: ${fmt(x.amount)}">${fmt(x.amount)}</button>`
@@ -2369,11 +2436,11 @@ function viewOverview() {
       <div class="lbl"><div class="eyebrow">${label}</div><div class="range">${rangeLabel(r)}</div></div>
       <button class="navbtn" data-action="next" aria-label="Next ${VIEWNAME[view]}">${ICON.next}</button>
     </div>
-    <div class="lad-tools${hide ? ' hid' : ''}">${hide ? `<span class="lt-msg">Balances hidden<i aria-hidden="true"> · </i><button type="button" class="linkbtn" data-action="hide-bal">Show</button></span>` : ''}<button type="button" class="icon-btn eye" data-action="hide-bal" aria-pressed="${hide}" aria-label="${hide ? 'Show balances' : 'Hide balances'}">${hide ? ICON.eyeoff : ICON.eye}</button></div>
-    ${hide ? '' : `<div class="ladder">
+    ${hide ? `<div class="lad-tools hid"><span class="lt-msg">Balances hidden<i aria-hidden="true"> · </i><button type="button" class="linkbtn" data-action="hide-bal">Show</button></span>${eyeBtn}</div>` : `<div class="ladder">
       ${s.income > 0 ? `<button type="button" class="lad l1" data-action="pay-sheet"><span class="hs-k">Left in paycheck</span><span class="v${remain < 0 ? ' neg' : ''}">${big(remain)}</span><span class="hs-s">${fitLine(['of ' + fmt(s.income)])}</span></button>` : `<div class="lad l1"><span class="hs-k">Left in paycheck</span><span class="v dim">${big(0)}</span><span class="hs-s">${fitLine(['Paycheck', 'Pay'])}${fitLine(['not set'])}</span></div>`}
       <div class="lad l2"><span class="hs-k">${{ weekly: 'Week', biweekly: 'Cycle', monthly: 'Month' }[view]} needs</span><span class="v">${big(s.needed)}</span><span class="hs-s">${fitLine([Math.round(pct) + '% paid'])}</span></div>
-      <button class="lad l3" data-action="account"><span class="hs-k">In account</span>${bt !== null ? `<span class="v${bt < 0 ? ' neg' : ''}">${big(bt)}</span><span class="hs-s">${acctLines()}</span>` : acct === null ? `<span class="v set">Set</span><span class="hs-s">${fitLine(['Tap to add'])}${chipHTML}</span>` : `<span class="v${acct < 0 ? ' neg' : ''}">${big(acct)}</span><span class="hs-s">${split(acct).prev > 0.004 ? fitLine(['incl. ' + fmt0(split(acct).prev) + ' carried', fmt0(split(acct).prev) + ' carried', '+' + fmt0(split(acct).prev)]) : fitLine([state.account.auto ? 'Estimated' : 'Today'])}${chipHTML}</span>`}</button>
+      <button class="lad l3" data-action="account"><span class="hs-k">In account</span>${bt !== null ? `<span class="v${bt < 0 ? ' neg' : ''}">${big(bt)}</span><span class="hs-s">${acctLines()}${chipHTML}</span>` : acct === null ? `<span class="v set">Set</span><span class="hs-s">${fitLine(['Tap to add'])}${chipHTML}</span>` : `<span class="v${acct < 0 ? ' neg' : ''}">${big(acct)}</span><span class="hs-s">${split(acct).prev > 0.004 ? fitLine(['incl. ' + fmt0(split(acct).prev) + ' carried', fmt0(split(acct).prev) + ' carried', '+' + fmt0(split(acct).prev)]) : fitLine([state.account.auto ? 'Estimated' : 'Today'])}${chipHTML}</span>`}</button>
+      <div class="lad-tools lad-eye">${eyeBtn}</div>
     </div>`}
     ${uaTotal > 0 ? `<button class="ua-bar" data-action="allocate" data-id="${uaFirst.id}"><b>${hm(uaTotal)} unallocated.</b> Record where it went to see your real spending this cycle.</button>` : ''}
     ${(() => { const n = (state.bank.inbox || []).length; return n ? `<button class="ua-bar bx-bar" data-action="tx-review"><b>${n} new ${n === 1 ? 'transaction' : 'transactions'}</b> from your bank. Review</button>` : ''; })()}
@@ -2385,7 +2452,7 @@ function viewOverview() {
       <div class="hs-tap"><dt>Still due</dt><dd>${hm(s.due)}</dd><button type="button" class="hs-hit" data-action="due-list" aria-label="See everything still due"></button></div>
       <div><dt>After all bills</dt><dd class="${!hide && s.left < 0 && s.income > 0 ? 'neg' : ''}">${s.income > 0 ? hm(s.left) : 'Set income'}</dd></div>
     </dl>
-    ${(() => { const sv = state.savings.on ? BT.savedIn(state, r) : 0; return sv > 0 ? `<p class="hero-saved">Saved this ${{ weekly: 'week', biweekly: 'cycle', monthly: 'month' }[view]} <b>${hm(sv)}</b></p>` : ''; })()}
+    ${(() => { const sv = svOn() ? BT.savedIn(state, r) : 0; return sv > 0 ? `<p class="hero-saved">Saved this ${{ weekly: 'week', biweekly: 'cycle', monthly: 'month' }[view]} <b>${hm(sv)}</b></p>` : ''; })()}
     ${payPrompt(r) || (pc && !pc.amount && !pc.askFrom ? `<button class="cta" data-action="edit" data-type="income" data-id="${pc.id}">Add your paycheck amount to see what is left over each ${VIEWNAME[view]}.</button>` : '')}
     <div class="hero-foot"><span>Next ${VIEWNAME[view]} needs <b>${hm(ns.needed)}</b></span>${isNow ? '' : '<button class="linkbtn" data-action="today">Back to now</button>'}<span class="sync" data-s="${SYNC.s}" role="status">${esc(SYNC.t)}</span></div>
   </section>
@@ -2469,8 +2536,10 @@ function viewPlans() {
   const st = state.plans.map(p => ({ p, s: BT.planStatus(state, p, TODAY) }));
   const active = st.filter(x => !x.s.completed && !x.p.endDate).sort((a, b) => (a.s.next ? a.s.next.date : '9') < (b.s.next ? b.s.next.date : '9') ? -1 : 1);
   const done = st.filter(x => x.s.completed || x.p.endDate);
+  // "Other" only gets a tile while it has active plans, so the three main providers share one row.
   const prov = PROVIDERS.map(pv => {
     const l = active.filter(x => x.p.provider === pv);
+    if (pv === 'Other' && !l.length) return '';
     return `<div class="tile"><div class="k">${pv}</div><div class="v">${fmt0(l.reduce((a, x) => a + x.s.owed, 0))}<small>${l.length} active</small></div></div>`;
   }).join('');
   const card = ({ p, s }) => `<div class="plan" data-action="edit" data-type="plan" data-id="${p.id}" tabindex="0" role="button" aria-label="Edit ${esc(p.merchant)}">
@@ -2602,21 +2671,21 @@ function payPrompt(r) {
 }
 
 function otherIncomeHTML() {
-  const main = BT.paycheck(state), others = state.income.filter(i => i !== main), add = `<button class="btn" data-action="add" data-type="income">${ICON.plus}Add other income</button>`;
-  if (!others.length) return `<div class="oi-add">${add}</div>`;
+  const main = BT.paycheck(state), others = state.income.filter(i => i !== main);
+  if (!others.length) return '';
   const o = incOpen('other');
   return `<section class="card oi-coll">${collHead('other', 'Other income · ' + others.length)}
     <div class="coll-body" id="coll-other"${o ? '' : ' hidden'}><ul class="rows">${others.map(i => `<li class="row tap" data-action="edit" data-type="income" data-id="${i.id}" tabindex="0" role="button" aria-label="Edit ${esc(i.name)}">
         <span></span><div class="daybadge">${i.freq === 'biweekly' ? '2w' : i.freq === 'weekly' ? '1w' : i.freq === 'monthly' ? '1m' : '1×'}</div>
         <div class="main"><div class="nm">${esc(i.name)}</div><div class="sub">${FREQ[i.freq]} · ${i.freq === 'once' ? lng(i.date) : 'next ' + lng(nextPay(i))}${i.askFrom ? ' · amount asked each pay cycle' : ''}</div></div>
-        <div class="amt">${i.askFrom ? (() => { const v = BT.prevPay(i, '9999-12-31'); return v ? '<span class="muted">last</span> ' + fmt(v) : '<span class="muted">Each cycle</span>'; })() : i.amount ? fmt(i.amount) : '<span class="muted">Set amount</span>'}</div></li>`).join('')}</ul>
-      <div class="oi-btn">${add}</div></div></section>`;
+        <div class="amt">${i.askFrom ? (() => { const v = BT.prevPay(i, '9999-12-31'); return v ? '<span class="muted">last</span> ' + fmt(v) : '<span class="muted">Each cycle</span>'; })() : i.amount ? fmt(i.amount) : '<span class="muted">Set amount</span>'}</div></li>`).join('')}</ul></div></section>`;
 }
 function viewIncome() {
   return `<div class="grid-2"><div class="stack">
     ${latestPaycheckCard()}
     ${otherIncomeHTML()}
-    <div class="sv-addrow">${state.savings.on ? `<span class="meta">Savings ${hid() ? MASK : fmt(BT.savingsBalance(state))}</span>` : ''}<button type="button" class="btn" data-action="sv-add">Add to savings</button></div>
+    <div class="inc-acts"><button type="button" class="btn" data-action="add" data-type="income">${ICON.plus}Add income</button><button type="button" class="btn" data-action="sv-add">Add to savings</button></div>
+    ${svOn() ? `<p class="inc-sv meta">Savings ${hid() ? MASK : fmt(svBal())}</p>` : ''}
     <p class="note">Each pay cycle starts on a paycheck date and runs until the day before the next one. A bill belongs to the most recent deposit before its due date, so <b>Up next</b> always shows what this paycheck has to cover.</p>
   </div>
   ${catManager()}
@@ -2863,7 +2932,7 @@ function byCategory(items, r) {
   const list = BT.rollup(items, chartLeaf, chartGroupOf).map(g => ({ ...g }));
   const taken = list.map(g => FIXED_COLOR[g.label]).filter(Boolean), pal = Array.from({ length: 12 }, (_, i) => i + 1).filter(n => !taken.includes(n));
   let k = 0; list.forEach(g => { g.color = 'var(--s' + (FIXED_COLOR[g.label] || pal[k++ % pal.length]) + ')'; });
-  const sv = state.savings && state.savings.on ? BT.savedIn(state, r) : 0;
+  const sv = svOn() ? BT.savedIn(state, r) : 0;
   if (sv > 0) list.push({ label: 'Savings', value: sv, sv: true, color: 'var(--brass)', kids: [{ label: 'Moved to savings', value: sv, sv: true }] });
   return list;
 }
@@ -3347,8 +3416,28 @@ function saveOcc(f) {
 const bankHas = () => !!(state.bank.balances && state.bank.balances.items && state.bank.balances.items.some(it => it.accounts && it.accounts.length));
 const OWED_TYPES = ['credit', 'loan'];
 const balOf = a => typeof a.available === 'number' ? a.available : typeof a.current === 'number' ? a.current : null;
-const countedAcct = a => !OWED_TYPES.includes(a.type) && (typeof state.bank.countIn[a.id] === 'boolean' ? state.bank.countIn[a.id] : a.type === 'depository');
-// Sum of the counted accounts (checking and savings by default), or null when the bank number should not be used.
+// Savings accounts (state.bank.savingsAccts = { accountId: true }) are the user's savings, not spendable money.
+// Until the user has made a choice (null), accounts the bank calls "savings" are suggested as savings.
+const isSvAcct = a => !!a && a.type === 'depository' && (state.bank.savingsAccts ? !!state.bank.savingsAccts[a.id] : a.subtype === 'savings');
+const countedAcct = a => !OWED_TYPES.includes(a.type) && !isSvAcct(a) && (typeof state.bank.countIn[a.id] === 'boolean' ? state.bank.countIn[a.id] : a.type === 'depository');
+const bankAccts = () => bankHas() ? state.bank.balances.items.flatMap(it => it.accounts.map(a => [it, a])) : [];
+const svAcctIds = () => new Set(bankAccts().filter(([, a]) => isSvAcct(a)).map(([, a]) => a.id));
+// Sum of the savings accounts' balances, or null when no savings account is connected.
+function bankSavings() {
+  const l = bankAccts().filter(([, a]) => isSvAcct(a) && balOf(a) !== null);
+  return l.length ? BT.round2(l.reduce((s, [, a]) => s + balOf(a), 0)) : null;
+}
+// Savings shown in the app: the bank's savings accounts when connected, else the savings ledger. On when either has something.
+const svBal = () => { const b = bankSavings(); return b !== null ? b : BT.savingsBalance(state); };
+const svOn = () => !!state.savings.on || (bankSavings() || 0) > 0;
+// Marks or unmarks one account as savings. The first choice keeps the suggested ones as they were shown.
+function setSvAcct(id, on) {
+  const m = state.bank.savingsAccts ? Object.assign({}, state.bank.savingsAccts) : {};
+  if (!state.bank.savingsAccts) bankAccts().forEach(([, a]) => { if (isSvAcct(a)) m[a.id] = true; });
+  if (on) m[id] = true; else delete m[id];
+  state.bank.savingsAccts = m;
+}
+// Sum of the counted accounts (checking by default; savings accounts never), or null when the bank number should not be used.
 function bankTotal() {
   if (state.bank.useBankBalance === false || !bankHas()) return null;
   let sum = 0;
@@ -3370,27 +3459,33 @@ function setBankOrder(subset) {
   state.bank.order = out; commit();
 }
 const bankRank = key => { const names = orderBanks((state.bank.balances && state.bank.balances.items) || [], it => it.itemId).map(it => it.institution || ''); const i = names.findIndex(n => n && String(key).startsWith(n)); return i < 0 ? 1e6 : i; };
-const shownBanks = () => orderBanks(state.bank.balances.items, it => it.itemId).filter(it => it.accounts.some(a => !OWED_TYPES.includes(a.type)));
+const spendAccts = it => it.accounts.filter(a => !OWED_TYPES.includes(a.type) && !isSvAcct(a));
+const shownBanks = () => orderBanks(state.bank.balances.items, it => it.itemId).filter(it => spendAccts(it).length);
 function balanceSheet() {
   if (DRAG.on) { DRAG.again = true; return; }
   const bal = state.bank.balances, total = bankTotal() || 0, owed = [], ordered = orderBanks(bal.items, it => it.itemId), shown = shownBanks(), multi = shown.length > 1, edit = BALUI.edit && multi;
+  const svMark = (it, a) => a.type === 'depository' ? `<label class="sv-mark"><input type="checkbox" data-action="bal-sv" data-id="${esc(a.id)}"${isSvAcct(a) ? ' checked' : ''} aria-label="${esc((it.institution || '') + ' ' + (a.name || 'account'))} is a savings account"><span aria-hidden="true">Savings</span></label>` : '';
+  const balSub = a => { const v = balOf(a), cur = typeof a.current === 'number' && typeof a.available === 'number' && Math.abs(a.current - a.available) > 0.004 ? a.current : null;
+    return v === null ? 'No balance from the bank' : hm(v) + (typeof a.available === 'number' ? ' available' : ' current') + (cur !== null ? ' · ' + hm(cur) + ' current' : ''); };
   const rows = ordered.map(it => {
-    const accs = it.accounts.filter(a => !OWED_TYPES.includes(a.type));
+    const accs = spendAccts(it);
     it.accounts.filter(a => OWED_TYPES.includes(a.type)).forEach(a => owed.push([it, a]));
     if (!accs.length) return '';
     const i = shown.indexOf(it), hid_ = 'bh-' + esc(it.itemId);
     return `<div class="bal-bank" data-item="${esc(it.itemId)}"><div class="bx-hd">${multi ? `<button type="button" class="grip" data-grip="${esc(it.itemId)}" aria-label="Drag to reorder ${esc(it.institution || 'bank')}" aria-describedby="${hid_}">${ICON.grip}</button>` : ''}<div class="bx-sh" id="${hid_}">${esc(it.institution || 'Bank')}</div>${edit ? `<span class="mvs"><button type="button" class="icon-btn sm" data-action="bank-move" data-id="${esc(it.itemId)}" data-dir="-1" aria-label="Move up" aria-describedby="${hid_}"${i === 0 ? ' disabled' : ''}>${ICON.up}</button><button type="button" class="icon-btn sm" data-action="bank-move" data-id="${esc(it.itemId)}" data-dir="1" aria-label="Move down" aria-describedby="${hid_}"${i === shown.length - 1 ? ' disabled' : ''}>${ICON.down}</button></span>` : ''}</div><ul class="bal-acc">${accs.map(a => {
-      const v = balOf(a), cur = typeof a.current === 'number' && typeof a.available === 'number' && Math.abs(a.current - a.available) > 0.004 ? a.current : null;
-      return `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}${a.mask ? ' <span class="mask">••' + esc(a.mask) + '</span>' : ''}</div><div class="sub">${v === null ? 'No balance from the bank' : hm(v) + (typeof a.available === 'number' ? ' available' : ' current')}${cur !== null ? ' · ' + hm(cur) + ' current' : ''}</div></div>
-        <label class="tgl"><input type="checkbox" data-action="bal-count" data-id="${esc(a.id)}"${countedAcct(a) ? ' checked' : ''} aria-label="Count ${esc((it.institution || '') + ' ' + (a.name || 'account'))} in total"><span aria-hidden="true"></span></label></li>`;
+      return `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}${a.mask ? ' <span class="mask">••' + esc(a.mask) + '</span>' : ''}</div><div class="sub">${balSub(a)}</div></div>
+        ${svMark(it, a)}<label class="tgl"><input type="checkbox" data-action="bal-count" data-id="${esc(a.id)}"${countedAcct(a) ? ' checked' : ''} aria-label="Count ${esc((it.institution || '') + ' ' + (a.name || 'account'))} in total"><span aria-hidden="true"></span></label></li>`;
     }).join('')}</ul></div>`;
   }).join('');
+  // Savings accounts: listed on their own with their subtotal, never in the total above.
+  const svl = ordered.flatMap(it => it.accounts.filter(isSvAcct).map(a => [it, a])), svSum = bankSavings() || 0;
+  const svHTML = svl.length ? `<div class="bal-sv"><div class="bx-sh sv-sh"><span>Savings · not in total</span><b>${hm(svSum)}</b></div><ul class="bal-acc">${svl.map(([it, a]) => `<li><div class="main"><div class="nm">${esc(it.institution || 'Bank')} ${esc(a.name || 'Savings')}${a.mask ? ' <span class="mask">••' + esc(a.mask) + '</span>' : ''}</div><div class="sub">${balSub(a)}</div></div>${svMark(it, a)}</li>`).join('')}</ul></div>` : '';
   const owedHTML = owed.length ? `<div class="bx-sh">Owed · not counted</div><ul class="bal-acc">${owed.map(([it, a]) => `<li><div class="main"><div class="nm">${esc(it.institution || 'Bank')} ${esc(a.name || 'Card')}${a.mask ? ' <span class="mask">••' + esc(a.mask) + '</span>' : ''}</div><div class="sub">Owed ${hm(typeof a.current === 'number' ? a.current : 0)}${typeof a.limit === 'number' ? ' of ' + hm(a.limit) + ' limit' : ''}</div></div></li>`).join('')}</ul>` : '';
   const busy = BALUI.busy || BANKUI.syncing;
   bankSheet(`<div class="sheet-h"><div><h3>In account</h3><div class="bal-total"><b>${hm(total)}</b><span>${bankCountedBanks()} ${bankCountedBanks() === 1 ? 'bank' : 'banks'} · counted accounts</span></div><p class="lede">Live from your banks. Updated ${esc(clockTime(bal.at))}. Banks may take a little while to show new activity.</p></div>
     <div class="sh-btns"><button type="button" class="icon-btn${busy ? ' spinning' : ''}" data-action="bal-refresh" aria-label="Refresh balances"${busy ? ' disabled aria-busy="true"' : ''}>${ICON.refresh}</button><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div></div>
     ${multi ? `<div class="bal-tools"><button type="button" class="linkbtn" data-action="bal-edit" aria-pressed="${edit}">${edit ? 'Done' : 'Edit order'}</button></div>` : ''}
-    <div class="bal-banks" id="balbanks">${rows}</div>${owedHTML}
+    <div class="bal-banks" id="balbanks">${rows}</div>${svHTML}${owedHTML}
     <div class="actions"><button type="button" class="btn" data-action="bal-hand">Set balance by hand</button><button type="button" class="btn" data-action="sv-add">Add to savings</button><div class="r">${syncBtnHTML('Sync now', 'class="btn primary" data-action="bal-sync"')}</div></div>`);
   BALUI.open = true;
 }
@@ -3475,13 +3570,13 @@ function accountSheet(force) {
 }
 // Savings: optional. Moves to savings leave checking but are not spending.
 function savingsHTML() {
-  const s = state.savings;
-  if (!s.on) return '';
+  const s = state.savings, bk = bankSavings() !== null;
+  if (!svOn()) return '';
   const tx = s.tx.slice().sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
   const label = { open: 'Savings I already had', in: 'Moved to savings', out: 'Moved to checking' };
   const banks = [...new Set(state.payVia.map(m => m.bank).concat(s.bank ? [s.bank] : []))];
   return `<div class="sv-box on">
-    <div class="sv-h"><div><span class="sv-k">Savings${s.bank ? ' · ' + esc(s.bank) : ''}</span><b class="sv-bal">${fmt(BT.savingsBalance(state))}</b></div><button type="button" class="btn sm" data-action="sv-off">Turn off</button></div>
+    <div class="sv-h"><div><span class="sv-k">Savings${s.bank ? ' · ' + esc(s.bank) : ''}</span><b class="sv-bal">${fmt(svBal())}</b>${bk ? '<span class="sv-src">From your savings accounts</span>' : ''}</div>${bk ? '' : '<button type="button" class="btn sm" data-action="sv-off">Turn off</button>'}</div>
     <form id="svbank" class="sv-bank" novalidate><label class="fld"><span>Bank name</span><input name="bank" list="sv-banks" value="${esc(s.bank)}" maxlength="30" placeholder="Where your savings live" autocomplete="off"></label><datalist id="sv-banks">${banks.map(b => `<option value="${esc(b)}">`).join('')}</datalist><button type="submit" class="btn">Save name</button></form>
     <form class="form" id="svform" novalidate>
       <label class="fld half"><span>What happened</span><select name="type"><option value="in">Move to savings</option><option value="out">Move to checking</option><option value="open">Savings I already had</option></select></label>
@@ -4086,6 +4181,13 @@ async function bankSync(o) {
       incoming.forEach(t => dropHistory(t.id));
       earlier.forEach(t => { if (!state.bank.seen[t.id] && !removed.has(t.id)) addHistory(t); });
     }, 'Bank sync');
+    // Balances first: they say which accounts are savings.
+    if (Array.isArray(r.balances)) {
+      const nb = r.balances.filter(b => b && Array.isArray(b.accounts)), keep = o && o.item && state.bank.balances ? state.bank.balances.items.filter(b => b.itemId !== o.item) : [];
+      state.bank.balances = { at: r.syncedAt || new Date().toISOString(), items: keep.concat(nb) };
+    }
+    // Moves between checking and a savings account are marked on their own and never reach the review list.
+    findSvMoves([...byId.values()]).forEach(id => { byId.delete(id); applied++; });
     const batch = BT.classifyBatch(state, [...byId.values()], TODAY);
     absorbChange(state, () => batch.forEach(s => {
       if (s.confidence === 'high' && s.pick && AUTO_KINDS.includes(s.kind) && applyOne(s, {}, true)) { applied++; return; }
@@ -4093,10 +4195,6 @@ async function bankSync(o) {
     }), 'Bank sync');
     // A one-bank sync leaves the overall "last synced" time alone (it is the lower bound for the next full sync) and only replaces that bank's balances.
     state.bank.inbox = inbox; purgeInbox(state); if (!(o && o.item) || !state.bank.lastSync) state.bank.lastSync = r.syncedAt || new Date().toISOString();
-    if (Array.isArray(r.balances)) {
-      const nb = r.balances.filter(b => b && Array.isArray(b.accounts)), keep = o && o.item && state.bank.balances ? state.bank.balances.items.filter(b => b.itemId !== o.item) : [];
-      state.bank.balances = { at: r.syncedAt || new Date().toISOString(), items: keep.concat(nb) };
-    }
     // Remember this response's token only now that it is applied to local state; the save below persists it.
     state.bank.syncToken = typeof r.syncToken === 'string' && r.syncToken ? r.syncToken : null;
     pruneSeenTxn();
@@ -4183,7 +4281,7 @@ const linkedElsewhere = (key, t) => { const o = state.occ[key]; return !!(o && o
 function applyOne(s, ch, auto) {
   const t = s.txn, kind = ch.kind || s.kind, now = new Date().toISOString();
   const rec = (res, extra, tx) => { tx = tx || t; state.bank.seen[tx.id] = Object.assign({ res, kind, date: tx.date, amount: tx.amount, desc: tx.desc, at: now, src: 'sync', auto: !!auto, txn: tx }, extra); return true; };
-  if (kind === 'ignore') { (s.parts && s.parts.length > 1 ? s.parts : [t]).forEach(p => rec('skip', { what: 'Ignored' }, p)); return true; }
+  if (kind === 'ignore') { (s.parts && s.parts.length > 1 ? s.parts : [t]).forEach(p => rec('skip', { what: 'Skipped' }, p)); return true; }
   const c = ch.pick || (ch.kind ? null : s.pick);
   if (kind === 'plan') {
     if (!c || linkedElsewhere(c.key, t)) return false;
@@ -4233,7 +4331,54 @@ function applyOne(s, ch, auto) {
   }
   return false;
 }
-const SAID = { match: 'Matched', bill: 'Marked paid', income: 'Paycheck saved', spend: 'Added', skip: 'Ignored', transfer: 'Marked' };
+// Moves between checking and a savings account are neither spending nor income: marked as savings transfers on their own.
+// Only the savings-account side records the move in the savings ledger, so "Saved this cycle" counts it once.
+function applySvMove(t, m) {
+  const rec = { res: 'transfer', kind: 'savings', date: t.date, amount: t.amount, desc: t.desc, at: new Date().toISOString(), src: 'sync', auto: true, txn: t, savings: m.sv,
+    what: m.sv === 'in' ? 'Moved to savings' : 'Moved from savings' };
+  // The other half was already recorded as a move (by hand with "To savings", or earlier): don't save it twice.
+  const other = m.pair && state.bank.seen[m.pair];
+  if (m.leg === 'savings' && !(other && other.sv)) {
+    const svId = uid('sv');
+    state.savings.tx.push({ id: svId, type: m.sv, amount: BT.round2(Math.abs(t.amount)), date: t.date, note: m.sv === 'in' ? 'From the bank' : 'Back to checking', txn: t.id, bank: true });
+    rec.sv = svId;
+  }
+  state.bank.seen[t.id] = rec;
+  return rec;
+}
+// Records one savings move like "To savings" does: what the account absorbed (a hand-entered balance adjustment or an
+// unallocated cut) is tagged with the move, so Undo gives it back exactly.
+function svAbsorb(t, m) {
+  const adj0 = ((state.account && state.account.adj) || []).length, un0 = state.unalloc.map(u => [u.id, u.amount]);
+  let r = null;
+  absorbChange(state, () => { r = applySvMove(t, m); }, 'Bank sync');
+  if (r && r.sv) {
+    ((state.account && state.account.adj) || []).slice(adj0).forEach(x => { x.sv = r.sv; });
+    r.absorb = state.unalloc.map(u => { const was = (un0.find(q => q[0] === u.id) || [])[1]; return was != null && was - u.amount > 0.004 ? [u.id, BT.round2(was - u.amount)] : null; }).filter(Boolean);
+  }
+  return !!r;
+}
+// Finds savings moves among the lines not decided yet (review list and new lines). Returns the ids it marked.
+function findSvMoves(lines) {
+  const ids = svAcctIds(), b = state.bank, done = [];
+  if (!ids.size) return done;
+  const all = Object.values(b.txns);
+  lines.forEach(t => {
+    if (!t || b.seen[t.id] || (b.notSv && b.notSv[t.id]) || t.date < b.autoFrom) return;
+    const m = BT.savingsMove(t, ids, all, state);
+    if (m && svAbsorb(t, m)) done.push(t.id);
+  });
+  return done;
+}
+// After marking an account as savings: lines waiting for review that are savings moves leave the review list.
+function sweepSvMoves() {
+  const b = state.bank, lines = b.inbox.flatMap(s => s.parts || [s.txn]), done = new Set(findSvMoves(lines));
+  if (!done.size) return;
+  const left = b.inbox.filter(s => (s.parts || [s.txn]).some(t => done.has(t.id))).flatMap(s => (s.parts || [s.txn]).filter(t => !done.has(t.id)));
+  b.inbox = b.inbox.filter(s => !(s.parts || [s.txn]).some(t => done.has(t.id)));
+  if (left.length) BT.classifyBatch(state, left, TODAY).forEach(s => b.inbox.push(s));
+}
+const SAID = { match: 'Matched', bill: 'Marked paid', income: 'Paycheck saved', spend: 'Added', skip: 'Skipped', transfer: 'Marked' };
 function applySuggestion(s, ch, quiet) {
   let ok = false;
   absorbChange(state, () => { ok = applyOne(s, ch || {}, false); }, 'Bank sync');
@@ -4280,6 +4425,7 @@ function revertSeen(id) {
 function undoSuggestion(id) {
   // Undoing one part of a split paycheck undoes the whole paycheck.
   const r0 = state.bank.seen[id];
+  if (r0 && r0.savings) state.bank.notSv[id] = true; // undone by hand: never marked as a savings move again
   const ids = r0 && r0.res === 'income' && r0.part ? BT.paycheckParts(state, r0.incomeId, r0.payDate).filter(([, r]) => SYNCSRC.includes(r.src)).map(([k]) => k) : [id];
   const pairs = ids.map(k => [k, revertSeen(k)]).filter(q => q[1]), recs = pairs.map(q => q[1]); if (!recs.length) return;
   // Back to the review list so it can be sorted out again.
@@ -4334,7 +4480,7 @@ function guessHTML(s) {
   if (s.kind === 'plan') return c ? `${s.confidence === 'high' ? 'Matches' : 'Likely'} ${esc(c.provider)} · ${esc(c.merchant)} ${c.n} of ${c.total}` : `New ${esc(BT.planProvider(s.txn.desc))} plan?`;
   // A bill or paycheck match can be taken by another transaction in the same sync, leaving no pick.
   if (s.kind === 'bill') return c ? `${esc(c.name)} ${c.kind === 'card' ? 'payment' : 'bill'} due ${md(c.date)}` : 'Looks like a bill payment. Tap Change to pick one';
-  if (s.kind === 'income') return c ? (s.join ? `Adds to ${esc(c.name)} ${md(c.date)}` : `${esc(c.name)} ${md(c.date)}`) : 'Money in. Tap Change to pick a paycheck, or Ignore';
+  if (s.kind === 'income') return c ? (s.join ? `Adds to ${esc(c.name)} ${md(c.date)}` : `${esc(c.name)} ${md(c.date)}`) : 'Money in. Tap Change to pick a paycheck, or Skip';
   if (s.kind === 'transfer') return c ? `Pays ${esc(c.name)}, due ${md(c.date)}` : s.refund ? 'Refund or money in, not spending' : 'Transfer, not spending';
   return `${catIcon(s.category)}${esc(s.category)}${s.source === 'rule' ? ' · learned' : ''}`;
 }
@@ -4361,13 +4507,13 @@ function inboxRow(s) {
     <div class="bm-m">${grp ? md(t.date) + ' · ' + s.parts.length + ' deposits' : md(t.date) + (acctText(t) ? ' · ' + esc(acctText(t)) : '')}${t.status === 'pending' ? ' · pending' : ''}</div>
     ${grp ? `<div class="bm-m bx-split">Split: ${splitLine(s.parts.map(p => ({ acct: acctDots(p), amount: p.amount })))}</div>` : ''}
     <div class="bx-g"><span class="pill conf-${s.confidence}">${{ high: 'Sure', medium: 'Likely', low: 'Unsure' }[s.confidence]}</span><span class="g-t">${guessHTML(s)}</span></div>
-    <div class="bx-a"><button class="btn sm primary" data-action="ix-accept" data-id="${id}"${can ? '' : ' disabled'}>${acceptLabel}</button><button class="btn sm" data-action="ix-change" data-id="${id}" aria-expanded="${open}">Change</button>${t.amount > 0 ? `<button class="btn sm" data-action="ix-edit" data-id="${id}">Edit</button>` : ''}<button class="btn sm" data-action="ix-skip" data-id="${id}">Ignore</button></div>${panel}</div>`;
+    <div class="bx-a"><button class="btn sm primary" data-action="ix-accept" data-id="${id}"${can ? '' : ' disabled'}>${acceptLabel}</button><button class="btn sm" data-action="ix-change" data-id="${id}" aria-expanded="${open}">Change</button>${t.amount > 0 ? `<button class="btn sm" data-action="ix-edit" data-id="${id}">Edit</button>` : ''}<button class="btn sm" data-action="ix-skip" data-id="${id}">Skip</button></div>${panel}</div>`;
 }
-// One row that fails to draw must never block the whole inbox; show it plainly with Ignore.
+// One row that fails to draw must never block the whole inbox; show it plainly with Skip.
 function safeRow(s) {
   try { return inboxRow(s); } catch (e) {
     const t = (s && s.txn) || {}, id = esc(t.id || '');
-    return `<div class="bm bx" data-id="${id}"><div class="bm-d"><b>${esc(t.desc || 'Transaction')}</b><span class="amt">${fmt(Math.abs(t.amount || 0))}</span></div><div class="bm-m">${t.date ? md(t.date) : ''}</div><div class="bx-a"><button class="btn sm" data-action="ix-skip" data-id="${id}">Ignore</button></div></div>`;
+    return `<div class="bm bx" data-id="${id}"><div class="bm-d"><b>${esc(t.desc || 'Transaction')}</b><span class="amt">${fmt(Math.abs(t.amount || 0))}</span></div><div class="bm-m">${t.date ? md(t.date) : ''}</div><div class="bx-a"><button class="btn sm" data-action="ix-skip" data-id="${id}">Skip</button></div></div>`;
   }
 }
 function inboxSheet() {
@@ -4510,14 +4656,14 @@ function unreviewedOut(r) { return BT.round2(unreviewedLines(r).reduce((a, t) =>
 function txStatus(t) {
   const b = state.bank, r = b.seen[t.id];
   // A recorded decision wins over any stale review-list row.
-  if (!r && inboxOf(t.id)) return { k: 'review', f: 'review', label: 'Needs review' };
+  if (!r && inboxOf(t.id)) return { k: 'review', f: 'review', label: 'Review' };
   if (!r && b.history.some(h => h.id === t.id)) return { k: 'earlier', f: 'review', label: 'Earlier · add by hand' };
   if (r) {
     if (r.res === 'spend' || r.res === 'manual') { const x = state.spends.find(z => z.id === r.spendId); return { k: 'spend', f: 'added', label: 'Added · ' + (x ? x.category : String(r.what || '').split(' · ')[0]), r }; }
     if (r.res === 'match' || r.res === 'bill' || r.res === 'new') return { k: 'match', f: 'matched', label: 'Matched · ' + String(r.what || '').replace(/ (bill|payment)$/, ''), r };
     if (r.res === 'income') return { k: 'income', f: 'added', label: 'Paycheck', r };
-    if (r.res === 'transfer') return { k: 'transfer', f: 'added', label: 'Transfer', r };
-    if (r.res === 'skip') return { k: 'ignored', f: 'ignored', label: 'Ignored', r };
+    if (r.res === 'transfer') return { k: 'transfer', f: 'added', label: r.savings ? 'Savings' : 'Transfer', r };
+    if (r.res === 'skip') return { k: 'ignored', f: 'ignored', label: 'Skipped', r };
   }
   return { k: 'none', f: 'ignored', label: 'Not counted' };
 }
@@ -4551,7 +4697,7 @@ function txPanel(t, st) {
   else if (k === 'match' || k === 'income' || k === 'transfer') { acts = (k === 'match' && !money ? b('tx-match', 'Match') : '') + b('tx-undo', 'Undo'); note = esc(st.r.what || ''); }
   else if (k === 'ignored') acts = (money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit')) + b('tx-undo', 'Undo');
   else if (k === 'none') acts = money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit');
-  else acts = (money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit')) + b('tx-ignore', 'Ignore');
+  else acts = (money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit')) + b('tx-ignore', 'Skip');
   if (money === false && !(k === 'transfer' && st.r && st.r.sv)) acts += b('tx-sv', 'To savings');
   acts += b('tx-note', noteOfTxn(t) ? 'Edit note' : 'Add note');
   return `<div class="tx-p">${s && k === 'review' ? `<div class="bx-g"><span class="pill conf-${s.confidence}">${{ high: 'Sure', medium: 'Likely', low: 'Unsure' }[s.confidence]}</span><span class="g-t">${guessHTML(s)}</span></div>` : ''}${note ? `<div class="bm-m">${note}</div>` : ''}<div class="bx-a">${acts}</div></div>`;
@@ -4569,7 +4715,7 @@ function viewTransactions() {
   const cnt = f => Object.values(state.bank.txns).filter(t => txStatus(t).f === f).length;
   const banks = [...new Set(Object.values(state.bank.txns).map(txBankKey))].sort((a, b) => bankRank(a) - bankRank(b) || a.localeCompare(b));
   const n = cnt('review'), ready = state.bank.inbox.filter(bulkOk).length;
-  const F = [['all', 'All'], ['review', 'Needs review' + (n ? ' · ' + n : '')], ['added', 'Added'], ['matched', 'Matched'], ['ignored', 'Ignored']];
+  const F = [['all', 'All'], ['review', 'Review' + (n ? ' · ' + n : '')], ['added', 'Added'], ['matched', 'Matched'], ['ignored', 'Skipped']];
   return `<div class="stack"><section class="card tx-card"><header class="card-h"><div><h2>Transactions</h2><span class="meta">${bankReady() && state.bank.lastSync ? 'Last synced ' + esc(relTime(state.bank.lastSync)) : 'From your connected banks'}</span></div>${bankReady() ? syncBtnHTML('Sync now', 'class="btn sm" data-action="bk-sync"') : ''}</header>
     <div class="tx-filters"><div class="chips tx-chips" role="group" aria-label="Show">${F.map(([v, l]) => `<button class="chip" data-action="tx-filter" data-f="${v}" aria-pressed="${TXUI.filter === v}">${esc(l)}</button>`).join('')}</div>
       <div class="tx-find"><input id="txq" type="search" placeholder="Search merchant" value="${esc(TXUI.q)}" aria-label="Search transactions" autocomplete="off">${banks.length > 1 ? `<select id="txbank" aria-label="Bank filter"><option value="">All banks</option>${banks.map(b => `<option value="${esc(b)}"${TXUI.bank === b ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>` : ''}</div>
@@ -4614,6 +4760,7 @@ function txDo(id, ch, quietMsg, silent) {
 }
 function txUndo(id) {
   const r0 = state.bank.seen[id];
+  if (r0 && r0.savings) state.bank.notSv[id] = true; // undone by hand: never marked as a savings move again
   const ids = r0 && r0.res === 'income' && r0.part ? BT.paycheckParts(state, r0.incomeId, r0.payDate).filter(([, r]) => SYNCSRC.includes(r.src)).map(([k]) => k) : [id];
   const pairs = ids.map(k => [k, revertSeen(k)]).filter(q => q[1]); if (!pairs.length) return;
   const have = new Set(state.bank.inbox.flatMap(x => (x.parts || [x.txn]).map(t => t.id)));
@@ -4926,6 +5073,7 @@ document.addEventListener('click', async e => {
       const again = document.querySelector(`[data-action="bank-move"][data-id="${a.dataset.id}"][data-dir="${a.dataset.dir}"]`) || document.querySelector(`[data-action="bank-move"][data-id="${a.dataset.id}"]:not([disabled])`);
       if (again) again.focus(); break;
     }
+    case 'bal-sv': { const id = a.dataset.id, acc = state.bank.balances.items.flatMap(it => it.accounts).find(x => x.id === id); if (acc) { setSvAcct(id, !isSvAcct(acc)); sweepSvMoves(); commit(isSvAcct(acc) ? (acc.name || 'Account') + ' is savings now' : (acc.name || 'Account') + ' counts as spendable again'); balanceSheet(); } break; }
     case 'bal-count': { const id = a.dataset.id, acc = state.bank.balances.items.flatMap(it => it.accounts).find(x => x.id === id); if (acc) { state.bank.countIn[id] = !countedAcct(acc); commit(); balanceSheet(); } break; }
     case 'bal-sync': bankSyncNow(); break;
     case 'bal-hand': accountSheet(true); break;

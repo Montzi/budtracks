@@ -25,7 +25,7 @@ const fixtureState = s => Object.assign(s, {
   since: '2026-10-01', marks: {}, occ: {}, spends: [], unalloc: [], perPeriod: [],
   categories: ['Gas', 'Subscriptions', 'Groceries', 'Dining Out', 'Takeout Food', 'Personal care', 'Other'],
   payVia: [{ bank: 'Chime', last4: '1234', type: 'debit' }],
-  bank: { seen: {}, rules: {}, links: {}, lastSync: null, inbox: [], api: '', autoFrom: '2026-11-01', historyFrom: '2026-10-01' },
+  bank: { seen: {}, rules: {}, links: {}, lastSync: null, inbox: [], api: '', autoFrom: '2026-11-01', historyFrom: '2026-10-01', savingsAccts: {} },
   bills: [{ id: 'rent', name: 'Rent', amount: 1050, day: 1, group: 'Fixed', category: 'Housing' }, { id: 'elec', name: 'Electric', amount: 70, day: 21, group: 'Fixed', category: 'Utilities' }],
   cards: [{ id: 'visa', name: 'Visa', day: 22, minPayment: 35, balance: 500, limit: 2000 }],
   plans: [{ id: 'k1', provider: 'Klarna', merchant: 'Nike', amount: 27.65, total: 4, paid: 1, freq: 'biweekly', lastDate: '2026-11-06', category: 'Other', dates: ['2026-10-23', '2026-11-06', '2026-11-20', '2026-12-04'] }],
@@ -241,7 +241,7 @@ const prepared = async (w, h, extraBank) => {
     await page.click('.bx-bar'); await page.waitForSelector('.tx');
     assert.equal(await page.evaluate(() => location.hash), '#transactions');
     assert.equal(await page.locator('.tx').count(), 4);
-    assert.equal(await page.locator('[data-action="tx-filter"][aria-pressed="true"]').innerText().then(t => t.split(' ')[0]), 'Needs');
+    assert.equal(await page.locator('[data-action="tx-filter"][aria-pressed="true"]').innerText().then(t => t.split(' ')[0]), 'Review');
     await noHScroll(page, '390 transactions review');
   });
   await step('inbox sheet lists rows, no horizontal scroll, screenshot 390', async () => {
@@ -619,7 +619,7 @@ const splitSeed = async page => page.evaluate(() => {
   await page.waitForFunction(() => { const b = JSON.parse(localStorage.getItem('budtrack.v1')).bank; return b.balances && b.balances.items.length; });
   await step('hero In account is the live total of checking + savings (credit not counted)', async () => {
     const t = await page.locator('.lad.l3').innerText();
-    assert.match(t, /2,300/); assert.match(t, /3 accounts/); assert.match(t, /(Updated|Upd\.) \d{1,2}:\d{2}/);
+    assert.match(t, /2,300/); assert.doesNotMatch(t, /\d+ accounts?/); assert.match(t, /(Updated|Upd\.) \d{1,2}:\d{2}/);
     await noHScroll(page, '390 hero live balance');
   });
   await step('balance sheet: total, accounts, owed card, toggle changes total', async () => {
@@ -675,14 +675,14 @@ const splitSeed = async page => page.evaluate(() => {
     // "Start fresh" so the lower balance doesn't open the "Where did $X go?" sheet a moment later and cover the next step.
     await page.fill('#a-bal', '1234.56'); await page.check('#a-fresh'); await page.click('#acctform button[type=submit]');
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.useBankBalance === false);
-    assert.doesNotMatch(await page.locator('.lad.l3').innerText(), /\d+ accounts?/);
+    assert.doesNotMatch(await page.locator('.lad.l3').innerText(), /Updated|Upd\./);
     // The saved sheet must be fully closed before reopening, or the wait below can match the closing one.
     await page.waitForFunction(() => document.querySelector('#sheet').hidden);
     await page.click('[data-action="account"]'); await page.waitForSelector('#acctform');
     // Let the sheet finish sliding in before tapping inside it.
     await page.waitForTimeout(350);
     await page.click('[data-action="bal-live"]'); await page.waitForSelector('.bal-total');
-    assert.match(await page.locator('.lad.l3').innerText(), /3 accounts/);
+    assert.match(await page.locator('.lad.l3').innerText(), /(Updated|Upd\.) \d{1,2}:\d{2}/);
     await page.keyboard.press('Escape');
   });
   assert.deepEqual(errs, [], 'page errors in balance flow');
@@ -775,7 +775,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     await page.click('[data-action="tx-more"]');
     assert.equal(await page.locator('.tx').count(), 75 + 3);
     assert.ok(await page.locator('.tx-day').count() > 5);
-    assert.equal(await page.locator('.tx[data-id="m1"] .txc').innerText(), 'Needs review'); assert.equal(await page.locator('.tx[data-id="m2"] .txc').innerText(), 'Earlier · add by hand'); assert.equal(await page.locator('.tx[data-id="m3"] .txc').innerText(), 'Added · Other');
+    assert.equal(await page.locator('.tx[data-id="m1"] .txc').innerText(), 'Review'); assert.equal(await page.locator('.tx[data-id="m2"] .txc').innerText(), 'Earlier · add by hand'); assert.equal(await page.locator('.tx[data-id="m3"] .txc').innerText(), 'Added · Other');
   });
   assert.deepEqual(errs, [], 'page errors in tabs/plans'); await page.context().close();
 }
@@ -790,7 +790,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
   await step('Transactions lists every txn by date with status chips; pending tag; money in is green +', async () => {
     assert.equal(await page.locator('.tx').count(), 9);
     assert.equal(await chip('pl:klarna'), 'Matched · Klarna · Nike 3 of 4'); assert.match(await chip('pl:electric'), /^Matched · /); assert.equal(await chip('pl:pay'), 'Paycheck');
-    assert.equal(await chip('pl:dd'), 'Needs review'); assert.equal(await chip('pl:wm'), 'Needs review');
+    assert.equal(await chip('pl:dd'), 'Review'); assert.equal(await chip('pl:wm'), 'Review');
     assert.match(await row('pl:pay').innerText(), /\+\$1,500\.00/); assert.ok(await row('pl:pay').locator('.amt.in').count());
     assert.match(await row('pl:pend').innerText(), /pending/i); assert.match(await row('pl:dd').innerText(), /Chime ••1234/);
     const days = await page.locator('.tx-day').allInnerTexts(); assert.deepEqual(days, [...days].sort((a, b) => 0)); assert.match(days[0], /Nov 21|Nov 20/);
@@ -834,7 +834,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
   await step('Undo on a matched bill reverses it; Match then links it from the list', async () => {
     await open('pl:electric'); await row('pl:electric').locator('[data-action="tx-undo"]').click();
     let s = await getState(page); const ek = Object.keys(s.occ).find(k => /^b:elec:/.test(k) && s.occ[k].txn); assert.ok(!ek, 'unlinked'); assert.ok(s.bank.inbox.some(i => i.txn.id === 'pl:electric'));
-    assert.equal(await chip('pl:electric'), 'Needs review');
+    assert.equal(await chip('pl:electric'), 'Review');
     await open('pl:electric'); await row('pl:electric').locator('[data-action="tx-match"]').click(); await page.waitForSelector('.pk-opt');
     const cands = await page.locator('.pk-opt').allInnerTexts(); assert.match(cands[0], /Electric/); assert.match(cands[0], /Bill · due Nov 21/); assert.match(await page.locator('.pk-sec').first().innerText(), /best match/i);
     await sheetNoHScroll(page, '390 match sheet');
@@ -844,7 +844,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
   });
   await step('Match a Klarna payment to a plan from the list; screenshot of the match sheet', async () => {
     await open('pl:klarna'); await row('pl:klarna').locator('[data-action="tx-undo"]').click();
-    let s = await getState(page); assert.ok(!(s.occ['p:k1:3'] && s.occ['p:k1:3'].txn)); assert.equal(await chip('pl:klarna'), 'Needs review');
+    let s = await getState(page); assert.ok(!(s.occ['p:k1:3'] && s.occ['p:k1:3'].txn)); assert.equal(await chip('pl:klarna'), 'Review');
     await open('pl:klarna'); await row('pl:klarna').locator('[data-action="tx-match"]').click(); await page.waitForSelector('.pk-opt');
     const cands = await page.locator('.pk-opt').allInnerTexts(); assert.match(cands[0], /Nike/); assert.match(cands[0], /Pay plan · Klarna 3 of 4/); assert.match(await page.locator('.pk-sec').first().innerText(), /best match/i);
     await page.locator('#sheet .sheet').screenshot({ path: SHOTS + '/tx-match-390.png' });
@@ -858,15 +858,15 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
   });
   await step('Ignore and Undo', async () => {
     await open('pl:cc'); await row('pl:cc').locator('[data-action="tx-ignore"]').click();
-    assert.equal(await chip('pl:cc'), 'Ignored'); assert.equal((await getState(page)).bank.seen['pl:cc'].res, 'skip');
+    assert.equal(await chip('pl:cc'), 'Skipped'); assert.equal((await getState(page)).bank.seen['pl:cc'].res, 'skip');
     await page.click('[data-action="tx-filter"][data-f="ignored"]'); assert.equal(await page.locator('.tx').count(), 1);
     await open('pl:cc'); await row('pl:cc').locator('[data-action="tx-undo"]').click();
     assert.equal(await page.locator('.tx').count(), 0); await page.click('[data-action="tx-filter"][data-f="all"]');
-    assert.equal(await chip('pl:cc'), 'Needs review'); assert.ok(!('pl:cc' in (await getState(page)).bank.seen));
+    assert.equal(await chip('pl:cc'), 'Review'); assert.ok(!('pl:cc' in (await getState(page)).bank.seen));
   });
   await step('money in: Accept offers Paycheck or Refund, no Match', async () => {
     await open('pl:pay'); await row('pl:pay').locator('[data-action="tx-undo"]').click();
-    assert.equal(await chip('pl:pay'), 'Needs review'); assert.equal((await getState(page)).income[0].perCycle['2026-11-19'], undefined);
+    assert.equal(await chip('pl:pay'), 'Review'); assert.equal((await getState(page)).income[0].perCycle['2026-11-19'], undefined);
     await open('pl:pay'); assert.equal(await row('pl:pay').locator('[data-action="tx-match"]').count(), 0); assert.equal(await row('pl:pay').locator('[data-action="tx-edit"]').count(), 0);
     await row('pl:pay').locator('[data-action="tx-in"]').click();
     assert.match(await row('pl:pay').innerText(), /Paycheck/); assert.match(await row('pl:pay').innerText(), /Refund or transfer/);
@@ -931,7 +931,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     s = await getState(page);
     assert.equal(s.income[0].perCycle['2026-11-20'], 1973.31); assert.ok(!('pl:s2' in s.bank.seen)); assert.ok(s.bank.inbox.some(i => i.txn.id === 'pl:s2' && i.kind === 'transfer'));
     await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx');
-    assert.equal(await page.locator('.tx[data-id="pl:s2"] .txc').innerText(), 'Needs review');
+    assert.equal(await page.locator('.tx[data-id="pl:s2"] .txc').innerText(), 'Review');
     assert.equal(await page.locator('.tx[data-id="pl:s1"] .txc').innerText(), 'Paycheck');
     await page.click('[data-action="tx-filter"][data-f="review"]');
     assert.equal(await page.locator('#main [data-action="ix-all"]').isDisabled(), true, 'Accept all skips transfers without a target');
@@ -1260,14 +1260,14 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
   const inboxHas = async id => (await getState(page)).bank.inbox.some(x => (x.parts || [x.txn]).some(t => t.id === id || t.pendingOf === id));
   await step('pending txn: Accept from Transactions tab shows Added, not Needs review', async () => {
     await fresh([DP()]);
-    assert.equal(await chip('pl:dpend'), 'Needs review');
+    assert.equal(await chip('pl:dpend'), 'Review');
     await accept('pl:dpend');
     assert.match(await chip('pl:dpend'), /^Added/); assert.ok(!(await inboxHas('pl:dpend')), 'left the inbox');
   });
   await step('add note then accept, and accept then add note: stays Added', async () => {
     await fresh([DP()]);
     await addNote('pl:dpend', 'Mikes Pizza - Burguer');
-    assert.equal(await chip('pl:dpend'), 'Needs review', 'note alone does not change review status');
+    assert.equal(await chip('pl:dpend'), 'Review', 'note alone does not change review status');
     await accept('pl:dpend');
     assert.match(await chip('pl:dpend'), /^Added/);
     let s = await getState(page); assert.equal(s.spends[0].note, 'Mikes Pizza - Burguer');
@@ -1290,7 +1290,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     mock.txns = [DP({ amount: 17.99, desc: 'DOORDASH*MIKES PIZZA NY' })]; await resync();
     await page.goto(BASE + '#transactions'); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
     assert.match(await chip('pl:dpend'), /^Added/); assert.ok(!(await inboxHas('pl:dpend')), 'not back in the inbox');
-    assert.equal((await page.locator('.txc', { hasText: 'Needs review' }).count()), 0);
+    assert.equal((await page.locator('.txc', { hasText: /^Review$/ }).count()), 0);
     assert.equal((await getState(page)).spends.length, 1, 'no duplicate spend');
   });
   await step('posted twin with pendingOf after accepting pending: Added on the posted row, no Needs review row', async () => {
@@ -1298,7 +1298,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     mock.txns = [T('dpost', '2026-11-20', 'DOORDASH*MIKES PIZZA', 17.99, { account: santander, pendingOf: 'pl:dpend' })]; mock.removed = ['pl:dpend']; await resync();
     await page.goto(BASE + '#transactions'); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
     assert.match(await chip('pl:dpost'), /^Added/); assert.equal(await page.locator('.tx[data-id="pl:dpend"]').count(), 0);
-    assert.equal((await page.locator('.txc', { hasText: 'Needs review' }).count()), 0);
+    assert.equal((await page.locator('.txc', { hasText: /^Review$/ }).count()), 0);
     const s = await getState(page); assert.ok(s.bank.seen['pl:dpost'] && !s.bank.seen['pl:dpend']); assert.ok(!(await inboxHas('pl:dpend')) && !(await inboxHas('pl:dpost')));
     // the pending one is re-delivered later by a stale batch: still not a new review row
     mock.txns = [DP(), T('dpost', '2026-11-20', 'DOORDASH*MIKES PIZZA', 17.99, { account: santander, pendingOf: 'pl:dpend' })]; mock.removed = []; await resync();
@@ -1339,17 +1339,17 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     await page.focus('.coll-h[data-k="cat"]'); await page.keyboard.press('Enter'); assert.equal(await exp('cat'), 'true'); assert.equal(await page.locator('.cat-list').first().isVisible(), true);
     await page.click('.coll-h[data-k="cat"]');
   });
-  await step('Other income: single secondary button with only the paycheck; collapsed "Other income · N" section otherwise', async () => {
-    assert.equal(await page.locator('.oi-add .btn').innerText(), 'Add other income'); assert.equal(await page.locator('.oi-add .btn.primary').count(), 0);
+  await step('Other income: one "Add income" button next to Add to savings; collapsed "Other income · N" section otherwise', async () => {
+    assert.equal(await page.locator('.inc-acts [data-action="add"][data-type="income"]').innerText(), 'Add income'); assert.equal(await page.locator('.inc-acts .btn.primary').count(), 0);
     assert.equal(await page.locator('.oi-coll').count(), 0);
-    await page.click('.oi-add .btn'); await page.waitForSelector('#form'); await page.keyboard.press('Escape');
+    await page.click('.inc-acts [data-action="add"][data-type="income"]'); await page.waitForSelector('#form'); await page.keyboard.press('Escape');
     await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.income.push({ id: 'side', name: 'Side gig', freq: 'monthly', date: '2026-11-25', amount: 300 }); localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
     await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.oi-coll');
     assert.equal(await exp('other'), 'false'); assert.match(await page.locator('.coll-h[data-k="other"]').innerText(), /Other income · 1/);
-    assert.equal(await page.locator('#coll-other').isVisible(), false); assert.equal(await page.locator('.oi-add').count(), 0);
+    assert.equal(await page.locator('#coll-other').isVisible(), false); assert.equal(await page.locator('.inc-acts [data-action="add"][data-type="income"]').count(), 1, 'one Add income, outside the section');
     await page.click('.coll-h[data-k="other"]');
     assert.equal(await page.locator('#coll-other .row').count(), 1, 'main paycheck is not listed here'); assert.match(await page.locator('#coll-other').innerText(), /Side gig/);
-    assert.equal(await page.locator('#coll-other [data-action="add"][data-type="income"]').innerText(), 'Add other income');
+    assert.equal(await page.locator('#coll-other [data-action="add"][data-type="income"]').count(), 0, 'no second Add income inside');
     await noHScroll(page, '390 other income');
     await page.click('.coll-h[data-k="other"]');
   });

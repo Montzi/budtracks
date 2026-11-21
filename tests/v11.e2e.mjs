@@ -1,4 +1,4 @@
-// Checks for: tidy hero sublines (Updated + accounts, "of $X" only), the read-only "This paycheck" sheet, hero stats
+// Checks for: tidy hero sublines (Updated only since v12, "of $X" only), the read-only "This paycheck" sheet, hero stats
 // centered under the ladder columns, the greeting line (default, edit, reload, backup), the "Pay cycle" label,
 // the Transactions "Sync now" spinner + toast, the Auto/Light/Dark appearance setting, and light-mode contrast.
 // Run: node tests/v11.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
@@ -43,7 +43,7 @@ const fixture = () => ({
     { id: 'spot', name: 'Spotify', amount: 11.99, day: dayOf(6), group: 'Subscriptions', active: true }],
   perPeriod: [{ id: 'groc', name: 'Groceries', amount: 150, category: 'Groceries' }],
   savings: { on: false, bank: '', tx: [] },
-  bank: { seen: {}, rules: {}, links: {}, lastSync: null, inbox: [], api: API, autoFrom: addD(TODAY, -30), historyFrom: addD(TODAY, -60), txns: {} },
+  bank: { seen: {}, rules: {}, links: {}, lastSync: null, inbox: [], api: API, autoFrom: addD(TODAY, -30), historyFrom: addD(TODAY, -60), txns: {}, savingsAccts: {} },
   settings: { view: 'biweekly', anchor: PAY, legendOpen: {}, billsView: '', chartRange: 'cycle' }
 });
 
@@ -121,12 +121,11 @@ for (const [w, h] of SIZES) {
     if (!dark && ![390, 951].includes(w)) continue;
     const tag = `${w}x${h} ${dark ? 'dark' : 'light'}`;
     const { ctx, page, errs } = await newPage(w, h, { dark });
-    await step(`${tag}: In account subline is "Updated <time>" + "6 accounts", every line fits`, async () => {
+    await step(`${tag}: In account subline is "Updated <time>" only (no account count), every line fits`, async () => {
       const m = await page.evaluate(() => [...document.querySelectorAll('.lad.l3 .hs-s .fl')].map(e => ({ t: e.textContent, fit: e.scrollWidth <= e.clientWidth })));
-      assert.equal(m.length, 2, JSON.stringify(m));
+      assert.equal(m.length, 1, JSON.stringify(m));
       assert.match(m[0].t, /^(Updated|Upd\.) \d{1,2}:\d{2} [AP]M$|^\d{1,2}:\d{2} [AP]M$/, m[0].t);
-      assert.match(m[1].t, /^6 (accounts|accts)$/, m[1].t);
-      if (w >= 390) assert.equal(m[1].t, '6 accounts');
+      assert.doesNotMatch(await page.locator('.lad.l3').innerText(), /\d+ (accounts?|accts?)/);
       const all = await page.evaluate(() => [...document.querySelectorAll('.ladder .fl')].map(e => [e.textContent, e.scrollWidth <= e.clientWidth]));
       assert.ok(all.every(x => x[1]), 'clipped: ' + JSON.stringify(all));
       assert.doesNotMatch(await page.locator('.ladder').innerText(), /Live from|banks ·/);
@@ -166,14 +165,17 @@ for (const [w, h] of SIZES) {
       assert.ok(m.length >= 1, 'no subline'); assert.ok(m.some(x => x[0] === 'incl. $9.50 to review'), JSON.stringify(m));
       assert.ok(m.every(x => x[1] && x[2] <= 2), JSON.stringify(m));
     });
-    await step(`${tag}: greeting first, then "Pay cycle" + dates with prev/next, eye on the right, nothing overlaps`, async () => {
+    await step(`${tag}: greeting first, then "Pay cycle" + dates with prev/next, eye inside the sums on the right, nothing overlaps`, async () => {
       const g = (await page.locator('.hero .greet').textContent()).replace(/\s+/g, ' ').trim();
       assert.match(g, /^Welcome · Today is (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), [A-Z][a-z]+ \d{1,2}$/, g);
       assert.equal((await page.locator('.hero .eyebrow').textContent()).trim(), 'Pay cycle');
       const r = await page.evaluate(() => { const q = s => document.querySelector(s).getBoundingClientRect(); return { g: q('.greet'), top: q('.hero-top'), eye: q('.lad-tools .eye'), lad: q('.ladder'), hero: q('.hero'), prev: q('[data-action="prev"]'), next: q('[data-action="next"]') }; });
       assert.ok(r.g.bottom <= r.top.top + 0.5, 'greeting above the pay cycle row');
-      assert.ok(r.top.bottom <= r.eye.top + 0.5 && r.eye.bottom <= r.lad.top + 0.5, 'eye between the row and the ladder');
+      assert.ok(r.top.bottom <= r.lad.top + 0.5, 'no row between the pay cycle row and the ladder');
+      assert.ok(r.eye.top >= r.lad.top - 0.5 && r.eye.bottom <= r.lad.bottom + 0.5, 'eye inside the ladder');
       assert.ok(r.eye.right <= r.hero.right - 8 && r.eye.right >= r.lad.right - 14, 'eye on the right');
+      const l3 = await page.evaluate(() => { const q = s => document.querySelector(s).getBoundingClientRect(); return { s: q('.lad.l3 .hs-s'), e: q('.ladder .eye') }; });
+      assert.ok(l3.e.top >= l3.s.bottom - 0.5, 'eye below "Updated …"');
       assert.ok(r.prev.right < r.next.left);
     });
     await step(`${tag}: no horizontal scroll, no page errors`, async () => { await noHScroll(page, tag); assert.deepEqual(errs, []); });
