@@ -1462,6 +1462,7 @@ const BT = (() => {
     [/instacart/i, 'Groceries']
   ];
   const KEYWORD_RULES = [
+    [/phone repair|screen repair|ubreakifix|electronics repair|computer repair/i, 'Electronics Repair'],
     [/doordash|uber ?eats|grubhub|postmates/i, 'Takeout Food'],
     [/vending|canteen|\bcpi\b|\bcoke\b|pepsi|snack/i, 'Snacks & Drinks'],
     [/laundromat|laundry|wash ?& ?fold|cleaners/i, 'Laundry'],
@@ -1676,7 +1677,7 @@ const ICONS = {
 };
 const DEFAULT_ICON = {
   Housing: 'house', Utilities: 'bolt', Transportation: 'car', Insurance: 'shield', 'Phone & Internet': 'wifi', Loans: 'bank', Taxes: 'receipt',
-  Entertainment: 'tv', Software: 'sparkle', Other: 'tag', Clothing: 'shirt', Groceries: 'cart', Gaming: 'gamepad', Repairs: 'wrench',
+  Entertainment: 'tv', Software: 'sparkle', Other: 'tag', Clothing: 'shirt', Groceries: 'cart', Gaming: 'gamepad', Repairs: 'wrench', 'Electronics Repair': 'wrench',
   Electronics: 'laptop', Household: 'sofa', Dining: 'utensils', 'Dining Out': 'utensils', 'Takeout Food': 'bag', 'Personal care': 'heart', Gifts: 'gift', Unallocated: 'question', Uncategorized: 'tag', Subscriptions: 'repeat', 'Credit cards': 'card', 'Other bills': 'receipt', Gas: 'fuel', Food: 'utensils', Home: 'house', Shopping: 'bag', 'Health & Personal': 'heart', Health: 'pill', 'Bills & Finance': 'cash', Coffee: 'coffee', 'Snacks & Drinks': 'soda', Rideshare: 'car', 'Parking & Tolls': 'parking', 'Car Maintenance': 'wrench', Laundry: 'washer', Fees: 'receipt', Car: 'car', 'Food Out': 'utensils', Bills: 'bolt', Lotto: 'star'
 };
 function iconFor(st, cat) {
@@ -1777,7 +1778,7 @@ const TODAY = BT.iso(new Date());
 
 // Parent groups and the default categories under each. A parent is itself a pickable category.
 const CAT_TREE = [['Food', ['Groceries', 'Dining Out', 'Takeout Food', 'Coffee', 'Snacks & Drinks']], ['Transportation', ['Gas', 'Parking & Tolls', 'Rideshare', 'Car Maintenance']],
-  ['Home', ['Housing', 'Utilities', 'Household', 'Laundry', 'Repairs']], ['Shopping', ['Clothing', 'Electronics', 'Gifts']], ['Health & Personal', ['Personal care', 'Health']],
+  ['Home', ['Housing', 'Utilities', 'Household', 'Laundry', 'Repairs']], ['Shopping', ['Clothing', 'Electronics', 'Electronics Repair', 'Gifts']], ['Health & Personal', ['Personal care', 'Health']],
   ['Entertainment', ['Entertainment', 'Gaming', 'Subscriptions', 'Software']], ['Bills & Finance', ['Phone & Internet', 'Insurance', 'Loans', 'Taxes', 'Fees']], ['Other', []]];
 const DEFAULT_PARENT = {};
 CAT_TREE.forEach(([p, ch]) => ch.forEach(c => { if (c !== p) DEFAULT_PARENT[c] = p; }));
@@ -1939,6 +1940,15 @@ function normalize(s) {
       if (!o.categories.includes(c) && !o.billCats.includes(c)) o.categories.push(c);
       if (c !== par && !(c in o.catParents)) o.catParents[c] = par;
     }));
+  }
+  // Electronics Repair joins the Shopping group (right after Electronics). Adds only what is missing; Home > Repairs stays.
+  if (!o.imports.includes('cats-v3')) {
+    o.imports.push('cats-v3');
+    if (!o.categories.includes('Electronics Repair') && !o.billCats.includes('Electronics Repair')) {
+      const i = o.categories.indexOf('Electronics');
+      if (i >= 0) o.categories.splice(i + 1, 0, 'Electronics Repair'); else o.categories.push('Electronics Repair');
+    }
+    if (!('Electronics Repair' in o.catParents)) o.catParents['Electronics Repair'] = 'Shopping';
   }
   // Per-paycheck items are budgets now: the default "Food" budget is "Groceries" (spending in the Groceries category counts toward it).
   if (!o.imports.includes('pp-groceries-1')) {

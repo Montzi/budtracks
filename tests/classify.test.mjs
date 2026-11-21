@@ -383,3 +383,11 @@ test('a learned rule still beats the strong rule, also for PAYPAL lines', () => 
   const s = BT.classifyTxn(st2, T({ desc: 'PAYPAL *DOORDASH', amount: 22.1 }), TODAY);
   assert.equal(s.kind, 'spend'); assert.equal(s.category, 'Dining Out');
 });
+
+test('phone/screen/computer repair shops go to Electronics Repair (when the category exists)', () => {
+  const st = fixture(); st.categories.push('Electronics Repair');
+  for (const d of ['UBREAKIFIX #1234', 'IPHONE SCREEN REPAIR', 'JOES COMPUTER REPAIR', 'ELECTRONICS REPAIR CO', 'PHONE REPAIR SHOP']) {
+    const g = BT.guessCategory(st, T({ desc: d, amount: 80 })); assert.equal(g.category, 'Electronics Repair', d);
+  }
+  const no = BT.guessCategory(fixture(), T({ desc: 'UBREAKIFIX', amount: 80 })); assert.notEqual(no.category, 'Electronics Repair', 'missing category is never guessed');
+});
