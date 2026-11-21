@@ -51,6 +51,8 @@ jobs:
           if [ "$env_name" = "production" ]; then
             sed -i 's|^# PLAID_REDIRECT_URI = |PLAID_REDIRECT_URI = |' wrangler.toml
           fi
+          # The hourly alerts cron must survive into the deployed config.
+          grep -q '^crons = \["0 \* \* \* \*"\]' wrangler.toml || { echo "cron trigger missing from wrangler.toml"; exit 1; }
 
       - name: Deploy
         run: npx wrangler deploy
@@ -77,3 +79,20 @@ jobs:
           printf '%s' "$PLAID_CLIENT_ID" | npx wrangler secret put PLAID_CLIENT_ID >/dev/null
           printf '%s' "$PLAID_SECRET" | npx wrangler secret put PLAID_SECRET >/dev/null
           echo "Plaid secrets set"
+
+      # Optional email alerts (Resend). Set from repo secrets when present; skipped when empty.
+      # Piped via stdin so the values never appear in logs or args.
+      - name: Set alert email secrets
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+        run: |
+          for name in RESEND_API_KEY ALERT_EMAIL; do
+            val="${!name}"
+            if [ -n "$val" ]; then
+              printf '%s' "$val" | npx wrangler secret put "$name" >/dev/null
+              echo "$name set"
+            else
+              echo "$name not set, skipping (email alerts stay off)"
+            fi
+          done

@@ -14,3 +14,8 @@ id = "REPLACE_WITH_KV_NAMESPACE_ID"    # `wrangler kv namespace create budtracks
 # Secrets (not stored here):
 #   PLAID_CLIENT_ID, PLAID_SECRET   from dashboard.plaid.com (Developers > Keys)
 #   ENC_KEY = base64 of 32 random bytes:  openssl rand -base64 32 | wrangler secret put ENC_KEY
+#   RESEND_API_KEY, ALERT_EMAIL     optional: email alerts via Resend (CI sets them from repo secrets when present)
+
+# Hourly alerts and the 7am New York recap (the handler checks the local hour itself).
+[triggers]
+crons = ["0 * * * *"]

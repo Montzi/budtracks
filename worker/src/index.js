@@ -350,8 +350,295 @@ async function disconnect(env, id) {
   return { removed: id };
 }
 
+// ---------- email alerts (Resend) ----------
+// The recipient comes only from the ALERT_EMAIL secret; neither it nor the API key is ever logged or stored.
+const RESEND_URL = 'https://api.resend.com/emails';
+const ALERT_FROM = 'BudTracks <onboarding@resend.dev>';
+const TZ = 'America/New_York';
+const LOW = 20, RECOVER = 25;                  // alert below $20, reset at $25 or more (hysteresis)
+const RANK = { ok: 0, low: 1, overdrawn: 2 };
+const ALERT_SUBTYPES = new Set(['checking', 'savings', 'cash management']);   // low-balance alerts only; not HSA, CD, prepaid, PayPal
+const DEP_TTL = 10 * 86400, REAUTH_TTL = 86400, RECAP_TTL = 2 * 86400;
+const SNAPSHOT_MAX_AGE = 36 * 3600 * 1000;
+const TXN_PAGES = 5;                           // /transactions/get pages of 100 per item per run
+// Obvious transfers and card payments, excluded from "spent".
+const TRANSFER = /\b(transfer|xfer|payment thank you|autopay|auto pay|credit card payment|card payment|online payment|epay|to savings|from savings|to checking|from checking)\b/i;
+
+const emailConfigured = (env) => !!(env.RESEND_API_KEY && env.ALERT_EMAIL);
+async function sendEmail(env, { subject, html, text }) {
+  if (!emailConfigured(env)) { console.log('alerts: email not configured, skipping send'); return { sent: false, reason: 'email not configured' }; }
+  let res;
+  // Resend rate-limits per second; several alerts plus the recap can go out in one run, so retry a 429 once.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      res = await fetch(RESEND_URL, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: ALERT_FROM, to: [env.ALERT_EMAIL], subject, html, text }),
+      });
+    } catch (e) {
+      console.error('alerts: email request failed', e?.name);
+      return { sent: false, reason: 'email request failed' };
+    }
+    if (res.status !== 429 || attempt) break;
+    const wait = Math.min(2, Math.max(0, Number(res.headers.get('retry-after') ?? 1) || 0));
+    await new Promise((r) => setTimeout(r, wait * 1000));
+  }
+  // Resend error bodies can echo the recipient, so only the status is reported.
+  if (!res.ok) { console.error('alerts: email provider status', res.status); return { sent: false, reason: `email provider returned ${res.status}` }; }
+  return { sent: true };
+}
+
+// $1,234.56 with a real minus sign for negatives.
+export function money(n) {
+  const r = Math.round(Number(n) * 100) / 100 || 0;
+  return (r < 0 ? '−' : '') + '$' + Math.abs(r).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// Local calendar date and hour in New York for an instant.
+export function nyParts(now) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' })
+    .formatToParts(now).map((x) => [x.type, x.value]));
+  return { date: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour) % 24 };
+}
+const addDays = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
+const prettyDate = (ymd) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' }); };
+const acctLabel = (inst, a) => `${inst || a.name || 'Account'}${a.mask ? ' ••' + a.mask : ''}`;
+const balOf = (a) => num(a.balances?.available) ?? num(a.balances?.current);
+const isTransfer = (t) => mapCategory(t.personal_finance_category) === 'transfer' || TRANSFER.test(`${t.name || ''} ${t.merchant_name || ''}`);
+const txDate = (t) => t.authorized_date || t.date;
+const txDesc = (t) => t.merchant_name || t.name || 'Transaction';
+
+// Mobile-friendly inline-styled email shell.
+function emailHtml(title, inner) {
+  return `<!doctype html><html><body style="margin:0;padding:0;background:#f4f5f7;">`
+    + `<div style="max-width:560px;margin:0 auto;padding:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2328;">`
+    + `<div style="background:#ffffff;border-radius:12px;padding:20px;">`
+    + `<div style="font-size:13px;color:#6a737d;margin-bottom:4px;">BudTracks</div>`
+    + `<h1 style="font-size:20px;line-height:1.3;margin:0 0 12px 0;">${esc(title)}</h1>${inner}</div>`
+    + `<div style="font-size:12px;color:#8b949e;text-align:center;margin-top:12px;">Sent by your BudTracks worker.</div></div></body></html>`;
+}
+const hSection = (t) => `<h2 style="font-size:15px;margin:18px 0 6px 0;color:#1f2328;">${esc(t)}</h2>`;
+const hRows = (rows) => `<table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;">${rows.map(([l, r, sub]) =>
+  `<tr><td style="padding:6px 0;border-bottom:1px solid #eaecef;">${esc(l)}${sub ? `<div style="font-size:12px;color:#6a737d;">${esc(sub)}</div>` : ''}</td>`
+  + `<td style="padding:6px 0;border-bottom:1px solid #eaecef;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;">${esc(r)}</td></tr>`).join('')}</table>`;
+const hNote = (t) => `<p style="font-size:14px;color:#6a737d;margin:6px 0;">${esc(t)}</p>`;
+
+// Plaid /transactions/get (date range; does not touch the app's /transactions/sync cursor).
+async function getTxns(env, token, start, end) {
+  const out = [];
+  for (let p = 0; p < TXN_PAGES; p++) {
+    const r = await plaid(env, '/transactions/get', { access_token: token, start_date: start, end_date: end, options: { count: 100, offset: out.length } });
+    if (!r.ok) return { r };
+    const list = r.body?.transactions || [];
+    out.push(...list);
+    if (!list.length || out.length >= (r.body?.total_transactions ?? 0)) break;
+  }
+  return { txns: out };
+}
+
+async function balanceAlert(env, inst, a, now) {
+  const bal = balOf(a);
+  if (bal === null) return;
+  const key = 'alert:' + a.account_id;
+  let prev = 'ok';
+  try { prev = JSON.parse((await env.BT_KV.get(key)) || 'null')?.level || 'ok'; } catch { /* corrupt: treat as ok */ }
+  if (!(prev in RANK)) prev = 'ok';
+  let level = bal < 0 ? 'overdrawn' : bal < LOW ? 'low' : 'ok';
+  if (level === 'ok' && prev !== 'ok' && bal < RECOVER) level = 'low';         // not recovered until $25
+  if (level === prev) return;
+  if (RANK[level] > RANK[prev]) {
+    const label = acctLabel(inst, a);
+    const subject = level === 'overdrawn' ? `BudTracks: ${label} is overdrawn (${money(bal)})` : `BudTracks: ${label} is below $20 (${money(bal)})`;
+    const avail = num(a.balances?.available), cur = num(a.balances?.current);
+    const rows = [['Available', avail === null ? 'n/a' : money(avail)], ['Current', cur === null ? 'n/a' : money(cur)]];
+    const html = emailHtml(level === 'overdrawn' ? `${label} is overdrawn` : `${label} is below $20`, hRows(rows) + hNote(`Balance as of ${now.toISOString().slice(0, 16).replace('T', ' ')} UTC.`));
+    const text = `${subject}\n\nAvailable: ${rows[0][1]}\nCurrent: ${rows[1][1]}\n`;
+    if (!(await sendEmail(env, { subject, html, text })).sent) return;       // retry next hour
+  }
+  await env.BT_KV.put(key, JSON.stringify({ level, at: now.toISOString() }));
+}
+
+async function depositAlert(env, deposits) {
+  const fresh = [];
+  for (const d of deposits) if (!(await env.BT_KV.get('dep:' + d.t.transaction_id))) fresh.push(d);
+  if (!fresh.length) return;
+  const total = fresh.reduce((s, d) => s - d.t.amount, 0);
+  const subject = fresh.length === 1 ? `BudTracks: deposit ${money(-fresh[0].t.amount)} to ${fresh[0].label}` : `BudTracks: ${fresh.length} deposits · ${money(total)}`;
+  const rows = fresh.map((d) => [txDesc(d.t), money(-d.t.amount), `${d.label} · ${prettyDate(txDate(d.t))}`]);
+  const html = emailHtml(fresh.length === 1 ? `Deposit of ${money(-fresh[0].t.amount)}` : `${fresh.length} deposits, ${money(total)}`, hRows(rows));
+  const text = `${subject}\n\n${rows.map(([a, b, c]) => `${a}  ${b}  (${c})`).join('\n')}\n`;
+  if (!(await sendEmail(env, { subject, html, text })).sent) return;
+  for (const d of fresh) await env.BT_KV.put('dep:' + d.t.transaction_id, '1', { expirationTtl: DEP_TTL });
+}
+
+async function reauthAlert(env, it) {
+  const key = 'reauth:' + it.id;
+  if (await env.BT_KV.get(key)) return;
+  const name = it.institution || 'a bank';
+  const subject = `BudTracks: reconnect ${name}`;
+  const html = emailHtml(`Reconnect ${name}`, hNote(`${name} needs you to sign in again. Open BudTracks and reconnect the bank so balances and alerts stay current.`));
+  if ((await sendEmail(env, { subject, html, text: `${subject}\n\n${name} needs you to sign in again. Open BudTracks and reconnect it.\n` })).sent) {
+    await env.BT_KV.put(key, '1', { expirationTtl: REAUTH_TTL });
+  }
+}
+
+async function loadSnapshot(env, now) {
+  const raw = await env.BT_KV.get('snapshot');
+  if (!raw) return null;
+  try {
+    const s = JSON.parse(await decrypt(env, raw));
+    return now - new Date(s.at) < SNAPSHOT_MAX_AGE ? s.data : null;
+  } catch { return null; }
+}
+
+function buildRecap(today, data, snap) {
+  const yesterday = addDays(today, -1), soon = addDays(today, 3);
+  const deps = [], cards = [], spend = [], depIn = [], pending = [];
+  for (const { it, accounts, txns } of data) {
+    const byId = new Map(accounts.map((a) => [a.account_id, a]));
+    for (const a of accounts) {
+      if (a.type === 'depository') deps.push({ label: acctLabel(it.institution, a), name: a.name || '', bal: balOf(a) });
+      else if (a.type === 'credit') cards.push({ label: acctLabel(it.institution, a), owed: num(a.balances?.current) });
+    }
+    for (const t of txns || []) {
+      const a = byId.get(t.account_id);
+      if (!a) continue;                                             // account toggled off or excluded
+      const label = acctLabel(it.institution, a);
+      if (t.pending) { pending.push({ t, label }); continue; }
+      if (txDate(t) !== yesterday) continue;
+      if (t.amount > 0 && !isTransfer(t)) spend.push({ t, label });
+      else if (t.amount < 0 && a.type === 'depository') depIn.push({ t, label });
+    }
+  }
+  const cash = deps.reduce((s, d) => s + (d.bal ?? 0), 0);
+  const owed = cards.reduce((s, c) => s + (c.owed ?? 0), 0);
+  const spent = spend.reduce((s, x) => s + x.t.amount, 0);
+  const top = [...spend].sort((x, y) => y.t.amount - x.t.amount).slice(0, 5);
+  const title = `Good morning · ${prettyDate(today)}`;
+  const subject = `BudTracks: ${prettyDate(today)} · ${money(cash)} in the bank`;
+  let h = `<div style="font-size:28px;font-weight:600;margin:4px 0;">${esc(money(cash))}</div>` + hNote('Across your checking and savings accounts');
+  const t = [title, '', `Cash: ${money(cash)}`];
+  if (deps.length) { h += hRows(deps.map((d) => [d.label, d.bal === null ? 'n/a' : money(d.bal), d.name])); t.push(...deps.map((d) => `  ${d.label}: ${d.bal === null ? 'n/a' : money(d.bal)}`)); }
+  if (cards.length) {
+    h += hSection(`Credit cards owed · ${money(owed)}`) + hRows(cards.map((c) => [c.label, c.owed === null ? 'n/a' : money(c.owed)]));
+    t.push('', `Credit cards owed: ${money(owed)}`, ...cards.map((c) => `  ${c.label}: ${c.owed === null ? 'n/a' : money(c.owed)}`));
+  }
+  if (snap) {
+    const c = snap.cycle || {};
+    const rows = [];
+    if (num(c.left) !== null) rows.push(['Left in paycheck', money(c.left)]);
+    if (num(c.due) !== null) rows.push(['Still due', money(c.due)]);
+    if (num(c.spent) !== null) rows.push(['Spent this cycle', money(c.spent)]);
+    if (num(c.income) !== null) rows.push(['Income this cycle', money(c.income)]);
+    if (rows.length) { h += hSection(c.start && c.end ? `Paycheck ${prettyDate(c.start)} – ${prettyDate(c.end)}` : 'Paycheck') + hRows(rows); t.push('', ...rows.map((r) => `${r[0]}: ${r[1]}`)); }
+    const bills = (snap.upcoming || []).filter((u) => u.date >= today && u.date <= soon).sort((a, b) => (a.date < b.date ? -1 : 1));
+    if (bills.length) { h += hSection('Bills in the next 3 days') + hRows(bills.map((u) => [u.name, money(u.amount), prettyDate(u.date)])); t.push('', 'Bills in the next 3 days:', ...bills.map((u) => `  ${u.name} ${money(u.amount)} (${prettyDate(u.date)})`)); }
+    if ((snap.budgets || []).length) {
+      const br = snap.budgets.map((b) => [b.name, `${money(b.spent)} of ${money(b.budget)}`, b.spent > b.budget ? `Over by ${money(b.spent - b.budget)}` : `${money(b.budget - b.spent)} left`]);
+      h += hSection('Budgets') + hRows(br); t.push('', 'Budgets:', ...br.map((b) => `  ${b[0]}: ${b[1]} (${b[2]})`));
+    }
+    if (snap.review > 0) { const s = `${snap.review} transaction${snap.review === 1 ? '' : 's'} to review`; h += hNote(s); t.push('', s); }
+  }
+  h += hSection(`Yesterday · ${money(spent)} spent · ${spend.length} purchase${spend.length === 1 ? '' : 's'}`);
+  t.push('', `Yesterday: ${money(spent)} spent, ${spend.length} purchase${spend.length === 1 ? '' : 's'}`);
+  if (top.length) { h += hRows(top.map((x) => [txDesc(x.t), money(x.t.amount), x.label])); t.push(...top.map((x) => `  ${txDesc(x.t)} ${money(x.t.amount)} (${x.label})`)); }
+  else h += hNote('No purchases.');
+  if (depIn.length) { h += hSection('Deposits yesterday') + hRows(depIn.map((x) => [txDesc(x.t), money(-x.t.amount), x.label])); t.push('', 'Deposits yesterday:', ...depIn.map((x) => `  ${txDesc(x.t)} ${money(-x.t.amount)} (${x.label})`)); }
+  if (pending.length) { h += hSection(`Pending · ${pending.length}`) + hRows(pending.map((x) => [txDesc(x.t), money(-x.t.amount), x.label])); t.push('', 'Pending:', ...pending.map((x) => `  ${txDesc(x.t)} ${money(-x.t.amount)} (${x.label})`)); }
+  return { subject, html: emailHtml(title, h), text: t.join('\n') + '\n' };
+}
+
+// One hourly pass: balance alerts, new deposits, reconnect notices, and the 7am New York recap.
+export async function runAlerts(env, now = new Date()) {
+  const keys = (await env.BT_KV.list({ prefix: 'item:' })).keys;
+  if (!keys.length) return { skipped: 'no items' };
+  if (!emailConfigured(env)) { console.log('alerts: email not configured, skipping run'); return { skipped: 'email not configured' }; }
+  const off = await getOff(env), items = await loadItems(env);
+  const { date: today, hour } = nyParts(now);
+  const recapDue = hour === 7 && !(await env.BT_KV.get('recap:' + today));
+  const data = [], deposits = [];
+  for (const it of items) {
+    try {
+      const ar = await plaid(env, '/accounts/get', { access_token: it.token });
+      const code = ar.ok ? ar.body?.item?.error?.error_code || '' : ar.code;
+      if (RECONNECT.has(code)) await reauthAlert(env, it);
+      if (!ar.ok) { console.log('alerts: accounts unavailable', code || ar.status); continue; }
+      // Counted accounts only: toggled-off accounts are dropped; loan/investment are off by default.
+      const accounts = (ar.body.accounts || []).filter((a) => !off.has(a.account_id, a.type));
+      for (const a of accounts) if (a.type === 'depository' && ALERT_SUBTYPES.has(a.subtype || '')) await balanceAlert(env, it.institution, a, now);
+      const tr = await getTxns(env, it.token, addDays(today, -3), today);
+      if (tr.r) {
+        if (RECONNECT.has(tr.r.code) && !RECONNECT.has(code)) await reauthAlert(env, it);
+        if (tr.r.code !== 'PRODUCT_NOT_READY') console.log('alerts: transactions unavailable', tr.r.code || tr.r.status);
+      }
+      const byId = new Map(accounts.map((a) => [a.account_id, a]));
+      for (const t of tr.txns || []) {
+        const a = byId.get(t.account_id);
+        if (a?.type === 'depository' && t.amount < 0 && !t.pending && t.transaction_id) deposits.push({ t, label: acctLabel(it.institution, a) });
+      }
+      data.push({ it, accounts, txns: tr.txns || [] });
+    } catch (e) { console.error('alerts: item failed', e?.name); }
+  }
+  await depositAlert(env, deposits);
+  if (recapDue) {
+    const recap = buildRecap(today, data, await loadSnapshot(env, now));
+    if ((await sendEmail(env, recap)).sent) await env.BT_KV.put('recap:' + today, '1', { expirationTtl: RECAP_TTL });
+  }
+  return { items: items.length, recap: recapDue };
+}
+
+// ---------- app snapshot (budget data for the recap) ----------
+const SNAPSHOT_MAX_BYTES = 10 * 1024;
+const isYmd = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
+const isStr = (s, max = 80) => typeof s === 'string' && s.length <= max;
+export function validateSnapshot(b) {
+  const bad = (m) => { throw new HttpError(400, 'invalid snapshot: ' + m); };
+  if (!b || typeof b !== 'object' || Array.isArray(b)) bad('object required');
+  const c = b.cycle;
+  if (!c || typeof c !== 'object' || Array.isArray(c)) bad('cycle required');
+  if (!isYmd(c.start) || !isYmd(c.end)) bad('cycle.start/end must be YYYY-MM-DD');
+  const cycle = { start: c.start, end: c.end };
+  for (const k of ['left', 'needed', 'spent', 'due', 'income']) { if (!isNum(c[k])) bad(`cycle.${k} must be a number`); cycle[k] = c[k]; }
+  const list = (v, name) => { if (v === undefined) return []; if (!Array.isArray(v) || v.length > 50) bad(`${name} must be an array of at most 50`); return v; };
+  const upcoming = list(b.upcoming, 'upcoming').map((u) => {
+    if (!u || !isStr(u.name) || !isYmd(u.date) || !isNum(u.amount)) bad('upcoming items need {name, date, amount}');
+    return { name: u.name, date: u.date, amount: u.amount };
+  });
+  const budgets = list(b.budgets, 'budgets').map((x) => {
+    if (!x || !isStr(x.name) || !isNum(x.spent) || !isNum(x.budget)) bad('budgets need {name, spent, budget}');
+    return { name: x.name, spent: x.spent, budget: x.budget };
+  });
+  const review = b.review === undefined ? 0 : b.review;
+  if (!Number.isInteger(review) || review < 0 || review > 100000) bad('review must be a non-negative integer');
+  return { cycle, upcoming, budgets, review };
+}
+async function putSnapshot(env, req) {
+  const raw = await req.text();
+  if (enc.encode(raw).length > SNAPSHOT_MAX_BYTES) throw new HttpError(413, 'snapshot too large');
+  let body;
+  try { body = JSON.parse(raw); } catch { throw new HttpError(400, 'invalid JSON'); }
+  const data = validateSnapshot(body), at = new Date().toISOString();
+  await env.BT_KV.put('snapshot', await encrypt(env, JSON.stringify({ data, at })));
+  return { ok: true, at };
+}
+
+async function alertsTest(env) {
+  const html = emailHtml('BudTracks alerts are on', hNote('You will get an email when a checking or savings balance drops below $20 or goes negative, when a deposit posts, and a recap every morning at 7am New York time.'));
+  const r = await sendEmail(env, { subject: 'BudTracks alerts are on', html, text: 'BudTracks alerts are on.\n\nYou will get low-balance, overdraft and deposit alerts, plus a 7am recap.\n' });
+  return r.sent ? { sent: true } : { sent: false, reason: r.reason };
+}
+
 // ---------- entry point ----------
 export default {
+  async scheduled(event, env, ctx) {
+    const run = runAlerts(env, new Date(event?.scheduledTime || Date.now())).catch((e) => console.error('alerts: run failed', e?.name));
+    if (ctx?.waitUntil) ctx.waitUntil(run);
+    return run;
+  },
+
   async fetch(req, env) {
     const cors = corsHeaders(env, req);
     try {
@@ -377,6 +664,8 @@ export default {
         else if (m === 'GET' && path === '/sync') out = await sync(env, url.searchParams.get('since'), url.searchParams.get('full') === '1', url.searchParams.get('ack') || '', url.searchParams.get('item') || '');
         else if (m === 'POST' && (mt = /^\/accounts\/([\w-]+)\/toggle$/.exec(path))) out = await toggle(env, mt[1], await readJson(req));
         else if (m === 'DELETE' && (mt = /^\/enroll\/([\w-]+)$/.exec(path))) out = await disconnect(env, mt[1]);
+        else if (m === 'POST' && path === '/snapshot') out = await putSnapshot(env, req);
+        else if (m === 'GET' && path === '/alerts/test') out = await alertsTest(env);
         else throw new HttpError(404, 'not found');
       }
       return json(out, 200, cors);
