@@ -169,7 +169,21 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .chart-key { display: flex; gap: 14px; font-size: 12px; color: var(--ink-2); padding: 0 16px 12px; flex-wrap: wrap; }
 .chart-key span { display: inline-flex; align-items: center; gap: 6px; }
 .chart-key .sw { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
-.chart-key .ln { width: 16px; height: 0; border-top: 2px dashed var(--brass); }
+.chart-key .ln { width: 16px; height: 0; border-top: 2px solid var(--brass); }
+.chart-key .ln.est { border-top-style: dashed; opacity: .75; }
+.chart-key .sw.cur { background: color-mix(in srgb, var(--brass) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line)); }
+.chart .ib text { font-size: 10.5px; }
+.chart .ib .ib-cur { fill: color-mix(in srgb, var(--brass) 10%, transparent); stroke: color-mix(in srgb, var(--brass) 35%, transparent); stroke-width: 1; }
+.chart .ib .ib-line { stroke: var(--brass); stroke-width: 2; }
+.chart .ib .ib-line.est { stroke-dasharray: 4 3; opacity: .7; }
+.chart .ib .ib-pt circle { fill: var(--brass); stroke: var(--surface); stroke-width: 1.5; }
+.chart .ib .ib-pt.est circle { fill: var(--surface); stroke: var(--brass); stroke-width: 1.5; stroke-dasharray: 2 1.5; }
+.chart .ib .ib-v, .chart .ib .ib-d { paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+.chart .ib .ib-v { fill: var(--ink); font-weight: 500; }
+.chart .ib .ib-pt.est .ib-v { fill: var(--ink-2); font-weight: 400; }
+.chart .ib .ib-d { font-size: 9.5px; }
+.chart .ib .ib-d.up { fill: var(--good); } .chart .ib .ib-d.down { fill: var(--crit); } .chart .ib .ib-d.eq { fill: var(--ink-3); }
+.chart .ib .ib-est { font-size: 9.5px; font-style: italic; fill: var(--ink-3); }
 .hbars { display: grid; gap: 10px; }
 .hbar { display: grid; grid-template-columns: 96px minmax(0, 1fr) 76px; gap: 10px; align-items: center; font-size: 13px; }
 .hbar .tr { height: 10px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
@@ -577,6 +591,20 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .ua-break .rest{border-top:1px solid var(--line,rgba(127,127,127,.25));margin-top:4px;padding-top:8px;font-weight:700}
 
 .hero-stats .ss-sub{display:block;font-size:11px;opacity:.7;margin-top:2px;white-space:nowrap}
+/* Spent so far and Still due open a list: the whole tile is the button, a small chevron says so. */
+.hero-stats .hs-tap{position:relative;border-radius:8px}
+.hero-stats .hs-tap dt::after{content:"›";display:inline-block;margin-left:4px;opacity:.65;font-size:13px;line-height:1;transform:translateY(1px)}
+.hs-hit{position:absolute;inset:-4px -6px;border:0;background:transparent;border-radius:8px;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
+.hs-hit:hover,.hs-hit:active{background:rgba(255,255,255,.07)}
+.hs-hit:focus-visible{outline:2px solid var(--brass-hi);outline-offset:0}
+.hl-total{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 14px;margin:12px 0 4px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);font-size:13px;color:var(--ink-2)}
+.hl-total b{font-family:var(--mono);font-size:20px;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
+.hl-list .rows{padding:0}
+.hl-list .row{grid-template-columns:auto minmax(0,1fr) auto}
+.hl-list .row.tap{cursor:pointer}
+.hl-list .subhead.hl-day{display:flex;justify-content:space-between;gap:10px;border:0;padding:12px 0 2px}
+.hl-list .subhead.hl-day span:last-child{font-family:var(--mono);letter-spacing:0;text-transform:none}
+.hl-list .sub .pill{margin-left:2px}
 
 .hero-saved { margin: 10px 0 0; font-size: 13px; color: var(--hero-ink-2); display: flex; justify-content: space-between; gap: 8px; }
 .hero-saved b { font-family: var(--mono); font-weight: 500; color: var(--brass-hi); }
@@ -710,6 +738,9 @@ h3 > .icon-pick { display: inline-grid; vertical-align: middle; width: 38px; hei
 .bx-rec .main { flex: 1; min-width: 0; }
 .bx-rec .nm { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
 .bx-rec .amt { font-size: 13px; white-space: nowrap; }
+.bk-alerts { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--line); }
+.bk-alerts .main { min-width: 0; } .bk-alerts .nm { font-size: 14px; } .bk-alerts .sub { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.bk-alerts .btn { flex: none; }
 .bk-auto { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin: 8px 0 0; }
 .bk-auto input { font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--ink); max-width: 100%; }
 .bx-sh { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; margin: 4px 0 4px; }
@@ -1083,7 +1114,7 @@ const BT = (() => {
     }
     for (const p of st.plans) {
       for (const s of planSchedule(st, p, today)) {
-        out.push({ key: s.key, kind: 'plan', ref: p.id, name: p.merchant, note: p.provider + ' · ' + s.n + ' of ' + p.total, category: p.category || 'Uncategorized', via: p.via || '', amount: s.amount, date: s.date, group: 'Pay plans', paid: s.paid, auto: s.auto, provider: p.provider });
+        out.push({ key: s.key, kind: 'plan', ref: p.id, name: p.merchant, note: p.provider + ' · ' + s.n + ' of ' + p.total, category: p.category || 'Uncategorized', via: p.via || '', amount: s.amount, date: s.date, group: 'Pay plans', paid: s.paid, auto: s.auto, provider: p.provider, n: s.n });
       }
     }
     // Unscheduled spending: already spent unless unticked.
@@ -1218,13 +1249,25 @@ const BT = (() => {
       .reduce((s, t) => s + (t.type === 'in' ? -t.amount : t.amount), 0);
     return round2(a.balance + adj + inc - paid + sv);
   }
+  // Chart slots that don't follow the category: payment 2, 3, 4... of a pay plan is a past purchase being paid off,
+  // so it goes under "Pay later" with a child per provider (payment 1 is the purchase and stays in its category).
+  // Credit card payments go under "Credit cards" with a child per card. Everything else: null (use the category).
+  const PAYLATER = ['Klarna', 'Afterpay', 'PayPal', 'Affirm'];
+  function chartSlot(x) {
+    if (x.kind === 'plan') {
+      const n = x.n || +String(x.key || '').split(':').pop();
+      if (n >= 2) return { group: 'Pay later', leaf: PAYLATER.includes(x.provider) ? x.provider : 'Other' };
+    }
+    if (x.kind === 'card') return { group: 'Credit cards', leaf: x.name || 'Card' };
+    return null;
+  }
   // Roll items up into groups: [{ label, value, kids: [{ label, value }] }]. Biggest group first, "Other" last.
-  // leafOf(item) names the child, groupOf(leaf) names its group. Uses each item's amount (budgets already count max(budget, spent)).
+  // leafOf(item) names the child, groupOf(leaf, item) names its group. Uses each item's amount (budgets already count max(budget, spent)).
   function rollup(items, leafOf, groupOf) {
     const m = {};
     items.forEach(x => {
       if (!(x.amount > 0)) return;
-      const leaf = leafOf(x), g = groupOf(leaf), e = m[g] || (m[g] = { label: g, value: 0, kids: {} });
+      const leaf = leafOf(x), g = groupOf(leaf, x), e = m[g] || (m[g] = { label: g, value: 0, kids: {} });
       e.value += x.amount; e.kids[leaf] = (e.kids[leaf] || 0) + x.amount;
     });
     return Object.values(m).map(e => ({ label: e.label, value: round2(e.value), kids: Object.entries(e.kids).map(([label, v]) => ({ label, value: round2(v) })).filter(k => k.value > 0).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label)) }))
@@ -1667,7 +1710,7 @@ const BT = (() => {
     if (k && category) st.bank.rules[k] = category;
   }
 
-  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, strongCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, savedIn, skippedIn, rollup, paidOf, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
+  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, strongCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, savedIn, skippedIn, rollup, chartSlot, paidOf, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
 })();
 
 
@@ -1725,7 +1768,8 @@ const ICONS = {
 const DEFAULT_ICON = {
   Housing: 'house', Utilities: 'bolt', Transportation: 'car', Insurance: 'shield', 'Phone & Internet': 'wifi', Loans: 'bank', Taxes: 'receipt',
   Entertainment: 'tv', Software: 'sparkle', Other: 'tag', Clothing: 'shirt', Groceries: 'cart', Gaming: 'gamepad', Repairs: 'wrench', 'Electronics Repair': 'wrench',
-  Electronics: 'laptop', Household: 'sofa', Dining: 'utensils', 'Dining Out': 'utensils', 'Takeout Food': 'bag', 'Personal care': 'heart', Gifts: 'gift', Unallocated: 'question', Uncategorized: 'tag', Subscriptions: 'repeat', 'Credit cards': 'card', 'Other bills': 'receipt', Gas: 'fuel', Food: 'utensils', Home: 'house', Shopping: 'bag', 'Health & Personal': 'heart', Health: 'pill', 'Bills & Finance': 'cash', Coffee: 'coffee', 'Snacks & Drinks': 'soda', Rideshare: 'car', 'Parking & Tolls': 'parking', 'Car Maintenance': 'wrench', Laundry: 'washer', Fees: 'receipt', Car: 'car', 'Food Out': 'utensils', Bills: 'bolt', Lotto: 'star'
+  Electronics: 'laptop', Household: 'sofa', Dining: 'utensils', 'Dining Out': 'utensils', 'Takeout Food': 'bag', 'Personal care': 'heart', Gifts: 'gift', Unallocated: 'question', Uncategorized: 'tag', Subscriptions: 'repeat', 'Credit cards': 'card', 'Other bills': 'receipt', Gas: 'fuel', Food: 'utensils', Home: 'house', Shopping: 'bag', 'Health & Personal': 'heart', Health: 'pill', 'Bills & Finance': 'cash', Coffee: 'coffee', 'Snacks & Drinks': 'soda', Rideshare: 'car', 'Parking & Tolls': 'parking', 'Car Maintenance': 'wrench', Laundry: 'washer', Fees: 'receipt', Car: 'car', 'Food Out': 'utensils', Bills: 'bolt', Lotto: 'star',
+  'Pay later': 'bag', Klarna: 'bag', Afterpay: 'bag', PayPal: 'bag', Affirm: 'bag'
 };
 function iconFor(st, cat) {
   if (!cat) return 'tag';
@@ -2182,6 +2226,64 @@ function budgetSheet(id) {
     <ul class="rows" style="padding:0">${b.spends.slice().sort((x, y) => x.date < y.date ? 1 : -1).map(e => `<li class="row tap" data-action="edit" data-type="extra" data-id="${esc(e.ref)}" tabindex="0" role="button" aria-label="Edit ${esc(e.name)}: ${fmt(e.amount)}"><div class="date" aria-hidden="true"><span class="dow">${DOW[BT.parse(e.date).getDay()]}</span><span class="dd">${BT.parse(e.date).getDate()}</span></div><div class="main"><div class="nm">${esc(e.name)}</div><div class="sub">${md(e.date)}${e.memo ? ' · ' + esc(e.memo) : ''}<span class="edit-hint"> · Edit</span></div></div><div class="amt">${fmt(e.amount)}</div></li>`).join('') || '<li class="empty">Nothing spent yet this cycle.</li>'}</ul>
     <div class="actions"><button type="button" class="btn" data-action="add" data-type="extra">Add spending</button><button type="button" class="btn" data-action="skip-cycle" data-key="${esc(b.key)}" data-name="${esc(b.name)} budget">Skip this cycle</button><div class="r"><button type="button" class="btn primary" data-action="bud-amt" data-id="${esc(id)}">Edit budget amount</button></div></div>`);
 }
+// The hero's money numbers for one period. "Spent so far" also counts bank money out that isn't recorded yet (to review).
+function heroNums(r, s) {
+  s = s || BT.summary(state, r, TODAY);
+  const unrev = unreviewedOut(r), spentAll = BT.round2(s.paid + unrev);
+  return { s, unrev, spentAll, remain: BT.round2(s.income - spentAll) };
+}
+// Every amount behind "Spent so far": paid items, spends counted in a budget, bank lines to review. Sums to heroNums().spentAll.
+function spentRows(s, r) {
+  const rows = [];
+  s.items.forEach(x => {
+    if (x.kind === 'spend') { (x.spends || []).forEach(e => rows.push({ x: e, date: e.date, amount: e.amount, name: e.name, sub: esc(e.category) + ' · counted in ' + esc(x.name) + ' budget' })); return; }
+    if (!(BT.paidOf(x) > 0)) return;
+    const sub = x.kind === 'extra' ? esc(x.category) + (x.memo ? ' · ' + esc(x.memo) : '') : x.kind === 'unalloc' ? 'Not recorded yet' : x.kind === 'plan' ? esc(x.note) : x.kind === 'card' ? 'Card payment' : esc(baseCat(x));
+    rows.push({ x, date: x.date, amount: x.amount, name: x.name, sub: sub + (x.kind !== 'extra' && x.kind !== 'unalloc' ? ' · paid ' + md(x.date) : '') });
+  });
+  unreviewedLines(r).forEach(t => rows.push({ t, date: t.date, amount: t.amount, name: cleanMerchant(t), sub: esc(acctDots(t) || 'Bank') + ' · ' + md(t.date) + ' <span class="pill soft">To review</span>' }));
+  return rows.sort((a, b) => b.date.localeCompare(a.date));
+}
+// Every unpaid amount behind "Still due": dated items by due date, then what is left in budgets. Sums to summary.due.
+function dueRows(s) {
+  const KIND = { bill: 'Bill', card: 'Card payment', plan: 'Pay later', extra: 'Spending', spend: 'Budget left', unalloc: 'Unallocated' };
+  return s.items.map(x => ({ x, amount: BT.round2(x.amount - BT.paidOf(x)) })).filter(o => Math.abs(o.amount) > 0.004).map(o => {
+    const x = o.x, kind = x.kind === 'bill' && isSubBill(x) ? 'Subscription' : x.kind === 'plan' && !BT.chartSlot(x) ? 'Pay plan' : KIND[x.kind] || 'Bill';
+    const sub = x.kind === 'spend' ? `${esc(x.category || 'Budget')} · ${hm(x.spent || 0)} of ${hm(x.budget || x.amount)} spent` : `${kind}${x.kind === 'plan' ? ' · ' + esc(x.note) : ''} · due ${md(x.date)}`;
+    return { x, amount: o.amount, date: x.date, name: x.kind === 'spend' ? x.name + ' budget' : x.name, sub, budget: x.kind === 'spend' };
+  }).sort((a, b) => (a.budget - b.budget) || a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+}
+// Opens the item behind a list row: its own sheet when it has one.
+function rowTap(o) {
+  const x = o.x;
+  if (o.t) return `data-action="tx-review"`;
+  if (!x) return '';
+  if (x.kind === 'extra') return `data-action="edit" data-type="extra" data-id="${esc(x.ref)}"`;
+  if (x.kind === 'spend') return `data-action="budget" data-id="${esc(x.ref)}"`;
+  if (x.kind === 'unalloc') return `data-action="allocate" data-id="${esc(x.ref)}"`;
+  return `data-action="occ" data-key="${esc(x.key)}"`;
+}
+function listRow(o, late) {
+  const d = BT.parse(o.date), tap = rowTap(o);
+  return `<li class="row${tap ? ' tap' : ''}" ${tap}${tap ? ` tabindex="0" role="button" aria-label="${esc(o.name)}: ${hid() ? 'amount hidden' : fmt(o.amount)}"` : ''}><div class="date" aria-hidden="true"><span class="dow">${o.budget ? 'Bud' : DOW[d.getDay()]}</span><span class="dd">${o.budget ? '—' : d.getDate()}</span></div>
+    <div class="main"><div class="nm">${esc(o.name)}${late ? ' <span class="pill soft warn">Past due</span>' : ''}</div><div class="sub">${o.sub}</div></div><div class="amt">${hm(o.amount)}</div></li>`;
+}
+function heroListSheet(which) {
+  const view = state.settings.view, r = BT.periodRange(state, view, offset, TODAY), h = heroNums(r), s = h.s;
+  const spent = which === 'spent', rows = spent ? spentRows(s, r) : dueRows(s);
+  const total = BT.round2(rows.reduce((a, o) => a + o.amount, 0));
+  let body = '';
+  if (spent) {
+    const days = []; rows.forEach(o => { const g = days[days.length - 1]; if (g && g.date === o.date) g.rows.push(o); else days.push({ date: o.date, rows: [o] }); });
+    body = days.map(g => `<div class="subhead hl-day"><span>${lng(g.date)}</span><span>${hm(g.rows.reduce((a, o) => a + o.amount, 0))}</span></div><ul class="rows">${g.rows.map(o => listRow(o)).join('')}</ul>`).join('');
+  } else {
+    const dated = rows.filter(o => !o.budget), buds = rows.filter(o => o.budget);
+    body = (dated.length ? `<ul class="rows">${dated.map(o => listRow(o, o.date < TODAY)).join('')}</ul>` : '') + (buds.length ? `<div class="subhead hl-day"><span>Left in budgets</span><span>${hm(buds.reduce((a, o) => a + o.amount, 0))}</span></div><ul class="rows">${buds.map(o => listRow(o)).join('')}</ul>` : '');
+  }
+  openSheet(`<div class="sheet-h"><div><h3>${spent ? 'Spent so far' : 'Still due'}</h3><p class="lede">This ${VIEWNAME[view]} · ${rangeLabel(r)}</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    <div class="hl-total"><span>${rows.length} ${rows.length === 1 ? 'item' : 'items'}</span><b id="hl-sum">${hm(total)}</b></div>
+    <div class="hl-list">${body || `<div class="empty">${spent ? 'Nothing spent yet this ' + VIEWNAME[view] + '.' : 'Nothing left to pay this ' + VIEWNAME[view] + '.'}</div>`}</div>`);
+}
 function viewOverview() {
   const view = state.settings.view;
   const r = BT.periodRange(state, view, offset, TODAY);
@@ -2196,8 +2298,7 @@ function viewOverview() {
   const dated = s.items.filter(x => x.kind !== 'spend').sort((a, b) => a.pinned !== b.pinned ? (a.pinned ? -1 : 1) : shown(a) < shown(b) ? -1 : shown(a) > shown(b) ? 1 : (a.kind === 'spend' ? -1 : 0) - (b.kind === 'spend' ? -1 : 0)), living = [];
   const nextKey = (dated.find(x => !x.paid && x.date >= TODAY) || {}).key;
   // Bank money out in this period that isn't recorded yet still counts as spent (shown as "to review").
-  const unrev = unreviewedOut(r), spentAll = BT.round2(s.paid + unrev);
-  const remain = BT.round2(s.income - spentAll);
+  const { unrev, spentAll, remain } = heroNums(r, s);
   const bt = bankTotal(), acct = bt !== null ? bt : BT.accountBalance(state, TODAY);
   const uaOpen = state.unalloc.filter(u => BT.unallocLeft(state, u) > 0.004);
   const uaTotal = BT.round2(uaOpen.reduce((a, u) => a + BT.unallocLeft(state, u), 0)), uaFirst = uaOpen[0];
@@ -2265,8 +2366,8 @@ function viewOverview() {
     ${catBar()}
     <div class="meter" role="img" aria-label="${Math.round(pct)}% paid"><i style="width:${pct}%"></i></div>
     <dl class="hero-stats">
-      <div><dt>Spent so far</dt><dd>${hm(spentAll)}</dd>${(() => { const ua = BT.round2(s.items.filter(x => x.kind === 'unalloc').reduce((a, x) => a + x.amount, 0)); return (ua > 0 ? `<small class="ss-sub">incl. ${hm(ua)} unallocated</small>` : '') + (unrev > 0 ? `<small class="ss-sub">incl. ${hm(unrev)} to review</small>` : ''); })()}</div>
-      <div><dt>Still due</dt><dd>${hm(s.due)}</dd></div>
+      <div class="hs-tap"><dt>Spent so far</dt><dd>${hm(spentAll)}</dd>${(() => { const ua = BT.round2(s.items.filter(x => x.kind === 'unalloc').reduce((a, x) => a + x.amount, 0)); return (ua > 0 ? `<small class="ss-sub">incl. ${hm(ua)} unallocated</small>` : '') + (unrev > 0 ? `<small class="ss-sub">incl. ${hm(unrev)} to review</small>` : ''); })()}<button type="button" class="hs-hit" data-action="spent-list" aria-label="See everything in Spent so far"></button></div>
+      <div class="hs-tap"><dt>Still due</dt><dd>${hm(s.due)}</dd><button type="button" class="hs-hit" data-action="due-list" aria-label="See everything still due"></button></div>
       <div><dt>After all bills</dt><dd class="${!hide && s.left < 0 && s.income > 0 ? 'neg' : ''}">${s.income > 0 ? hm(s.left) : 'Set income'}</dd></div>
     </dl>
     ${(() => { const sv = state.savings.on ? BT.savedIn(state, r) : 0; return sv > 0 ? `<p class="hero-saved">Saved this ${{ weekly: 'week', biweekly: 'cycle', monthly: 'month' }[view]} <b>${hm(sv)}</b></p>` : ''; })()}
@@ -2280,9 +2381,9 @@ function viewOverview() {
   <section class="card ov-bills"><header class="card-h"><div><h2>Bills this ${VIEWNAME[view]}</h2><span class="meta">${s.items.length - budgets.length} items · ${fmt(s.due)} left</span></div><button class="icon-btn add-big" data-action="add" data-type="extra" aria-label="Add a spending">${ICON.plus}</button></header>
     ${rowsAll}
   </section>
-    <section class="card ov-bars"><header class="card-h"><h2>Next 6 ${view === 'biweekly' ? 'pay cycles' : view === 'weekly' ? 'weeks' : 'months'}</h2><span class="meta">Needed vs income</span></header>
+    <section class="card ov-bars"><header class="card-h"><h2>Income and needs · 6 ${view === 'biweekly' ? 'pay cycles' : view === 'weekly' ? 'weeks' : 'months'}</h2></header>
       <div class="card-b chart">${periodBars(view)}</div>
-      <div class="chart-key"><span><i class="sw" style="--c:var(--s1)"></i>Needed</span>${state.income.some(i => i.amount) ? '<span><i class="ln"></i>Income</span>' : ''}</div>
+      <div class="chart-key"><span><i class="sw" style="--c:var(--s1)"></i>Needed</span>${periodBars.inc ? '<span><i class="ln"></i>Income</span>' + (periodBars.est ? '<span><i class="ln est"></i>Estimate</span>' : '') : ''}<span><i class="sw cur"></i>This ${VIEWNAME[view]}</span></div>
     </section>
   </div>`;
 }
@@ -2615,7 +2716,10 @@ function baseCat(x) {
 const chartCat = baseCat;
 // The chart makes one exception to the category groups: Subscriptions (with Apple inside) is its own slice.
 const chartParent = c => c === 'Subscriptions' || c === 'Apple Subscriptions' ? 'Subscriptions' : parentOf(c);
-const chartGroup = x => chartParent(baseCat(x));
+// Pay plan payments 2+ (Pay later, by provider) and card payments (Credit cards, by card) get their own groups: see BT.chartSlot.
+const chartLeaf = x => { const sl = BT.chartSlot(x); return sl ? sl.leaf : baseCat(x); };
+const chartGroupOf = (leaf, x) => { const sl = x && BT.chartSlot(x); return sl ? sl.group : chartParent(leaf); };
+const chartGroup = x => chartGroupOf(chartLeaf(x), x);
 // Which groups are open in the Overview legend. Food is open until the user says otherwise; the choice is saved in settings.
 const legendOpen = g => { const m = state.settings.legendOpen; return m && typeof m[g] === 'boolean' ? m[g] : g === 'Food'; };
 function setLegendOpen(g, on) {
@@ -2624,12 +2728,15 @@ function setLegendOpen(g, on) {
   try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {}
   clearTimeout(timer); timer = setTimeout(flush, 600);
 }
-function catDetail(cat, mode, grp) {
+// The detail sheet opens on the same period as the chart (Cycle or Month).
+const chartMode = () => state.settings.chartRange === 'month' && state.settings.view !== 'monthly' ? 'month' : undefined;
+function catDetail(cat, mode, grp, par) {
   const view = state.settings.view, rv = BT.periodRange(state, view, offset, TODAY);
   const month = mode === 'month' && view !== 'monthly';
   const r = month ? BT.periodRange(state, 'monthly', 0, rv.start) : rv;
   const unit = month ? 'month' : VIEWNAME[view];
-  const inCat = x => (grp ? chartGroup(x) : baseCat(x)) === cat;
+  // A group (grp) or one child of a group (par names the group: Pay later › Other is not the Other category).
+  const inCat = x => grp ? chartGroup(x) === cat : chartLeaf(x) === cat && (!par || chartGroup(x) === par);
   const items = BT.summary(state, r, TODAY).items.filter(inCat).sort((a, b) => a.date < b.date ? -1 : 1);
   const total = BT.round2(items.reduce((a, x) => a + x.amount, 0)), paid = BT.round2(items.reduce((a, x) => a + BT.paidOf(x), 0));
   const hist = Array.from({ length: 6 }, (_, i) => {
@@ -2654,19 +2761,30 @@ function catDetail(cat, mode, grp) {
   const label = h => month || view === 'monthly' ? MON[BT.parse(h.r.start).getMonth()] : md(h.r.start);
   const html = `<div class="sheet-h"><div><h3><button class="icon-pick" data-action="pick-icon" data-cat="${esc(cat)}" aria-label="Change icon for ${esc(cat)}">${catIcon(cat).replace('cico', 'cico big')}</button> ${esc(cat)}</h3><p class="lede">${month ? MON[BT.parse(r.start).getMonth()] + ' ' + BT.parse(r.start).getFullYear() + ' · ' : ''}${rangeLabel(r)}</p></div>
     <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
-    ${view === 'monthly' ? '' : `<div class="seg kind-seg" role="group" aria-label="Period"><button type="button" data-action="cat-mode" data-cat="${esc(cat)}"${grp ? ' data-grp="1"' : ''} data-mode="period" aria-pressed="${!month}">This ${VIEWNAME[view]}</button><button type="button" data-action="cat-mode" data-cat="${esc(cat)}"${grp ? ' data-grp="1"' : ''} data-mode="month" aria-pressed="${month}">Whole month</button></div>`}
+    ${view === 'monthly' ? '' : `<div class="seg kind-seg" role="group" aria-label="Period"><button type="button" data-action="cat-mode" data-cat="${esc(cat)}"${grp ? ' data-grp="1"' : ''}${par ? ` data-par="${esc(par)}"` : ''} data-mode="period" aria-pressed="${!month}">This ${VIEWNAME[view]}</button><button type="button" data-action="cat-mode" data-cat="${esc(cat)}"${grp ? ' data-grp="1"' : ''}${par ? ` data-par="${esc(par)}"` : ''} data-mode="month" aria-pressed="${month}">Whole month</button></div>`}
     ${subBox}
     <div class="strip" style="margin-bottom:14px"><div class="tile"><div class="k">This ${unit}</div><div class="v">${fmt(total)}</div></div><div class="tile"><div class="k">Paid so far</div><div class="v">${fmt(paid)}</div></div>${avg !== null ? `<div class="tile"><div class="k">${n} ${unit} average</div><div class="v">${fmt(avg)}</div></div>` : `<div class="tile"><div class="k">Average</div><div class="v sm">After 3 ${unit === 'pay cycle' ? 'pay cycles' : unit + 's'}</div><div class="k">Tracking since ${md(state.since)}</div></div>`}</div>
     <div class="subhead" style="border:0;padding-left:0">${shownHist.length > 1 ? 'Last ' + shownHist.length + ' ' + (month || view === 'monthly' ? 'months' : view === 'biweekly' ? 'pay cycles' : 'weeks') : 'History builds as you use BudTrack'}</div>
     <div class="mini-bars" style="grid-template-columns:repeat(6,1fr)">${shownHist.map((h, i) => `<div class="mb" data-tip="${esc(rangeLabel(h.r))}\n${fmt(h.v)}"><span class="mbv">${h.v ? fmt0(h.v) : ''}</span><span class="mbb${i === shownHist.length - 1 ? ' cur' : ''}" style="height:${Math.max(2, h.v / max * 70)}px"></span><span class="mbl">${label(h)}</span></div>`).join('')}</div>
     <div class="subhead" style="border:0;padding-left:0;margin-top:12px">Items · ${items.length}</div>
-    <ul class="rows" style="padding:0">${items.map(x => `<li class="row"><span class="check-dot${x.paid ? ' on' : ''}" aria-label="${x.paid ? 'Paid' : 'Not paid'}">${x.paid ? ICON.check : ''}</span><div class="daybadge">${md(x.date).split(' ')[1]}</div><div class="main"><div class="nm"><button class="icon-pick sm" data-action="pick-icon" data-cat="${esc(x.name)}" aria-label="Change icon for ${esc(x.name)}">${state.icons[x.name] ? iconSVG(iconFor(state, x.name)) : catIcon(baseCat(x))}</button>${esc(x.name)}</div><div class="sub">${month ? md(x.date) + ' · ' : ''}${baseCat(x) !== cat && (grp || baseCat(x) !== 'Subscriptions') ? esc(baseCat(x)) + ' · ' : ''}${esc(x.note || x.group)}${x.via ? ' · via ' + esc(viaText(x.via)) : ''}</div></div><div class="amt">${fmt(x.amount)}</div></li>`).join('') || '<li class="empty">Nothing in this period.</li>'}</ul>${outBox}`;
+    <ul class="rows" style="padding:0">${items.map(x => `<li class="row"><span class="check-dot${x.paid ? ' on' : ''}" aria-label="${x.paid ? 'Paid' : 'Not paid'}">${x.paid ? ICON.check : ''}</span><div class="daybadge">${md(x.date).split(' ')[1]}</div><div class="main"><div class="nm"><button class="icon-pick sm" data-action="pick-icon" data-cat="${esc(x.name)}" aria-label="Change icon for ${esc(x.name)}">${state.icons[x.name] ? iconSVG(iconFor(state, x.name)) : catIcon(baseCat(x))}</button>${esc(x.name)}</div><div class="sub">${detailSub(x, cat, grp, month)}</div></div><div class="amt">${fmt(x.amount)}</div></li>`).join('') || '<li class="empty">Nothing in this period.</li>'}</ul>${outBox}`;
   if (!$('#sheet').hidden && mode) $('#sheetBody').innerHTML = html; else openSheet(html);
 }
+// One line under an item in the chart detail. Pay later and card payments show provider, "2 of 4", the date and whether it is paid.
+function detailSub(x, cat, grp, month) {
+  const sl = BT.chartSlot(x), bc = baseCat(x);
+  const pre = bc !== cat && (grp || bc !== 'Subscriptions') && !(sl && bc === sl.group) ? esc(bc) + ' · ' : '';
+  const via = x.via ? ' · via ' + esc(viaText(x.via)) : '';
+  if (sl) return `${pre}${esc(x.note || x.group)} · ${md(x.date)} · ${x.paid ? 'Paid' : 'Not paid yet'}${via}`;
+  return `${month ? md(x.date) + ' · ' : ''}${pre}${esc(x.note || x.group)}${via}`;
+}
+// Pay later and Credit cards keep their own color; the other groups share the rest of the palette in order.
+const FIXED_COLOR = { 'Pay later': 7, 'Credit cards': 9 };
 // Savings moves in the cycle show as their own "Savings" group, only when savings is on.
 function byCategory(items, r) {
-  const list = BT.rollup(items, baseCat, chartParent).map(g => ({ ...g }));
-  list.forEach((g, i) => { g.color = 'var(--s' + (i % 12 + 1) + ')'; });
+  const list = BT.rollup(items, chartLeaf, chartGroupOf).map(g => ({ ...g }));
+  const taken = list.map(g => FIXED_COLOR[g.label]).filter(Boolean), pal = Array.from({ length: 12 }, (_, i) => i + 1).filter(n => !taken.includes(n));
+  let k = 0; list.forEach(g => { g.color = 'var(--s' + (FIXED_COLOR[g.label] || pal[k++ % pal.length]) + ')'; });
   const sv = state.savings && state.savings.on ? BT.savedIn(state, r) : 0;
   if (sv > 0) list.push({ label: 'Savings', value: sv, sv: true, color: 'var(--brass)', kids: [{ label: 'Moved to savings', value: sv, sv: true }] });
   return list;
@@ -2676,7 +2794,7 @@ function legendHTML(groups, total) {
   return `<ul class="legend cat-legend">${groups.map((g, gi) => {
     const open = legendOpen(g.label);
     return `<li class="lg-g${open ? ' open' : ''}" data-i="${gi}" data-g="${esc(g.label)}"><button class="sw-btn" data-action="lg-toggle" data-g="${esc(g.label)}" aria-expanded="${open}" aria-label="Show items in ${esc(g.label)}"><span class="sw" style="--c:${g.color}"></span><span class="chev" aria-hidden="true">›</span></button>${g.sv ? '' : `<button class="icon-pick sm" data-action="pick-icon" data-cat="${esc(g.label)}" aria-label="Change icon for ${esc(g.label)}">${catIcon(g.label)}</button>`}<button class="lc" data-action="lg-pick" data-i="${gi}" data-g="${esc(g.label)}"${g.sv ? ' data-sv="1"' : ''}>${esc(g.label)}</button><span class="lv">${fmt(g.value)}</span><span class="lp">${pc(g.value)}</span>
-      <div class="lg-kids"${open ? '' : ' hidden'}>${g.kids.map(k => `<div class="lg-k">${g.sv ? `<span class="kn">${esc(k.label)}</span>` : `<button class="kn" data-action="cat-detail" data-cat="${esc(k.label)}">${esc(k.label)}</button>`}<span class="lv">${fmt(k.value)}</span><span class="lp">${pc(k.value)}</span></div>`).join('')}</div></li>`;
+      <div class="lg-kids"${open ? '' : ' hidden'}>${g.kids.map(k => `<div class="lg-k">${g.sv ? `<span class="kn">${esc(k.label)}</span>` : `<button class="kn" data-action="cat-detail" data-cat="${esc(k.label)}" data-g="${esc(g.label)}">${esc(k.label)}</button>`}<span class="lv">${fmt(k.value)}</span><span class="lp">${pc(k.value)}</span></div>`).join('')}</div></li>`;
   }).join('')}</ul>`;
 }
 let SEL_CAT = null;
@@ -2739,26 +2857,62 @@ function donut(groups, total) {
     <text id="dn-lbl" x="85" y="101" text-anchor="middle" style="font:500 10px var(--body);fill:var(--ink-3);letter-spacing:.1em"></text></svg>`;
 }
 function nice(v) { if (v <= 0) return 100; const p = Math.pow(10, Math.floor(Math.log10(v))); const m = v / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p; }
-function periodBars(view) {
-  const data = Array.from({ length: 6 }, (_, i) => {
-    const r = BT.periodRange(state, view, offset + i, TODAY), s = BT.summary(state, r, TODAY);
-    return { r, needed: s.needed, income: s.income, label: view === 'monthly' ? MON[BT.parse(r.start).getMonth()] : md(r.start) };
+// Income for one period: known amounts (perCycle, bank or the usual amount); a paycheck with no amount yet uses the
+// previous one (prevPay) and marks the period as an estimate.
+// any: a paycheck falls in the period at all (a week between biweekly paychecks has none).
+function periodIncome(r) {
+  let v = 0, est = false, any = false;
+  state.income.forEach(i => {
+    if (!i.date || (!i.amount && !i.askFrom)) return;
+    BT.payDates(i, r).forEach(d => { const a = BT.payAmount(i, d); if (a) { v += a; any = true; } else if (i.askFrom && d >= i.askFrom) { const p = BT.prevPay(i, d); if (p) { v += p; est = true; any = true; } } });
   });
-  const W = 520, H = 210, L = 46, B = 26, T = 10, Rr = 6;
-  const max = nice(Math.max(...data.map(d => Math.max(d.needed, d.income))) * 1.05);
+  return { v: BT.round2(v), est, any };
+}
+// Income and needs: the last 2 periods, this one (highlighted) and the next 3. Needed is a bar, income a line with
+// a point per period labeled with its amount and the change from the period before (estimates dashed, "est.").
+function periodBars(view) {
+  const unit = VIEWNAME[view];
+  const data = Array.from({ length: 7 }, (_, i) => {
+    const r = BT.periodRange(state, view, offset - 3 + i, TODAY), s = BT.summary(state, r, TODAY), inc = periodIncome(r);
+    return { r, needed: s.needed, income: inc.v, est: inc.est, any: inc.any && inc.v > 0, cur: i === 3, label: view === 'monthly' ? MON[BT.parse(r.start).getMonth()] : md(r.start) };
+  });
+  // Change is against the last period that had a paycheck; periods without one get no point (the line bridges them).
+  let last = null; data.forEach(d => { d.delta = d.any && last ? BT.round2(d.income - last.income) : null; if (d.any) last = d; });
+  data.shift();
+  const hasInc = data.some(d => d.any); periodBars.inc = hasInc; periodBars.est = data.some(d => d.any && d.est);
+  const W = 360, H = 236, L = 38, B = 36, T = 40, Rr = 4;
+  // Four even steps on round numbers ($600, $1.2k...).
+  const top = Math.max(1, ...data.map(d => Math.max(d.needed, d.income))) * 1.05 / 4, p10 = Math.pow(10, Math.floor(Math.log10(top)));
+  const max = 4 * p10 * [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find(m => m * p10 >= top);
   const y = v => T + (H - T - B) * (1 - v / max);
-  const slot = (W - L - Rr) / data.length, bw = Math.min(46, slot * 0.56);
+  const slot = (W - L - Rr) / data.length, bw = Math.min(30, slot * 0.5), cx = i => L + slot * i + slot / 2;
+  const k = v => v >= 1000 ? '$' + (v / 1000).toFixed(v % 1000 ? 1 : 0) + 'k' : '$' + v;
+  const amt = v => v >= 10000 ? '$' + (v / 1000).toFixed(1) + 'k' : fmt0(v);
   let g = '';
-  for (let i = 0; i <= 4; i++) { const v = max * i / 4, yy = y(v).toFixed(1); g += `<line class="${i ? 'grid' : 'base'}" x1="${L}" x2="${W - Rr}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${+yy + 4}" text-anchor="end">${v >= 1000 ? '$' + (v / 1000).toFixed(v % 1000 ? 1 : 0) + 'k' : '$' + v}</text>`; }
+  for (let i = 0; i <= 4; i++) { const v = max * i / 4, yy = y(v).toFixed(1); g += `<line class="${i ? 'grid' : 'base'}" x1="${L}" x2="${W - Rr}" y1="${yy}" y2="${yy}"/><text x="${L - 6}" y="${+yy + 4}" text-anchor="end">${k(v)}</text>`; }
+  const ci = data.findIndex(d => d.cur);
+  const curBg = `<rect class="ib-cur" x="${(cx(ci) - slot / 2 + 1).toFixed(1)}" y="2" width="${(slot - 2).toFixed(1)}" height="${H - 2}" rx="8"/>`;
   const bars = data.map((d, i) => {
-    const cx = L + slot * i + slot / 2, x = cx - bw / 2, top = y(d.needed), base = y(0), h = base - top, rad = Math.min(4, h);
+    const x = cx(i) - bw / 2, top = y(d.needed), base = y(0), h = base - top, rad = Math.min(4, h);
     const path = h > 0 ? `M${x} ${base}V${top + rad}Q${x} ${top} ${x + rad} ${top}H${x + bw - rad}Q${x + bw} ${top} ${x + bw} ${top + rad}V${base}Z` : '';
-    const inc = d.income > 0 ? `<line x1="${cx - bw / 2 - 6}" x2="${cx + bw / 2 + 6}" y1="${y(d.income)}" y2="${y(d.income)}" stroke="var(--brass)" stroke-width="2" stroke-dasharray="4 3"/>` : '';
-    const tip = `${rangeLabel(d.r)}\nNeeded ${fmt(d.needed)}${d.income ? '\nIncome ' + fmt(d.income) + '\nLeft ' + fmt(d.income - d.needed) : ''}`;
-    return `<g data-tip="${esc(tip)}"><rect x="${cx - slot / 2}" y="${T}" width="${slot}" height="${H - T}" fill="transparent"/><path d="${path}" fill="var(--s1)" opacity="${i === 0 ? 1 : 0.55}"/>${inc}
-      <text x="${cx}" y="${H - 8}" text-anchor="middle" class="${i === 0 ? 'lbl-strong' : ''}">${d.label}</text></g>`;
+    const ch = d.delta === null ? '' : Math.abs(d.delta) < 0.005 ? 'No change' : (d.delta > 0 ? '▲ ' : '▼ ') + fmt(Math.abs(d.delta));
+    const tip = `${rangeLabel(d.r)}${d.cur ? ' · now' : ''}${d.income ? '\nIncome ' + fmt(d.income) + (d.est ? ' (est.)' : '') : hasInc ? '\nNo paycheck this ' + unit : ''}\nNeeded ${fmt(d.needed)}${d.income ? '\nLeft ' + fmt(d.income - d.needed) : ''}${d.income && ch ? '\nChange ' + ch + ' vs previous' : ''}`;
+    return `<g class="ib-slot${d.cur ? ' cur' : ''}${d.est ? ' est' : ''}" data-tip="${esc(tip)}"><rect x="${cx(i) - slot / 2}" y="0" width="${slot}" height="${H}" fill="transparent"/><path d="${path}" class="ib-bar" fill="var(--s1)" opacity="${d.cur ? 1 : i > ci ? 0.4 : 0.6}"/>
+      <text x="${cx(i)}" y="${H - B + 16}" text-anchor="middle" class="ib-x${d.cur ? ' lbl-strong' : ''}">${d.label}</text>${d.est ? `<text x="${cx(i)}" y="${H - B + 29}" text-anchor="middle" class="ib-est">est.</text>` : ''}</g>`;
   }).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Money needed per ${VIEWNAME[view]} for the next six">${g}${bars}</svg>`;
+  let line = '';
+  if (hasInc) {
+    const pts = data.map((d, i) => [cx(i), y(d.income)]), on = data.map((d, i) => i).filter(i => data[i].any);
+    for (let j = 1; j < on.length; j++) { const a = on[j - 1], c = on[j]; line += `<line class="ib-line${data[a].est || data[c].est ? ' est' : ''}" x1="${pts[a][0].toFixed(1)}" y1="${pts[a][1].toFixed(1)}" x2="${pts[c][0].toFixed(1)}" y2="${pts[c][1].toFixed(1)}"/>`; }
+    line += data.map((d, i) => {
+      if (!d.any) return '';
+      const [px, py] = pts[i], up = d.delta > 0.004, down = d.delta < -0.004;
+      const dl = d.delta === null ? '' : up ? '▲' + amt(d.delta) : down ? '▼' + amt(-d.delta) : '—';
+      return `<g class="ib-pt${d.est ? ' est' : ''}${d.cur ? ' cur' : ''}" pointer-events="none"><circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${d.cur ? 4.5 : 3.5}"/>
+        <text class="ib-v" x="${px.toFixed(1)}" y="${(py - 19).toFixed(1)}" text-anchor="middle">${amt(d.income)}</text>${dl ? `<text class="ib-d ${up ? 'up' : down ? 'down' : 'eq'}" x="${px.toFixed(1)}" y="${(py - 8).toFixed(1)}" text-anchor="middle">${dl}</text>` : ''}</g>`;
+    }).join('');
+  }
+  return `<svg class="ib" viewBox="0 0 ${W} ${H}" role="img" aria-label="Income and money needed per ${unit}: the last two, this one and the next three">${curBg}${g}${bars}${line}</svg>`;
 }
 
 /* ---------- Forms ---------- */
@@ -3631,6 +3785,7 @@ function bankCard() {
   return `<section class="card" id="bankcard">${head}<div class="card-b bk">${list}
     <div class="bk-btns"><button class="btn primary" data-action="bk-connect"${BANKUI.busy ? ' disabled' : ''}>Connect a bank</button>${n ? `<button class="btn" data-action="tx-review">Review ${n} new</button>` : ''}<button class="btn" data-action="ix-open">Recently synced</button><button class="btn" data-action="hx-open">Earlier transactions · ${hn}</button></div>
     <label class="bk-auto"><span>Automatic from ${esc(md(b.autoFrom))}</span><input type="date" id="bk-autofrom" value="${esc(b.autoFrom)}" aria-label="Automatic from date"></label>
+    <div class="bk-alerts"><div class="main"><div class="nm">Email alerts</div><div class="sub">A morning recap of this ${VIEWNAME[state.settings.view]} and what is due soon</div></div><button class="btn sm" data-action="alerts-test">Send test email</button></div>
     <p class="bk-err" role="alert">${esc(BANKUI.err)}</p>
     <p class="note" style="margin:0">From the automatic date on, matching bills, paychecks and Klarna, Afterpay and PayPal payments are applied for you, and anything unsure waits in your review list. Earlier ones are yours to add by hand. <button class="linkbtn" style="color:var(--ink-3)" data-action="bk-forget">Remove pairing from this phone</button></p></div></section>`;
 }
@@ -3757,6 +3912,39 @@ function bankAutoSync() {
   if (Date.now() - ls < 30 * 60000 || Date.now() - BANKUI.tried < 5 * 60000) return;
   bankSync({ auto: true });
 }
+// Snapshot for the morning recap email: this period's numbers, what is due in the next 3 days, budgets and the review count.
+// Sent after each successful sync and at most every 30 minutes while the app is open. Failures are ignored (an older
+// bank service has no /snapshot). cycle.end is exclusive: the day after the period's last day.
+const SNAPLS = 'budtrack.snapAt';
+function snapshotBody() {
+  const view = state.settings.view, r = BT.periodRange(state, view, 0, TODAY), h = heroNums(r), s = h.s;
+  const soon = BT.addDays(TODAY, 4), seen = new Set();
+  const upcoming = BT.summary(state, { start: TODAY, end: soon, view }, TODAY).items.concat(s.items)
+    .filter(x => x.kind !== 'spend' && x.kind !== 'unalloc' && !x.paid && x.date >= TODAY && x.date < soon && !seen.has(x.key) && seen.add(x.key))
+    .sort((a, b) => a.date.localeCompare(b.date)).map(x => ({ name: x.name, date: x.date, amount: x.amount }));
+  return {
+    cycle: { start: r.start, end: r.end, left: h.remain, needed: s.needed, spent: h.spentAll, due: s.due, income: s.income },
+    upcoming,
+    budgets: s.items.filter(x => x.kind === 'spend' && x.on).map(x => ({ name: x.name, spent: x.spent || 0, budget: x.budget })),
+    review: (state.bank.inbox || []).length
+  };
+}
+async function sendSnapshot(force) {
+  if (!bankReady()) return;
+  let last = 0; try { last = +localStorage.getItem(SNAPLS) || 0; } catch (e) {}
+  if (!force && Date.now() - last < 30 * 60000) return;
+  try { localStorage.setItem(SNAPLS, String(Date.now())); } catch (e) {}
+  try { await bankFetch('/snapshot', { method: 'POST', body: snapshotBody() }); } catch (e) {}
+}
+setInterval(() => { if (document.visibilityState === 'visible') sendSnapshot().catch(() => {}); }, 60000);
+async function alertsTest(btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const r = await bankFetch('/alerts/test');
+    toast(r && r.ok === false ? (r.reason || r.error || "Email isn't set up yet") : 'Test email sent');
+  } catch (e) { toast(e.status === 404 ? "Email isn't set up yet" : e.message); }
+  if (btn) btn.disabled = false;
+}
 const AUTO_KINDS = ['plan', 'bill', 'income'];
 const SYNCSRC = ['sync', 'history'];
 function dropHistory(id) { state.bank.history = state.bank.history.filter(h => h.id !== id); }
@@ -3841,6 +4029,7 @@ async function bankSync(o) {
     if (em) BANKUI.syncErr = em;
     if (em && (applied || fresh || dropped || auto)) toast(em);
     if (errs.some(e => e.needsReconnect)) { BANKUI.enr = null; BANKUI.loadErr = ''; }
+    sendSnapshot(true).catch(() => {});
   } catch (e) { purgeInbox(state); BANKUI.syncErr = e.message; if (!auto) toast(e.message); }
   BANKUI.syncing = false;
   if (['income', 'transactions', 'overview', 'bills'].includes(currentTab())) render();
@@ -4217,14 +4406,15 @@ function setTxNote(id, text) {
 // Bank money out in a range that isn't recorded anywhere yet: lines waiting for review, or earlier lines not added.
 // Transfers, card payments and ignored lines are left out, and anything already decided is counted through its spend or bill.
 const XFER_RX = /\btransfer\b|\bxfer\b|to savings|from savings|zelle to self|payment thank you|autopay|(?:credit )?card payment|online payment|add to balance/i;
-function unreviewedOut(r) {
-  const b = state.bank; if (!b || !b.txns) return 0;
-  return BT.round2(Object.values(b.txns).filter(t => t && t.amount > 0 && t.date >= r.start && t.date < r.end && !b.seen[t.id]).filter(t => {
+function unreviewedLines(r) {
+  const b = state.bank; if (!b || !b.txns) return [];
+  return Object.values(b.txns).filter(t => t && t.amount > 0 && t.date >= r.start && t.date < r.end && !b.seen[t.id]).filter(t => {
     const sg = inboxOf(t.id);
     if (sg) return sg.kind !== 'transfer' || !!sg.p2p;
     return !XFER_RX.test(t.desc || '') && !XFER_RX.test(t.rawDesc || '');
-  }).reduce((a, t) => a + t.amount, 0));
+  });
 }
+function unreviewedOut(r) { return BT.round2(unreviewedLines(r).reduce((a, t) => a + t.amount, 0)); }
 function txStatus(t) {
   const b = state.bank, r = b.seen[t.id];
   // A recorded decision wins over any stale review-list row.
@@ -4655,17 +4845,19 @@ document.addEventListener('click', async e => {
     case 'sv-del': state.savings.tx = state.savings.tx.filter(t => t.id !== a.dataset.id); commit('Removed'); accountSheet(true); break;
     case 'sound': state.settings.sound = state.settings.sound === false; commit(state.settings.sound ? 'Sound on' : 'Sound off'); if (state.settings.sound) chime(); break;
     case 'occ': openOcc(a.dataset.key); break;
+    case 'spent-list': heroListSheet('spent'); break;
+    case 'due-list': heroListSheet('due'); break;
     case 'chart-range': state.settings.chartRange = a.dataset.r === 'month' ? 'month' : 'cycle'; try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} clearTimeout(timer); timer = setTimeout(flush, 600); render(); break;
     case 'lg-toggle': { const g = a.dataset.g, li = a.closest('li'), on = !li.classList.contains('open'); li.classList.toggle('open', on); a.setAttribute('aria-expanded', on); const k = li.querySelector('.lg-kids'); if (k) k.hidden = !on; setLegendOpen(g, on); break; }
-    case 'lg-pick': { const i = +a.dataset.i; if (SEL_CAT === a.dataset.g && !a.dataset.sv) catDetail(a.dataset.g, undefined, true); else if (SEL_CAT === a.dataset.g) selectSlice(-1, true); else selectSlice(i, true); break; }
-    case 'cat-detail': catDetail(a.dataset.cat); break;
+    case 'lg-pick': { const i = +a.dataset.i; if (SEL_CAT === a.dataset.g && !a.dataset.sv) catDetail(a.dataset.g, chartMode(), true); else if (SEL_CAT === a.dataset.g) selectSlice(-1, true); else selectSlice(i, true); break; }
+    case 'cat-detail': catDetail(a.dataset.cat, chartMode(), false, a.dataset.g); break;
     case 'cs-pick': { const i = +a.dataset.i, sc = $('#catscroll'), cur = sc && sc.querySelector('.cs-chip[aria-selected="true"]'), same = cur && +cur.dataset.i === i;
-      if (i >= 0 && same && a.classList.contains('cs-chip') && !cur.dataset.sv) catDetail(cur.dataset.label, undefined, true);
+      if (i >= 0 && same && a.classList.contains('cs-chip') && !cur.dataset.sv) catDetail(cur.dataset.label, chartMode(), true);
       else if (i >= 0 && same && a.classList.contains('cs-chip')) selectSlice(-1, true);
       else if (i >= 0 && same) selectSlice(-1, true);
       else selectSlice(i, true);
       break; }
-    case 'cat-mode': catDetail(a.dataset.cat, a.dataset.mode, !!a.dataset.grp); break;
+    case 'cat-mode': catDetail(a.dataset.cat, a.dataset.mode, !!a.dataset.grp, a.dataset.par); break;
     case 'icon-toggle': { const box = a.closest('form').querySelector('.icon-inline'); box.hidden = !box.hidden; a.setAttribute('aria-expanded', !box.hidden); break; }
     case 'icon-inline': { const f = a.closest('form'); f.elements.icon.value = a.dataset.icon; const btn = f.querySelector('.icon-now'); btn.firstElementChild.outerHTML = iconSVG(a.dataset.icon); f.querySelectorAll('.icon-inline .ig').forEach(b => b.setAttribute('aria-pressed', b === a)); f.querySelector('.icon-inline').hidden = true; btn.setAttribute('aria-expanded', 'false'); break; }
     case 'pause-sub': {
@@ -4734,6 +4926,7 @@ document.addEventListener('click', async e => {
     case 'delete': deleteItem(a); break;
     case 'set-cat': setCategory(a.dataset.id, a.dataset.cat); break;
     case 'bank-import': openBank(); break;
+    case 'alerts-test': alertsTest(a); break;
     case 'bk-sync': case 'bk-item-sync': case 'bk-connect': case 'bk-reconnect': case 'bk-toggle': case 'bk-disc': case 'bk-disc-go': case 'bk-forget': bankCardAct(act, a); break;
     case 'ix-open': case 'ix-accept': case 'ix-change': case 'ix-pick': case 'ix-cat': case 'ix-cats': case 'ix-new': case 'ix-edit': case 'ix-skip': case 'ix-all': case 'ix-undo': inboxAct(act, a); break;
     case 'tx-note': case 'tx-note-save': case 'tx-review': case 'tx-filter': case 'tx-more': case 'tx-open': case 'tx-back': case 'tx-cats': case 'tx-in': case 'tx-cat': case 'tx-sugg': case 'tx-match': case 'tx-edit': case 'tx-ignore': case 'tx-undo': case 'tx-refund': case 'tx-paycheck': case 'tx-sv': txAct(act, a); break;
@@ -4898,7 +5091,7 @@ function render() {
 }
 window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
 render();
-const bankBoot = () => { bankOAuthResume(); bankAutoSync(); };
+const bankBoot = () => { bankOAuthResume(); bankAutoSync(); sendSnapshot().catch(() => {}); };
 connect().then(bankBoot, bankBoot);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') bankAutoSync(); });
 })();

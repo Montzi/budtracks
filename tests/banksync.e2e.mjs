@@ -1606,7 +1606,7 @@ const BT_round = n => Math.round(n * 100) / 100;
     assert.notEqual(await row.locator('b.over').evaluate(e => getComputedStyle(e).color), await row.locator('.nm').evaluate(e => getComputedStyle(e).color));
     const n = await num(); assert.equal(n.needed, BT_round(base.needed + 20)); assert.equal(n.paid, base.paid + 170); assert.equal(n.left, BT_round(base.left - 20)); assert.equal(n.acct, BT_round(base.acct - 170));
     const leg = await page.locator('.cat-legend').innerText(); assert.match(leg, /Groceries\s*\$170\.00/);
-    const tip = await page.locator('.ov-bars g[data-tip]').first().getAttribute('data-tip'); assert.ok(tip.includes('Needed ' + ('$' + n.needed.toLocaleString('en-US', { minimumFractionDigits: 2 }))), tip);
+    const tip = await page.locator('.ov-bars g.cur[data-tip]').getAttribute('data-tip'); assert.ok(tip.includes('Needed ' + ('$' + n.needed.toLocaleString('en-US', { minimumFractionDigits: 2 }))), tip);
     assert.equal(await page.locator('.ov-bills .rows:not(.bud-rows) .nm', { hasText: 'Costco' }).count(), 0);
     assert.doesNotMatch(leg, /Pets/, 'a budget that is not set adds no donut slice');
     await noHScroll(page, '390 budgets');

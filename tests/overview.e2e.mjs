@@ -86,7 +86,9 @@ const heroNeeds = page => page.locator('.lad.l2 .v').innerText().then(num);
     assert.ok(groups.filter(g => g.g !== 'Food').every(g => !g.open), 'other groups collapsed');
     assert.ok(groups.some(g => g.g === 'Home' && g.kids.includes('Housing') && g.kids.includes('Utilities')), 'bills roll up under Home');
     assert.ok(groups.some(g => g.g === 'Subscriptions' && g.kids.includes('Subscriptions')), 'subscriptions are their own chart group');
-    assert.equal(groups[groups.length - 1].g, 'Other', 'Other last');
+    // The Visa minimum used to be the only "Other" item; card payments now have their own Credit cards group.
+    assert.ok(groups.some(g => g.g === 'Credit cards' && g.kids.includes('Visa') && !g.open), 'card payments under Credit cards (collapsed)');
+    assert.ok(!groups.some(g => g.g === 'Other'), 'nothing left under Other');
     const total = num(await page.locator('.ov-donut .card-h .meta').innerText());
     assert.ok(Math.abs(groups.reduce((a, g) => a + g.v, 0) - total) < 0.011, 'group totals add up to the chart total');
     assert.equal(num(await page.locator('.lad.l2 .v').innerText()), total, 'chart total = cycle needs (no savings yet)');
