@@ -1,5 +1,6 @@
 // BudTracks bank-sync Worker: a thin, single-user proxy to the Plaid API.
-// Access tokens are AES-GCM encrypted in KV; the phone authenticates with a device key.
+// Access tokens are AES-GCM encrypted in KV; the phone authenticates with a device key. Each Item's /transactions/sync
+// cursor and change log live in its own ItemSync Durable Object, fed by verified Plaid webhooks, the app and the hourly cron.
 
 const PLAID_HOSTS = { sandbox: 'https://sandbox.plaid.com', production: 'https://production.plaid.com' };
 const MAX_PAGES = 50;      // safety cap on /transactions/sync pages per item
@@ -31,16 +32,19 @@ async function aesKey(env) {
   if (raw.length !== 32) throw new HttpError(500, 'ENC_KEY must be 32 bytes');
   return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
 }
-export async function encrypt(env, text) {
+// b64() spreads its argument, so long ciphertexts (a stored transaction) are encoded in slices.
+const b64big = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s); };
+async function encryptWith(key, text) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await aesKey(env), enc.encode(text)));
-  return b64(iv) + '.' + b64(ct);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(text)));
+  return b64(iv) + '.' + b64big(ct);
 }
-export async function decrypt(env, blob) {
+async function decryptWith(key, blob) {
   const [iv, ct] = blob.split('.');
-  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(iv) }, await aesKey(env), unb64(ct));
-  return dec.decode(pt);
+  return dec.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(iv) }, key, unb64(ct)));
 }
+export async function encrypt(env, text) { return encryptWith(await aesKey(env), text); }
+export async function decrypt(env, blob) { return decryptWith(await aesKey(env), blob); }
 
 // ---------- CORS ----------
 function allowedOrigin(env, origin) {
@@ -214,40 +218,47 @@ async function linkToken(env, itemId) {
     body = { ...base, access_token: item.token };            // update mode: no products
   } else {
     body = { ...base, products: ['transactions'], transactions: { days_requested: 90 } };
+    // New Items get the webhook from the start (existing ones are switched over by POST /webhook/configure).
+    if (env.PLAID_WEBHOOK_URL) body.webhook = env.PLAID_WEBHOOK_URL;
   }
   const r = await plaid(env, '/link/token/create', body);
   if (!r.ok || !r.body?.link_token) throw new HttpError(502, plaidMsg(r));
   return { link_token: r.body.link_token };
 }
 
-async function enroll(env, body) {
+async function enroll(env, body, ctx) {
   const { publicToken, institution } = body || {};
   if (!publicToken || typeof publicToken !== 'string') throw new HttpError(400, 'publicToken required');
   const name = (typeof institution === 'string' ? institution : institution?.name) || '';
-  return exchangeAndStore(env, publicToken, name);
+  return exchangeAndStore(env, publicToken, name, ctx);
 }
 
 // Shared by /enroll and /sandbox/item: exchange the public token, verify accounts, store the encrypted Item.
-async function exchangeAndStore(env, publicToken, name) {
+// With per-Item sync on, the Item's sync object starts with no cursor and an initial pull is started in the background.
+async function exchangeAndStore(env, publicToken, name, ctx) {
   const x = await plaid(env, '/item/public_token/exchange', { public_token: publicToken });
   if (!x.ok || !x.body?.access_token || !x.body?.item_id) throw new HttpError(502, plaidMsg(x));
   const { access_token: token, item_id: id } = x.body;
   const ar = await plaid(env, '/accounts/get', { access_token: token });
   if (!ar.ok) { await plaid(env, '/item/remove', { access_token: token }); throw new HttpError(502, plaidMsg(ar)); } // don't store an unusable token
   await env.BT_KV.put(itemKey(id), JSON.stringify({ token: await encrypt(env, token), institution: name, cursor: null, enrolledAt: new Date().toISOString() }));
+  if (env.ITEM_SYNC) {
+    await itemSync(env, id, 'migrate', { kvCursor: null });
+    if (ctx?.waitUntil) ctx.waitUntil(itemSync(env, id, 'pull', { token, institution: name, kvCursor: null }).catch(() => console.error('enroll: initial pull failed')));
+  }
   const off = await getOff(env);
   return { id, institution: name, accounts: (ar.body.accounts || []).map((a) => shapeAccount(a, off)) };
 }
 
 // Sandbox only: mint a test Item without going through Link.
-async function sandboxItem(env, body) {
+async function sandboxItem(env, body, ctx) {
   if (env.PLAID_ENV !== 'sandbox') throw new HttpError(404, 'not found');
   const { institution_id, dynamic } = body || {};
   const req = { institution_id: (typeof institution_id === 'string' && institution_id) || 'ins_109508', initial_products: ['transactions'] };
   if (dynamic === true) req.options = { override_username: 'user_transactions_dynamic', override_password: 'pass_good' };
   const r = await plaid(env, '/sandbox/public_token/create', req);
   if (!r.ok || !r.body?.public_token) throw new HttpError(502, plaidMsg(r));
-  return exchangeAndStore(env, r.body.public_token, 'Sandbox bank');
+  return exchangeAndStore(env, r.body.public_token, 'Sandbox bank', ctx);
 }
 
 async function unpair(env) {
@@ -311,6 +322,384 @@ async function sync(env, since, full, ack, only) {
   }
   txns.sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0));
   return { txns, removed: [...removed], errors, syncToken: issued ? syncToken : null, syncedAt: new Date().toISOString(), balances };
+}
+
+// ---------- per-Item serialized sync (Durable Object) ----------
+// One ItemSync object per Plaid Item (idFromName(item_id)) is the only reader of that Item's /transactions/sync cursor.
+// Webhooks, the app's sync and the hourly cron all call its `pull`, which runs one at a time. Each pull appends what changed
+// to a change log (seq-numbered, transactions AES-GCM encrypted) and advances the cursor in the same storage transaction,
+// only after every page succeeded. The app reads the log after the seq it last acked and acks once it has saved the batch.
+// The object is reachable only through the ITEM_SYNC binding, never from the internet.
+const LOG = 'log:', IDX = 'idx:', SEQ_W = 12;
+const logKey = (s) => LOG + String(s).padStart(SEQ_W, '0');
+const chunks = (a, n = 128) => { const out = []; for (let i = 0; i < a.length; i += n) out.push(a.slice(i, i + n)); return out; };
+const MAX_LOOPS = 3;     // a pull asked for while one runs makes the run go once more, at most this many times in a row
+const errInfo = (r) => ({ code: r.code || null, status: r.status, message: plaidMsg(r), needsReconnect: needsReconnect(r) });
+
+export class ItemSync {
+  constructor(state, env) {
+    this.state = state; this.storage = state.storage; this.env = env;
+    this.running = null; this.dirty = false; this.next = null; this.lock = Promise.resolve();
+  }
+  // Storage reads and writes that must not interleave (commit, read, ack, migrate) run one at a time.
+  exclusive(fn) { const p = this.lock.then(fn); this.lock = p.catch(() => {}); return p; }
+
+  async fetch(req) {
+    try {
+      const op = new URL(req.url).pathname.replace(/^\/+/, '');
+      let b = {}; try { b = (await req.json()) || {}; } catch { /* empty body */ }
+      let out;
+      if (op === 'pull') out = await this.pull(b);
+      else if (op === 'read') { await this.migrate(b); out = await this.read(b); }
+      else if (op === 'ack') { await this.migrate(b); out = await this.ack(b); }
+      else if (op === 'migrate') out = await this.migrate(b);
+      else if (op === 'reset') out = await this.reset();
+      else if (op === 'info') out = await this.info();
+      else return json({ error: 'not found' }, 404);
+      return json(out);
+    } catch (e) {
+      console.error('itemsync: failed', e?.name);
+      return json({ error: 'internal error' }, 500);
+    }
+  }
+
+  // First contact after the cutover: adopt the Item's committed KV cursor so nothing is fetched twice or dropped.
+  // A brand-new Item passes null. Runs once; later calls are no-ops.
+  migrate({ kvCursor } = {}) {
+    return this.exclusive(async () => {
+      if (await this.storage.get('migrated')) return { adopted: false };
+      await this.storage.put({ cursor: typeof kvCursor === 'string' && kvCursor ? kvCursor : null, seq: (await this.storage.get('seq')) || 0, acked: 0, migrated: new Date().toISOString() });
+      return { adopted: true, cursor: !!kvCursor };
+    });
+  }
+
+  // Concurrent pulls share one run; a pull asked for while it runs (a webhook during a manual sync) makes it run once more
+  // from the new cursor, so nothing announced mid-run waits for the cron.
+  pull(b) {
+    this.dirty = true; this.next = b;
+    if (!this.running) this.start();
+    return this.running;
+  }
+  start() {
+    const run = this.loop().finally(() => {
+      if (this.running !== run) return;
+      this.running = null;
+      if (this.dirty) this.start().catch(() => {});   // asked for after the last loop: never dropped
+    });
+    this.running = run;
+    return run;
+  }
+  async loop() {
+    let last = null;
+    for (let i = 0; this.dirty && i < MAX_LOOPS; i++) { this.dirty = false; last = await this.pullOnce(this.next || {}); }
+    return last;
+  }
+
+  async pullOnce({ token, institution, kvCursor }) {
+    const env = this.env, at = new Date().toISOString();
+    if (typeof token !== 'string' || !token) return { ok: false, code: 'NO_TOKEN', message: 'unknown item' };
+    await this.migrate({ kvCursor });
+    const ar = await plaid(env, '/accounts/get', { access_token: token });
+    if (!ar.ok) return this.done(at, { ok: false, stage: 'accounts', ...errInfo(ar) });
+    const accounts = ar.body?.accounts || [];
+    const cursor = (await this.storage.get('cursor')) || null;
+    const res = await syncItem(env, token, cursor);
+    if (res.r) return this.done(at, { ok: false, stage: 'sync', quiet: res.r.code === 'PRODUCT_NOT_READY', ...errInfo(res.r) }, accounts);
+    // Normalize and encrypt before the transaction so it holds no I/O. All accounts are stored; on/off applies at read time.
+    const accts = new Map(accounts.map((a) => [a.account_id, a])), key = await aesKey(env), initial = !cursor;
+    const ups = new Map();
+    for (const t of [...res.added, ...res.modified]) {
+      if (t?.transaction_id) ups.set('pl:' + t.transaction_id, normalizeTxn(t, accts.get(t.account_id), institution || ''));
+    }
+    const changes = [];
+    for (const [id, n] of ups) changes.push({ kind: 'upsert', id, txn: await encryptWith(key, JSON.stringify(n)) });
+    for (const r of res.removed) if (r?.transaction_id) changes.push({ kind: 'remove', id: 'pl:' + r.transaction_id, txn: null });
+    const nextCursor = res.cursor || cursor;
+    const n = await this.exclusive(() => this.storage.transaction(async (tx) => {
+      if (((await tx.get('cursor')) || null) !== cursor) return -1;            // moved under us: drop this result, the next pull redoes it
+      if (!changes.length) { if (nextCursor !== cursor) await tx.put('cursor', nextCursor); return 0; }
+      let seq = (await tx.get('seq')) || 0;
+      // Dedupe: every id has at most one unacked row. A newer upsert or a remove replaces the earlier row for that id.
+      const idx = new Map();
+      for (const part of chunks([...new Set(changes.map((c) => IDX + c.id))])) for (const [k, v] of await tx.get(part)) idx.set(k.slice(IDX.length), v);
+      const puts = new Map(), dels = [];
+      for (const c of changes) {
+        const prev = idx.get(c.id);
+        if (prev) { if (puts.has(logKey(prev))) puts.delete(logKey(prev)); else dels.push(logKey(prev)); }
+        seq++;
+        puts.set(logKey(seq), { seq, kind: c.kind, id: c.id, txn: c.txn, initial, at });
+        idx.set(c.id, seq); puts.set(IDX + c.id, seq);
+      }
+      for (const part of chunks(dels)) await tx.delete(part);
+      for (const part of chunks([...puts])) await tx.put(Object.fromEntries(part));
+      await tx.put({ cursor: nextCursor, seq });
+      return changes.length;
+    }));
+    if (n < 0) return this.done(at, { ok: false, stage: 'commit', code: 'CURSOR_MOVED', message: 'sync raced, try again' }, accounts);
+    return this.done(at, { ok: true, changes: n, upserts: ups.size, removes: changes.length - ups.size }, accounts);
+  }
+  // Records the outcome (never transaction data) and hands the raw accounts back so /sync can report balances without asking Plaid twice.
+  async done(at, result, accounts) {
+    const { message, ...rest } = result;
+    await this.storage.put('lastPull', { at, ...rest });
+    return { ...result, at, ...(accounts ? { accounts } : {}) };
+  }
+
+  // Changes after `afterSeq` (decrypted) and the seq they run up to, read in one pass so a pull landing meanwhile cannot slip
+  // a row under a seq the app then acks without having seen it.
+  read({ afterSeq } = {}) {
+    return this.exclusive(async () => {
+      const seq = (await this.storage.get('seq')) || 0;
+      const after = Number.isInteger(afterSeq) && afterSeq > 0 && afterSeq <= seq ? afterSeq : 0;   // larger than seq: the log was reset
+      const rows = await this.storage.list({ prefix: LOG, start: logKey(after + 1) });
+      const key = rows.size ? await aesKey(this.env) : null, changes = [];
+      for (const r of rows.values()) changes.push({ seq: r.seq, kind: r.kind, id: r.id, initial: !!r.initial, at: r.at, ...(r.kind === 'upsert' ? { txn: JSON.parse(await decryptWith(key, r.txn)) } : {}) });
+      return { seq, acked: (await this.storage.get('acked')) || 0, changes, lastPull: (await this.storage.get('lastPull')) || null };
+    });
+  }
+
+  // The app saved everything up to `seq`: drop those rows (and their dedupe index entries).
+  ack({ seq: s } = {}) {
+    return this.exclusive(async () => {
+      const seq = (await this.storage.get('seq')) || 0, acked = (await this.storage.get('acked')) || 0;
+      if (!Number.isInteger(s) || s <= acked) return { acked, seq };
+      const upto = Math.min(s, seq);
+      const rows = [...(await this.storage.list({ prefix: LOG, end: logKey(upto + 1) })).entries()];
+      const idxKeys = rows.map(([, r]) => IDX + r.id), idx = new Map();
+      for (const part of chunks([...new Set(idxKeys)])) for (const [k, v] of await this.storage.get(part)) idx.set(k, v);
+      await this.storage.transaction(async (tx) => {
+        const dels = rows.map(([k]) => k).concat(rows.filter(([, r]) => idx.get(IDX + r.id) === r.seq).map(([, r]) => IDX + r.id));
+        for (const part of chunks(dels)) await tx.delete(part);
+        await tx.put('acked', Math.max(acked, upto));
+      });
+      return { acked: Math.max(acked, upto), seq, pruned: rows.length };
+    });
+  }
+
+  reset() { return this.exclusive(async () => { await this.storage.deleteAll(); return { ok: true }; }); }
+
+  async info() {
+    const g = await this.storage.get(['cursor', 'seq', 'acked', 'migrated', 'lastPull']);
+    return { hasCursor: !!g.get('cursor'), seq: g.get('seq') || 0, acked: g.get('acked') || 0, migrated: g.get('migrated') || null, lastPull: g.get('lastPull') || null };
+  }
+}
+
+// Worker side: call an Item's sync object. Only the access token and the legacy KV cursor travel to it; it keeps neither key nor token.
+async function itemSync(env, itemId, op, body = {}) {
+  const stub = env.ITEM_SYNC.get(env.ITEM_SYNC.idFromName(itemId));
+  const r = await stub.fetch('https://item-sync/' + op, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  let out = null; try { out = await r.json(); } catch { /* not JSON */ }
+  if (!r.ok || !out) throw new Error('item sync ' + op + ' failed');
+  return out;
+}
+const pullBody = (it) => ({ token: it.token, institution: it.institution, kvCursor: it.cursor });
+const pullItem = (env, it) => itemSync(env, it.id, 'pull', pullBody(it));
+
+// `acks=<itemId>:<seq>,...` from the app. Bad entries are ignored.
+function parseAcks(s) {
+  const out = {};
+  for (const part of String(s || '').split(',')) {
+    const m = /^([\w-]{1,128}):(\d{1,15})$/.exec(part.trim());
+    if (m) out[m[1]] = Math.max(out[m[1]] || 0, Number(m[2]));
+  }
+  return out;
+}
+const SYNCTOK_TTL = 2 * 86400;
+
+// GET /sync with per-Item sync objects. New clients send `acks` (possibly empty) and get `cursors` back: per Item, the seq
+// to ack once the batch is saved. Older cached apps send `ack=<syncToken>`: the token maps (KV, 2 days) to the seqs it covered.
+async function syncDO(env, q) {
+  const { since, full, only } = q;
+  if (since && !/^\d{4}-\d{2}-\d{2}$/.test(since)) throw new HttpError(400, 'since must be YYYY-MM-DD');
+  const legacy = q.acks === null;
+  const off = await getOff(env), items = await loadItems(env);
+  if (only && !items.some((x) => x.id === only)) throw new HttpError(404, 'unknown item');
+  const want = parseAcks(q.acks);
+  if (q.ack && /^[0-9a-f]{32}$/.test(q.ack)) {
+    let m = null; try { m = JSON.parse((await env.BT_KV.get('synctok:' + q.ack)) || 'null'); } catch { /* corrupt */ }
+    for (const [k, v] of Object.entries(m || {})) if (Number.isInteger(v)) want[k] = Math.max(want[k] || 0, v);
+  }
+  // Acks apply to every Item they name, even on a one-bank sync, so a skipped bank never loses its ack.
+  // A failed ack only means those rows come again (the read below still starts after the app's ack).
+  await Promise.all(items.filter((it) => want[it.id] > 0).map((it) => itemSync(env, it.id, 'ack', { seq: want[it.id], kvCursor: it.cursor }).catch(() => console.error('sync: ack failed'))));
+  const scope = items.filter((it) => !only || it.id === only);
+  if (full) return fullSync(env, scope, since, off, want);
+  const txns = [], removed = new Set(), errors = [], balances = [], cursors = {};
+  let delivered = false;
+  const runs = await Promise.all(scope.map(async (it) => {
+    let pull, rd = null;
+    try { pull = await pullItem(env, it); } catch { pull = { ok: false, message: 'sync failed' }; }
+    try { rd = await itemSync(env, it.id, 'read', { afterSeq: want[it.id] || 0, kvCursor: it.cursor }); } catch { /* reported below */ }
+    return { it, pull: pull || { ok: false, message: 'sync failed' }, rd };
+  }));
+  for (const { it, pull, rd } of runs) {
+    const err = (message, needsRe) => errors.push({ enrollmentId: it.id, institution: it.institution, message, needsReconnect: !!needsRe });
+    if (pull.accounts) balances.push(balanceItem(it, pull.accounts, off));
+    else balances.push({ itemId: it.id, institution: it.institution, accounts: [], needsReconnect: !!pull.needsReconnect });
+    if (!pull.ok && !pull.quiet) err(pull.message || 'sync failed', pull.needsReconnect);
+    if (!rd) { if (pull.ok || pull.quiet) err('could not read stored changes'); continue; }
+    // Changes already stored (from a webhook or the cron) are delivered even when this pull failed.
+    let newest = '';
+    for (const c of rd.changes) {
+      if (c.kind === 'remove') { removed.add(c.id); continue; }
+      const t = c.txn; if (!t) continue;
+      // `since` only trims the first (cursor-less) pull; deltas from a cursor always pass (a late pending charge can be older).
+      if (off.has(t.account?.id, t.account?.type) || (since && c.initial && t.date < since)) continue;
+      txns.push(t); if (t.date > newest) newest = t.date;
+    }
+    if (newest) await noteNewest(env, it.id, newest);
+    cursors[it.id] = rd.seq;
+    if (rd.changes.length) delivered = true;
+  }
+  txns.sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0));
+  let syncToken = null;
+  if (legacy && delivered) {
+    syncToken = randomToken();
+    await env.BT_KV.put('synctok:' + syncToken, JSON.stringify(cursors), { expirationTtl: SYNCTOK_TTL });
+  }
+  return { txns, removed: [...removed], errors, cursors, syncToken, syncedAt: new Date().toISOString(), balances };
+}
+
+// full=1: a cursor-less /transactions/sync into a throwaway result. It never touches any cursor or the change log, and
+// hands back the incoming acks unchanged so logged changes (removals included) still arrive on the next normal sync.
+async function fullSync(env, scope, since, off, want) {
+  const txns = [], errors = [], balances = [], cursors = {};
+  for (const it of scope) {
+    if (want[it.id] > 0) cursors[it.id] = want[it.id];
+    const err = (r) => errors.push({ enrollmentId: it.id, institution: it.institution, message: plaidMsg(r), needsReconnect: needsReconnect(r) });
+    const ar = await plaid(env, '/accounts/get', { access_token: it.token });
+    if (!ar.ok) { err(ar); balances.push({ itemId: it.id, institution: it.institution, accounts: [], needsReconnect: needsReconnect(ar) }); continue; }
+    balances.push(balanceItem(it, ar.body.accounts || [], off));
+    const accts = new Map((ar.body.accounts || []).map((a) => [a.account_id, a]));
+    const res = await syncItem(env, it.token, null);
+    if (res.r) { if (res.r.code !== 'PRODUCT_NOT_READY') err(res.r); continue; }
+    const removedIds = new Set(res.removed.map((r) => r?.transaction_id).filter(Boolean));
+    for (const t of [...res.added, ...res.modified]) {
+      if (removedIds.has(t.transaction_id) || off.has(t.account_id, accts.get(t.account_id)?.type) || (since && (t.authorized_date || t.date) < since)) continue;
+      txns.push(normalizeTxn(t, accts.get(t.account_id), it.institution));
+    }
+  }
+  txns.sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0));
+  return { txns, removed: [], errors, cursors, syncToken: null, syncedAt: new Date().toISOString(), balances, full: true };
+}
+
+// Hourly catch-up: pull every Item so a missed webhook costs at most an hour. Errors stay in each object's lastPull.
+async function pullAll(env) {
+  if (!env.ITEM_SYNC) return { skipped: true };
+  const items = await loadItems(env);
+  const out = await Promise.all(items.map((it) => pullItem(env, it).then((r) => !!r?.ok, () => { console.error('cron: item pull failed'); return false; })));
+  return { items: items.length, ok: out.filter(Boolean).length };
+}
+
+// ---------- Plaid webhooks ----------
+// POST /plaid/webhook is public. Each request must carry a Plaid-Verification JWT (ES256) signed by a key Plaid publishes
+// through /webhook_verification_key/get, issued within the last 5 minutes, whose request_body_sha256 matches the raw body.
+// Anything else is a 401 and does nothing. Verified webhooks always get a 200 (Plaid retries non-200s); a failed pull is
+// caught up by the next webhook, sync or cron run.
+const WEBHOOK_MAX = 64 * 1024;
+const WVK_TTL = 86400;
+const PULL_CODES = new Set(['SYNC_UPDATES_AVAILABLE', 'DEFAULT_UPDATE', 'INITIAL_UPDATE', 'HISTORICAL_UPDATE', 'TRANSACTIONS_REMOVED']);
+const ITEM_CODES = new Set(['ERROR', 'PENDING_EXPIRATION', 'PENDING_DISCONNECT', 'USER_PERMISSION_REVOKED', 'LOGIN_REPAIRED', 'WEBHOOK_UPDATE_ACKNOWLEDGED']);
+const unb64url = (s) => { if (!/^[\w-]*$/.test(s)) throw new Error('bad base64url'); s = s.replace(/-/g, '+').replace(/_/g, '/'); return unb64(s + '='.repeat((4 - (s.length % 4)) % 4)); };
+const jwtJson = (s) => JSON.parse(dec.decode(unb64url(s)));
+const missingKids = new Map();     // per isolate: kids Plaid said it does not know (no KV write for junk from the internet)
+
+async function webhookKey(env, kid) {
+  const k = 'wvk:' + kid;
+  let key = null;
+  try { key = JSON.parse((await env.BT_KV.get(k)) || 'null'); } catch { /* corrupt: refetch */ }
+  if (key) return key;
+  if ((missingKids.get(kid) || 0) > Date.now()) return null;
+  const r = await plaid(env, '/webhook_verification_key/get', { key_id: kid });
+  if (!r.ok || !r.body?.key) {
+    if (r.status >= 400 && r.status < 500) { if (missingKids.size > 500) missingKids.clear(); missingKids.set(kid, Date.now() + 5 * 60000); }
+    return null;
+  }
+  key = r.body.key;
+  if (key.expired_at == null) await env.BT_KV.put(k, JSON.stringify(key), { expirationTtl: WVK_TTL });
+  return key;
+}
+
+// Returns null when the request is genuine, else a short reason (logged; never the body or the token).
+export async function verifyWebhook(env, jwt, raw, now = Date.now()) {
+  const parts = String(jwt || '').split('.');
+  if (parts.length !== 3 || parts.some((p) => !p)) return 'malformed token';
+  let head, claims;
+  try { head = jwtJson(parts[0]); claims = jwtJson(parts[1]); } catch { return 'malformed token'; }
+  if (!head || head.alg !== 'ES256') return 'bad alg';
+  if (typeof head.kid !== 'string' || !/^[\w-]{1,128}$/.test(head.kid)) return 'bad kid';
+  if (!claims || typeof claims.iat !== 'number') return 'no iat';
+  const age = now / 1000 - claims.iat;
+  if (age > 300 || age < -60) return 'stale';
+  const key = await webhookKey(env, head.kid);
+  if (!key) return 'unknown key';
+  if (key.expired_at != null) return 'expired key';
+  if (key.kty !== 'EC' || key.crv !== 'P-256' || typeof key.x !== 'string' || typeof key.y !== 'string') return 'bad key';
+  let sig;
+  try { sig = unb64url(parts[2]); } catch { return 'bad signature'; }
+  if (sig.length !== 64) return 'bad signature';                           // JOSE ES256 is raw r||s, which is what WebCrypto verifies
+  const pub = await crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: key.x, y: key.y }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+  if (!(await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pub, sig, enc.encode(parts[0] + '.' + parts[1])))) return 'bad signature';
+  const want = hex(new Uint8Array(await crypto.subtle.digest('SHA-256', raw)));
+  if (typeof claims.request_body_sha256 !== 'string' || !safeEqual(enc.encode(want), enc.encode(claims.request_body_sha256.toLowerCase()))) return 'body mismatch';
+  return null;
+}
+
+async function plaidWebhook(env, req, ctx) {
+  if (Number(req.headers.get('Content-Length') || 0) > WEBHOOK_MAX) return json({ error: 'too large' }, 413);
+  const raw = new Uint8Array(await req.arrayBuffer());
+  if (raw.length > WEBHOOK_MAX) return json({ error: 'too large' }, 413);
+  let why;
+  try { why = await verifyWebhook(env, req.headers.get('Plaid-Verification'), raw); } catch { why = 'verify error'; }
+  if (why) { console.log('webhook: rejected,', why); return json({ error: 'unauthorized' }, 401); }
+  // Verified from here on: always 200, so Plaid does not retry; anything missed is caught up by the next sync or the cron.
+  try { return await handleWebhook(env, raw, ctx); } catch (e) { console.error('webhook: processing failed', e?.name); return json({ ok: true }); }
+}
+async function handleWebhook(env, raw, ctx) {
+  let b = null;
+  try { b = JSON.parse(dec.decode(raw)); } catch { /* verified but not JSON: nothing to do */ }
+  if (!b || typeof b !== 'object') return json({ ok: true, ignored: 'unreadable' });
+  const type = String(b.webhook_type || ''), code = String(b.webhook_code || ''), id = typeof b.item_id === 'string' ? b.item_id : '';
+  if (b.environment && String(b.environment) !== plaidEnv(env)) return json({ ok: true, ignored: 'environment' });
+  const item = /^[\w-]{1,128}$/.test(id) ? await loadItem(env, id) : null;
+  if (!item) { console.log('webhook: unknown item', type, code); return json({ ok: true, ignored: 'unknown item' }); }
+  const at = new Date().toISOString();
+  await env.BT_KV.put('hookat:' + id, JSON.stringify({ type, code, at }));
+  if (type === 'TRANSACTIONS' && PULL_CODES.has(code)) {
+    if (env.ITEM_SYNC) {
+      const p = pullItem(env, item).catch(() => console.error('webhook: pull failed'));
+      if (ctx?.waitUntil) ctx.waitUntil(p); else await p;
+    }
+    return json({ ok: true, pull: !!env.ITEM_SYNC });
+  }
+  if (type === 'ITEM' && ITEM_CODES.has(code)) {
+    const k = 'itemhook:' + id;
+    if (code === 'LOGIN_REPAIRED') await env.BT_KV.delete(k);
+    else {
+      let prev = null; try { prev = JSON.parse((await env.BT_KV.get(k)) || 'null'); } catch { /* corrupt */ }
+      // A webhook-URL acknowledgement never hides an open problem.
+      if (!(code === 'WEBHOOK_UPDATE_ACKNOWLEDGED' && prev && prev.code !== 'WEBHOOK_UPDATE_ACKNOWLEDGED')) {
+        const e = b.error && typeof b.error === 'object' ? { code: String(b.error.error_code || ''), message: String(b.error.error_message || b.error.display_message || '').slice(0, 300) } : null;
+        await env.BT_KV.put(k, JSON.stringify({ code, error: e, at, ...(b.consent_expiration_time ? { consentExpiration: String(b.consent_expiration_time) } : {}) }));
+      }
+    }
+    return json({ ok: true });
+  }
+  return json({ ok: true, ignored: 'code' });
+}
+
+// POST /webhook/configure: point every Item at PLAID_WEBHOOK_URL (Plaid /item/webhook/update).
+async function configureWebhooks(env) {
+  const url = env.PLAID_WEBHOOK_URL;
+  if (!url) throw new HttpError(400, 'the bank service has no webhook address set (PLAID_WEBHOOK_URL)');
+  const results = [], at = new Date().toISOString();
+  for (const it of await loadItems(env)) {
+    const r = await plaid(env, '/item/webhook/update', { access_token: it.token, webhook: url });
+    results.push(r.ok ? { itemId: it.id, institution: it.institution, ok: true }
+      : { itemId: it.id, institution: it.institution, ok: false, reason: whyNot(r, 'Webhooks'), code: r.code || null, needsReconnect: needsReconnect(r) });
+  }
+  await env.BT_KV.put('webhook:configured', JSON.stringify({ at, items: Object.fromEntries(results.map((x) => [x.itemId, { ok: x.ok, code: x.code || null, at }])) }));
+  return { ok: results.length > 0 && results.every((x) => x.ok), configured: results.filter((x) => x.ok).length, results, at };
 }
 
 // Live balances for every Item, disabled accounts included (flagged enabled: false).
@@ -402,10 +791,11 @@ async function noteNewest(env, id, date) {
 // plus what we learned about on-demand refresh and real-time balances (cached, never probed here).
 async function status(env) {
   const readJ = async (k) => { try { return JSON.parse((await env.BT_KV.get(k)) || 'null'); } catch { return null; } };
-  const rs = await readJ('refresh:supported'), bs = await readJ('balance:supported'), items = [];
+  const rs = await readJ('refresh:supported'), bs = await readJ('balance:supported'), wc = await readJ('webhook:configured'), items = [];
   for (const it of await loadItems(env)) {
-    const st = await readJ('stats:' + it.id);
-    const base = { itemId: it.id, institution: it.institution, refresh: rs?.items?.[it.id] || null, balance: bs?.items?.[it.id] || null, ...(st?.newest ? { newestTxn: st.newest } : {}) };
+    const st = await readJ('stats:' + it.id), hook = await readJ('hookat:' + it.id), ev = await readJ('itemhook:' + it.id);
+    const base = { itemId: it.id, institution: it.institution, refresh: rs?.items?.[it.id] || null, balance: bs?.items?.[it.id] || null, ...(st?.newest ? { newestTxn: st.newest } : {}),
+      lastWebhook: hook || null, itemEvent: ev || null };
     const r = await plaid(env, '/item/get', { access_token: it.token });
     if (!r.ok) { items.push({ ...base, error: { code: r.code || null, message: plaidMsg(r) }, needsReconnect: needsReconnect(r), statusUnavailable: true }); continue; }
     const item = r.body?.item || {};
@@ -418,9 +808,12 @@ async function status(env) {
       error: e, needsReconnect: !!(e && RECONNECT.has(e.code)),
       products: item.products || [], billedProducts: item.billed_products || [], availableProducts: item.available_products || [],
       consentExpiration: item.consent_expiration_time || null, webhook: item.webhook || null,
+      // Instant updates are on when Plaid has this Worker's webhook address for the Item.
+      instant: !!(env.PLAID_WEBHOOK_URL && item.webhook && item.webhook === env.PLAID_WEBHOOK_URL),
     });
   }
-  return { items, refresh: rs ? { supported: rs.supported, reason: rs.reason, at: rs.at } : null, balance: bs ? { supported: bs.supported, reason: bs.reason, at: bs.at } : null, env: plaidEnv(env), at: new Date().toISOString() };
+  return { items, refresh: rs ? { supported: rs.supported, reason: rs.reason, at: rs.at } : null, balance: bs ? { supported: bs.supported, reason: bs.reason, at: bs.at } : null,
+    webhook: { available: !!env.PLAID_WEBHOOK_URL, configuredAt: wc?.at || null }, env: plaidEnv(env), at: new Date().toISOString() };
 }
 
 async function toggle(env, accountId, body) {
@@ -437,6 +830,9 @@ async function disconnect(env, id) {
   if (!item) throw new HttpError(404, 'unknown item');
   await plaid(env, '/item/remove', { access_token: item.token }); // best effort: a dead Item may already be gone
   await env.BT_KV.delete(itemKey(id));
+  // Drop the Item's change log (encrypted transactions) and its webhook notes.
+  if (env.ITEM_SYNC) await itemSync(env, id, 'reset').catch(() => console.error('disconnect: reset failed'));
+  await env.BT_KV.delete('hookat:' + id); await env.BT_KV.delete('itemhook:' + id);
   return { removed: id };
 }
 
@@ -723,13 +1119,21 @@ async function alertsTest(env) {
 
 // ---------- entry point ----------
 export default {
+  // Hourly: catch every Item up (in case a webhook was missed), then the alerts pass. One promise, one waitUntil.
   async scheduled(event, env, ctx) {
-    const run = runAlerts(env, new Date(event?.scheduledTime || Date.now())).catch((e) => console.error('alerts: run failed', e?.name));
+    const run = (async () => {
+      await pullAll(env).catch((e) => console.error('cron: pulls failed', e?.name));
+      return runAlerts(env, new Date(event?.scheduledTime || Date.now()));
+    })().catch((e) => console.error('alerts: run failed', e?.name));
     if (ctx?.waitUntil) ctx.waitUntil(run);
     return run;
   },
 
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
+    // Plaid's webhook: public, no CORS, no device key; authenticated by its signature instead.
+    if (req.method === 'POST' && new URL(req.url).pathname === '/plaid/webhook') {
+      try { return await plaidWebhook(env, req, ctx); } catch (e) { console.error('webhook: failed', e?.name); return json({ error: 'internal error' }, 500); }
+    }
     const cors = corsHeaders(env, req);
     try {
       if (req.method === 'OPTIONS') {
@@ -745,15 +1149,20 @@ export default {
         await requireAuth(env, req);
         let mt;
         if (m === 'GET' && path === '/link-token') out = await linkToken(env, url.searchParams.get('item'));
-        else if (m === 'POST' && path === '/enroll') out = await enroll(env, await readJson(req));
+        else if (m === 'POST' && path === '/enroll') out = await enroll(env, await readJson(req), ctx);
         else if (m === 'DELETE' && path === '/pair') out = await unpair(env);
-        else if (m === 'POST' && path === '/sandbox/item') out = env.PLAID_ENV === 'sandbox' ? await sandboxItem(env, await readJsonOpt(req)) : (() => { throw new HttpError(404, 'not found'); })();
+        else if (m === 'POST' && path === '/sandbox/item') out = env.PLAID_ENV === 'sandbox' ? await sandboxItem(env, await readJsonOpt(req), ctx) : (() => { throw new HttpError(404, 'not found'); })();
+        else if (m === 'POST' && path === '/webhook/configure') out = await configureWebhooks(env);
         else if (m === 'GET' && path === '/accounts') out = await accounts(env);
         else if (m === 'GET' && path === '/balances') out = await getBalances(env);
         else if (m === 'GET' && path === '/status') out = await status(env);
         else if (m === 'POST' && path === '/balances/refresh') out = await balancesRefresh(env);
         else if (m === 'POST' && path === '/refresh') out = await refresh(env, url.searchParams.get('item') || '');
-        else if (m === 'GET' && path === '/sync') out = await sync(env, url.searchParams.get('since'), url.searchParams.get('full') === '1', url.searchParams.get('ack') || '', url.searchParams.get('item') || '');
+        else if (m === 'GET' && path === '/sync') {
+          const sp = url.searchParams, since = sp.get('since'), full = sp.get('full') === '1', ack = sp.get('ack') || '', only = sp.get('item') || '';
+          // Per-Item sync objects when bound; the KV two-phase cursor path stays only for setups without the binding (tests, rollback).
+          out = env.ITEM_SYNC ? await syncDO(env, { since, full, ack, only, acks: sp.has('acks') ? sp.get('acks') : null }) : await sync(env, since, full, ack, only);
+        }
         else if (m === 'POST' && (mt = /^\/accounts\/([\w-]+)\/toggle$/.exec(path))) out = await toggle(env, mt[1], await readJson(req));
         else if (m === 'DELETE' && (mt = /^\/enroll\/([\w-]+)$/.exec(path))) out = await disconnect(env, mt[1]);
         else if (m === 'POST' && path === '/snapshot') out = await putSnapshot(env, req);

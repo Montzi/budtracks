@@ -53,6 +53,11 @@ jobs:
           fi
           # The hourly alerts cron must survive into the deployed config.
           grep -q '^crons = \["0 \* \* \* \*"\]' wrangler.toml || { echo "cron trigger missing from wrangler.toml"; exit 1; }
+          # The per-Item sync Durable Object (binding + SQLite migration) and the public webhook address must be deployed too.
+          grep -q '^\[\[durable_objects.bindings\]\]' wrangler.toml && grep -q '^name = "ITEM_SYNC"' wrangler.toml && grep -q '^class_name = "ItemSync"' wrangler.toml \
+            || { echo "ITEM_SYNC Durable Object binding missing from wrangler.toml"; exit 1; }
+          grep -q '^tag = "v1"' wrangler.toml && grep -q '^new_sqlite_classes = \["ItemSync"\]' wrangler.toml || { echo "ItemSync migration missing from wrangler.toml"; exit 1; }
+          grep -q '^PLAID_WEBHOOK_URL = "https://budtracks-worker.atsdsc27.workers.dev/plaid/webhook"' wrangler.toml || { echo "PLAID_WEBHOOK_URL missing from wrangler.toml"; exit 1; }
 
       - name: Deploy
         run: npx wrangler deploy

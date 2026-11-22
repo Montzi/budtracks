@@ -185,7 +185,7 @@ const prepared = async (w, h, extraBank) => {
   await step('auto-sync on load runs once and applies sure matches', async () => {
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
     const sc = calls.filter(c => c.p === '/sync'); assert.equal(sc.length, 1);
-    assert.equal(sc[0].q, '?since=2026-10-01'); assert.equal(sc[0].auth, 'Bearer secret-device-key-123');
+    assert.equal(sc[0].q, '?since=2026-10-01&acks='); assert.equal(sc[0].auth, 'Bearer secret-device-key-123');
     const s = await getState(page);
     const k = 'p:k1:3'; // third payment on Nov 20
     assert.ok(Object.values(s.bank.seen).filter(r => r.auto).length === 3, 'three auto-applied: ' + JSON.stringify(Object.keys(s.bank.seen)));
@@ -206,7 +206,7 @@ const prepared = async (w, h, extraBank) => {
     await page.waitForFunction(() => document.querySelector('[data-action="bk-sync"]') && !document.querySelector('[data-action="bk-sync"]').disabled);
     const sc = calls.filter(c => c.p === '/sync'); assert.equal(sc.length, 2);
     const d5 = new Date(Date.now() - 5 * 864e5), exp = d5.getFullYear() + '-' + String(d5.getMonth() + 1).padStart(2, '0') + '-' + String(d5.getDate()).padStart(2, '0');
-    assert.equal(sc[1].q, '?since=' + exp + '&ack=tok-1', 'acks the first response token');
+    assert.equal(sc[1].q, '?since=' + exp + '&acks=&ack=tok-1', 'acks the first response token (a Worker without per-bank cursors)');
     const s = await getState(page);
     assert.equal(s.bank.inbox.length, 4); assert.equal(Object.keys(s.bank.seen).length, 3);
   });

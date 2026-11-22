@@ -6,16 +6,28 @@ compatibility_date = "2025-01-01"
 PLAID_ENV = "sandbox"                  # sandbox | production (CI overrides from the PLAID_ENV repo variable)
 ALLOWED_ORIGIN = "https://montzi.github.io"
 # PLAID_REDIRECT_URI = "https://montzi.github.io/budtracks/"   # needed for OAuth banks in production (CI sets it)
+# Where Plaid sends Transactions/Item webhooks (public; requests are verified by their Plaid-Verification signature).
+PLAID_WEBHOOK_URL = "https://budtracks-worker.atsdsc27.workers.dev/plaid/webhook"
 
 [[kv_namespaces]]
 binding = "BT_KV"
 id = "REPLACE_WITH_KV_NAMESPACE_ID"    # `wrangler kv namespace create budtracks-kv` prints this
+
+# One serialized sync object per Plaid Item: the only reader of its /transactions/sync cursor (see README).
+[[durable_objects.bindings]]
+name = "ITEM_SYNC"
+class_name = "ItemSync"
+
+# Never edit or reuse this tag; add a new [[migrations]] block for future Durable Object changes.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ItemSync"]
 
 # Secrets (not stored here):
 #   PLAID_CLIENT_ID, PLAID_SECRET   from dashboard.plaid.com (Developers > Keys)
 #   ENC_KEY = base64 of 32 random bytes:  openssl rand -base64 32 | wrangler secret put ENC_KEY
 #   RESEND_API_KEY, ALERT_EMAIL     optional: email alerts via Resend (CI sets them from repo secrets when present)
 
-# Hourly alerts and the 7am New York recap (the handler checks the local hour itself).
+# Hourly: catch-up pull for every Item, alerts and the 7am New York recap (the handler checks the local hour itself).
 [triggers]
 crons = ["0 * * * *"]

@@ -20,10 +20,11 @@ export const cardTxns = [
 
 const PLAID_ERR = (code, type = 'ITEM_ERROR', message = code) => ({ error_type: type, error_code: code, error_message: message });
 
-// Mock Plaid. tokens[access_token] = { item_id, accounts, batches, error, itemError, mutateOnce }
+// Mock Plaid. tokens[access_token] = { item_id, accounts, batches, error, itemError, mutateOnce, failAtPage, webhookError }
+// keys[kid] = public JWK served by /webhook_verification_key/get (unknown kid -> 400 like Plaid).
 // `batches` is a list of sync batches; each batch is a list of pages { added, modified, removed }.
 // A cursor of null starts at batch 0; the cursor returned after batch i is "b<i+1>"; mid-batch cursors are "p<i>.<j>".
-export function mockPlaid({ tokens } = {}) {
+export function mockPlaid({ tokens, keys = {} } = {}) {
   tokens ||= { tok_good: { item_id: 'item_1', accounts: [checking, card], batches: [[{ added: [...checkingTxns, ...cardTxns], modified: [], removed: [] }]] } };
   const calls = [];
   const fn = async (url, init = {}) => {
@@ -43,9 +44,16 @@ export function mockPlaid({ tokens } = {}) {
       if (body.access_token && !tokens[body.access_token]) return R(400, PLAID_ERR('INVALID_ACCESS_TOKEN', 'INVALID_INPUT'));
       return R(200, { link_token: body.access_token ? 'link-update-token' : 'link-new-token', expiration: 'x' });
     }
+    if (u.pathname === '/webhook_verification_key/get') {
+      return keys[body.key_id] ? R(200, { key: keys[body.key_id], request_id: 'k' }) : R(400, PLAID_ERR('INVALID_WEBHOOK_VERIFICATION_KEY_ID', 'INVALID_INPUT'));
+    }
     const t = tokens[body.access_token];
     if (!t) return R(400, PLAID_ERR('INVALID_ACCESS_TOKEN', 'INVALID_INPUT'));
     if (u.pathname === '/item/remove') return R(200, { removed: true });
+    if (u.pathname === '/item/webhook/update') {
+      if (t.webhookError) return R(400, PLAID_ERR(t.webhookError));
+      t.webhook = body.webhook; return R(200, { item: { item_id: t.item_id, webhook: body.webhook } });
+    }
     if (t.error) return R(400, PLAID_ERR(t.error));
     if (u.pathname === '/accounts/get') return R(200, { accounts: t.accounts, item: { institution_id: 'ins_1', error: t.itemError || null } });
     if (u.pathname === '/item/get') {
@@ -61,6 +69,7 @@ export function mockPlaid({ tokens } = {}) {
       return R(200, { request_id: 'r1' });
     }
     if (u.pathname === '/transactions/sync') {
+      if (t.syncError) return R(400, PLAID_ERR(t.syncError));
       const empty = { added: [], modified: [], removed: [] };
       let b = 0, p = 0, m;
       if (body.cursor && (m = /^b(\d+)$/.exec(body.cursor))) b = +m[1];

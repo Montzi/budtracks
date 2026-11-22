@@ -2145,6 +2145,8 @@ function normalize(s) {
   if (!o.bank.links || typeof o.bank.links !== 'object') o.bank.links = {};
   if (o.bank.lastSync === undefined) o.bank.lastSync = null;
   if (typeof o.bank.syncToken !== 'string') o.bank.syncToken = null;
+  // Per bank: the last change-log seq this phone saved (sent back as acks). Replaces syncToken with the per-bank sync service.
+  if (!o.bank.cursors || typeof o.bank.cursors !== 'object' || Array.isArray(o.bank.cursors)) o.bank.cursors = {};
   if (!Array.isArray(o.bank.inbox)) o.bank.inbox = [];
   // Only transactions from autoFrom on go through the automatic pipeline. historyFrom..autoFrom are listed to add by hand.
   const isoD = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
@@ -4130,6 +4132,7 @@ function bankCard() {
   return `<section class="card" id="bankcard">${head}<div class="card-b bk">${list}
     <div class="bk-btns"><button class="btn primary" data-action="bk-connect"${BANKUI.busy ? ' disabled' : ''}>Connect a bank</button>${n ? `<button class="btn" data-action="tx-review">Review ${n} new</button>` : ''}<button class="btn" data-action="ix-open">Recently synced</button><button class="btn" data-action="hx-open">Earlier transactions · ${hn}</button></div>
     <label class="bk-auto"><span>Automatic from ${esc(md(b.autoFrom))}</span><input type="date" id="bk-autofrom" value="${esc(b.autoFrom)}" aria-label="Automatic from date"></label>
+    ${hooksNeeded() ? `<div class="bk-alerts bk-hooks"><div class="main"><div class="nm">Instant updates</div><div class="sub">Plaid tells BudTracks as soon as a bank has new transactions</div></div><button class="btn sm" data-action="bk-hooks"${BANKUI.hooksBusy ? ' disabled aria-busy="true"' : ''}>${BANKUI.hooksBusy ? 'Turning on…' : 'Turn on instant updates'}</button></div>` : ''}
     <div class="bk-alerts"><div class="main"><div class="nm">Email alerts</div><div class="sub">A morning recap of this ${VIEWNAME[state.settings.view]} and what is due soon</div></div><button class="btn sm" data-action="alerts-test">Send test email</button></div>
     <p class="bk-err" role="alert">${esc(BANKUI.err)}</p>
     <p class="note" style="margin:0">From the automatic date on, matching bills, paychecks and Klarna, Afterpay and PayPal payments are applied for you, and anything unsure waits in your review list. Earlier ones are yours to add by hand. <button class="linkbtn" style="color:var(--ink-3)" data-action="bk-forget">Remove pairing from this phone</button></p></div></section>`;
@@ -4140,6 +4143,26 @@ function plaidLine(id) {
   const err = st.error && st.error.code ? `<span class="pill soft warn" title="${esc(st.error.message || '')}">Plaid error · ${esc(st.error.code)}</span>` : '';
   const last = st.lastSuccessfulUpdate ? 'Plaid last got new data: ' + plaidTime(st.lastSuccessfulUpdate) : st.statusUnavailable ? 'Plaid could not report on this bank' : 'Plaid has not got data from this bank yet';
   return `<p class="bk-plaid"><span>${esc(last)}</span>${err}</p>`;
+}
+// "Turn on instant updates" shows only when the Worker can receive webhooks and some working bank is not pointed at it yet
+// (a bank that needs reconnecting cannot be updated until it is reconnected).
+// An older Worker reports neither field, so it never gets a button for a route it lacks.
+function hooksNeeded() {
+  const st = BANKUI.status;
+  return !!(st && st.webhook && st.webhook.available && (st.items || []).some(x => !x.statusUnavailable && !x.needsReconnect && x.instant === false));
+}
+async function bankHooks(btn) {
+  if (BANKUI.hooksBusy) return;
+  BANKUI.hooksBusy = true; render();
+  try {
+    const r = await bankFetch('/webhook/configure', { method: 'POST', body: {} }), res = Array.isArray(r.results) ? r.results : [];
+    const bad = res.filter(x => !x.ok);
+    toast(!res.length ? 'No banks to update' : !bad.length ? 'Instant updates on' + (res.length > 1 ? ' for ' + res.length + ' banks' : '')
+      : bad.map(x => (x.institution || 'A bank') + ': ' + (x.reason || 'could not turn on')).join('. '));
+  } catch (e) { toast(e.message); }
+  BANKUI.hooksBusy = false;
+  await bankStatusLoad(true);
+  render(); if ($('#pstatus') && !$('#sheet').hidden) statusSheet();
 }
 async function bankCardStatus() {
   if (await bankStatusLoad()) { if (currentTab() === 'income') render(); if ($('#pstatus') && !$('#sheet').hidden) statusSheet(); }
@@ -4173,6 +4196,9 @@ function statusSheet() {
       ${row('Last successful update', x.lastSuccessfulUpdate ? when(x.lastSuccessfulUpdate) : st ? 'Not yet' : 'Unknown')}
       ${row('Last failed update', x.lastFailedUpdate ? when(x.lastFailedUpdate) : st ? 'None' : 'Unknown')}
       ${row('Error', err ? `${esc(x.error.code)}<small>${esc(x.error.message || '')}</small>` : st ? 'None' : 'Unknown', err ? 'no' : '')}
+      ${st && st.webhook ? row('Instant updates', x.instant ? 'On (webhook set)' : `Off<small>${st.webhook.available ? 'Turn on instant updates on the Bank connections card' : 'The bank service has no webhook address set'}</small>`) : ''}
+      ${st && st.webhook ? row('Last webhook received', x.lastWebhook && x.lastWebhook.at ? when(x.lastWebhook.at) : 'None yet') : ''}
+      ${x.itemEvent && x.itemEvent.code && x.itemEvent.code !== 'WEBHOOK_UPDATE_ACKNOWLEDGED' ? row('Plaid notice', `${esc(x.itemEvent.code)}<small>${esc((x.itemEvent.error && x.itemEvent.error.message) || plaidTime(x.itemEvent.at))}</small>`) : ''}
       ${row('On-demand refresh', can(x.refresh, 'Tap Sync now once to find out', refFb))}
       ${row('Real-time balance', can(x.balance, 'Tap Refresh balances once to find out'))}
       ${row('Received in the last 24 h', l.recv === 1 ? '1 transaction' : l.recv + ' transactions')}
@@ -4183,7 +4209,7 @@ function statusSheet() {
   bankSheet(`<div class="sheet-h" id="pstatus"><div><h3>Plaid status</h3><p class="lede">What Plaid reports for each bank${st && st.at ? ' · checked ' + esc(clockTime(st.at)) : ''}.</p></div>${closeBtn}</div>
     ${BANKUI.statusErr ? `<p class="bk-err" role="alert">${esc(BANKUI.statusErr)}</p>` : ''}${!st && BANKUI.statusBusy ? '<p class="bk-ok">Asking Plaid…</p>' : ''}
     ${body || '<p class="bk-ok">No banks connected yet.</p>'}
-    <p class="note ps-note">Plaid checks each bank for new activity on its own schedule, a few times a day. Some banks don't share pending card purchases until they post.</p>
+    <p class="note ps-note">Plaid checks each bank for new activity on its own schedule, a few times a day${st && st.webhook && st.webhook.available ? '. With instant updates on, it tells the bank service right away and your next sync picks the changes up' : ''}. Some banks don't share pending card purchases until they post.</p>
     <div class="actions"><div class="r"><button class="btn" data-action="close">Close</button></div></div>`);
 }
 async function openStatus() {
@@ -4267,6 +4293,7 @@ async function bankCardAct(act, a) {
   if (act === 'bk-sync') return bankSyncNow(!!a.closest('#bankcard')); // the card's Refresh all is the same as the In account refresh
   if (act === 'bk-item-sync') return bankItemSync(a.dataset.id);
   if (act === 'bk-status') return openStatus();
+  if (act === 'bk-hooks') return bankHooks(a);
   if (act === 'bk-disc') return disconnectSheet(a.dataset.id);
   if (act === 'bk-disc-go') return bankDisconnect(a.dataset.id);
   if (act === 'bk-connect') return bankConnectBank();
@@ -4283,7 +4310,7 @@ async function bankCardAct(act, a) {
     return;
   }
   try { localStorage.removeItem(KEYLS); } catch (e) {}
-  state.bank.api = ''; BANKUI = Object.assign(BANKUI, { enr: null, loadErr: '', err: '' }); commit('Pairing removed from this phone');
+  state.bank.api = ''; state.bank.cursors = {}; state.bank.syncToken = null; BANKUI = Object.assign(BANKUI, { enr: null, loadErr: '', err: '' }); commit('Pairing removed from this phone');
 }
 // Disconnecting a bank is hard to take back, so it asks for a typed word. Only uppercase OKAY (spaces around it are ignored) unlocks it.
 const DISC_WORD = 'OKAY';
@@ -4375,10 +4402,12 @@ async function bankSync(o) {
     const known = new Set(Object.keys(state.bank.txns));
     let since = state.bank.historyFrom;
     if (state.bank.lastSync) { const d = BT.addDays(BT.iso(new Date(state.bank.lastSync)), -5); if (d > since) since = d; }
-    // Two-phase cursor: ack the previous response (it reached us and was saved), so the Worker commits its cursor.
-    // The token stays until a response arrives; a lost ack only means the Worker re-sends a batch we dedupe.
+    // Acks: per bank, the last change-log seq this phone saved, so the Worker can drop what we have. They stay until a
+    // response is applied and saved; a lost ack only means the Worker re-sends changes we dedupe. `acks` is always sent
+    // (empty at first) so the Worker knows this app speaks per-bank acks. A token from an older Worker is still acked too.
+    const acks = Object.entries(state.bank.cursors || {}).filter(([k, v]) => /^[\w-]+$/.test(k) && Number.isInteger(v) && v > 0).map(([k, v]) => k + ':' + v).join(',');
     const ack = state.bank.syncToken;
-    const r = await bankFetch('/sync?since=' + since + (ack ? '&ack=' + encodeURIComponent(ack) : '') + (o && o.item ? '&item=' + encodeURIComponent(o.item) : ''));
+    const r = await bankFetch('/sync?since=' + since + '&acks=' + encodeURIComponent(acks) + (ack ? '&ack=' + encodeURIComponent(ack) : '') + (o && o.item ? '&item=' + encodeURIComponent(o.item) : ''));
     const errs = Array.isArray(r.errors) ? r.errors : [];
     const before = new Set(state.bank.inbox.flatMap(s => (s.parts || [s.txn]).map(t => t.id)));
     const allIn = (Array.isArray(r.txns) ? r.txns : []).filter(t => t && t.id), removed = new Set((Array.isArray(r.removed) ? r.removed : []).filter(Boolean));
@@ -4426,7 +4455,8 @@ async function bankSync(o) {
     }), 'Bank sync');
     // A one-bank sync leaves the overall "last synced" time alone (it is the lower bound for the next full sync) and only replaces that bank's balances.
     state.bank.inbox = inbox; purgeInbox(state); if (!(o && o.item) || !state.bank.lastSync) state.bank.lastSync = r.syncedAt || new Date().toISOString();
-    // Remember this response's token only now that it is applied to local state; the save below persists it.
+    // Remember this response's cursors (and an older Worker's token) only now that it is applied to local state; the save below persists them.
+    if (r.cursors && typeof r.cursors === 'object') Object.entries(r.cursors).forEach(([k, v]) => { if (Number.isInteger(v) && v >= 0) state.bank.cursors[k] = v; });
     state.bank.syncToken = typeof r.syncToken === 'string' && r.syncToken ? r.syncToken : null;
     pruneSeenTxn();
     const fresh = inbox.filter(s => !(s.parts || [s.txn]).every(t => before.has(t.id))).length;
@@ -5416,7 +5446,7 @@ document.addEventListener('click', async e => {
     case 'set-cat': setCategory(a.dataset.id, a.dataset.cat); break;
     case 'bank-import': openBank(); break;
     case 'alerts-test': alertsTest(a); break;
-    case 'bk-sync': case 'bk-item-sync': case 'bk-status': case 'bk-connect': case 'bk-reconnect': case 'bk-toggle': case 'bk-disc': case 'bk-disc-go': case 'bk-forget': bankCardAct(act, a); break;
+    case 'bk-sync': case 'bk-item-sync': case 'bk-status': case 'bk-connect': case 'bk-reconnect': case 'bk-toggle': case 'bk-disc': case 'bk-disc-go': case 'bk-forget': case 'bk-hooks': bankCardAct(act, a); break;
     case 'ix-open': case 'ix-accept': case 'ix-change': case 'ix-pick': case 'ix-cat': case 'ix-cats': case 'ix-new': case 'ix-edit': case 'ix-skip': case 'ix-all': case 'ix-undo': inboxAct(act, a); break;
     case 'tx-note': case 'tx-note-save': case 'tx-review': case 'tx-filter': case 'tx-more': case 'tx-open': case 'tx-back': case 'tx-cats': case 'tx-in': case 'tx-cat': case 'tx-sugg': case 'tx-match': case 'tx-edit': case 'tx-ignore': case 'tx-undo': case 'tx-refund': case 'tx-paycheck': case 'tx-sv': txAct(act, a); break;
     case 'pc-out': payPartOut(a.dataset.id); break;
