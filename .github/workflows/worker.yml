@@ -101,3 +101,16 @@ jobs:
               echo "$name not set, skipping (email alerts stay off)"
             fi
           done
+
+      # Optional "Add from screenshot" (Claude Haiku 5.5). Set from the repo secret when present; skipped when empty.
+      # Piped via stdin so the value never appears in logs or args.
+      - name: Set screenshot reading secret
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            printf '%s' "$ANTHROPIC_API_KEY" | npx wrangler secret put ANTHROPIC_API_KEY >/dev/null
+            echo "ANTHROPIC_API_KEY set"
+          else
+            echo "ANTHROPIC_API_KEY not set, skipping (screenshot reading stays off)"
+          fi

@@ -36,6 +36,15 @@ All `cycle` numbers are required. Names are at most 80 characters. `upcoming`, `
 
 **Setup**: create a free API key at resend.com and add repo secrets `RESEND_API_KEY` and `ALERT_EMAIL` (the address to notify). The workflow sets them on the Worker when present and skips them when empty. Mail is sent from `onboarding@resend.dev`, and Resend only delivers that sender to the address that owns the Resend account, so `ALERT_EMAIL` must be that address unless you verify your own domain in Resend.
 
+## Add from screenshot (Claude Haiku 5.5)
+`POST /scan` (Bearer key) reads screenshots of a banking app and returns the transaction rows on them, so the app can add them as spending before the bank posts them (the real bank transaction later links to that entry instead of duplicating it).
+- **Request**: `{"images": [{"media_type": "image/jpeg" | "image/png" | "image/webp", "data": "<base64>"}], "today": "YYYY-MM-DD", "tz": "America/New_York"}`. At most 4 images, each at most 3.5 MB decoded, the whole body at most 12 MB (413 otherwise); other types are 400. The app downscales each screenshot to a 1568 px long edge, JPEG quality 0.82, before sending.
+- **Response**: `{bank, transactions: [{merchant, amount (positive), direction: out|in, date (YYYY-MM-DD or null), pending, kind: purchase|transfer|deposit|refund|fee|payment|other, running_balance, account_hint}], usage: {input_tokens, output_tokens}}`. Image data is never echoed.
+- **How**: one `messages.parse` call with the official `@anthropic-ai/sdk` (model `claude-haiku-5-5`, `max_tokens` 8000, `output_config: {effort: "low", format: zodOutputFormat(ScanSchema)}`, a system prompt that treats all text in the images as data). The SDK retries rate limits and server errors twice (60 s timeout). A refusal is 422 "Could not read this screenshot"; a cut-off or malformed reply is 502 "Could not read this screenshot clearly"; an Anthropic rate limit is 429; a rejected key is 503 "Screenshot reading key is invalid".
+- **Cost guard**: at most `SCAN_DAILY_LIMIT` images per UTC day (`wrangler.toml` var, default 60), counted in KV `scan:<YYYY-MM-DD>` (2-day TTL) only when the API is called; over the cap is 429 `{"error": "daily limit"}`.
+- **Setup**: add the repo secret `ANTHROPIC_API_KEY` (from platform.claude.com). The workflow sets it on the Worker when present and skips it when empty; without it `/scan` answers 503 "Screenshot reading isn't set up yet".
+- **Privacy**: the screenshots are sent to the Anthropic API to be read and are not stored by the Worker or the app (the app discards them after the upload). The Worker logs only counts and error classes, never image data or merchant names.
+
 ## One-time setup
 1. **Plaid**: sign up at dashboard.plaid.com. A Team created after Apr 15 2026 is on the **Trial** plan: real production data, **at most 10 Items (bank logins)**, plus a free sandbox. On the Keys page note the `client_id`, the **sandbox** secret and the **production** secret.
 2. **Redirect URI** (needed for OAuth banks such as Chase, Capital One, PNC on a phone): Developers > API > Allowed redirect URIs, add `https://montzi.github.io/budtracks/`.
@@ -48,7 +57,7 @@ All `cycle` numbers are required. Names are at most 80 characters. `upcoming`, `
 Sandbox login for testing: pick any bank in Link, user `user_good`, password `pass_good`.
 
 ## Testing
-`cd worker && npm test` runs offline tests against a mocked Plaid, with an in-memory Durable Object stub (`test/do-stub.js`); webhook tests sign real ES256 JWTs with a WebCrypto key pair. `npx wrangler deploy --dry-run` validates the Durable Object config. In a sandbox deploy, `POST /sandbox/item` (Bearer key) adds a test bank without Link; pass `{"dynamic": true}` to use Plaid's `user_transactions_dynamic` test login. `DELETE /pair` with the current key unpairs so another device can pair (no manual KV edit needed).
+`cd worker && npm test` runs offline tests against a mocked Plaid (and, for `/scan`, an injected fake Messages API passed as `env.ANTHROPIC_FETCH`), with an in-memory Durable Object stub (`test/do-stub.js`); webhook tests sign real ES256 JWTs with a WebCrypto key pair. `npx wrangler deploy --dry-run` validates the Durable Object config. In a sandbox deploy, `POST /sandbox/item` (Bearer key) adds a test bank without Link; pass `{"dynamic": true}` to use Plaid's `user_transactions_dynamic` test login. `DELETE /pair` with the current key unpairs so another device can pair (no manual KV edit needed).
 
 ## Limits worth knowing
 - Trial caps at 10 bank logins. **Removing an Item does not free a slot**, so avoid connect/disconnect churn.

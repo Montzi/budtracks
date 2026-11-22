@@ -8,6 +8,8 @@ ALLOWED_ORIGIN = "https://montzi.github.io"
 # PLAID_REDIRECT_URI = "https://montzi.github.io/budtracks/"   # needed for OAuth banks in production (CI sets it)
 # Where Plaid sends Transactions/Item webhooks (public; requests are verified by their Plaid-Verification signature).
 PLAID_WEBHOOK_URL = "https://budtracks-worker.atsdsc27.workers.dev/plaid/webhook"
+# "Add from screenshot": at most this many screenshots per UTC day are sent to Claude (cost guard).
+SCAN_DAILY_LIMIT = "60"
 
 [[kv_namespaces]]
 binding = "BT_KV"
@@ -27,6 +29,7 @@ new_sqlite_classes = ["ItemSync"]
 #   PLAID_CLIENT_ID, PLAID_SECRET   from dashboard.plaid.com (Developers > Keys)
 #   ENC_KEY = base64 of 32 random bytes:  openssl rand -base64 32 | wrangler secret put ENC_KEY
 #   RESEND_API_KEY, ALERT_EMAIL     optional: email alerts via Resend (CI sets them from repo secrets when present)
+#   ANTHROPIC_API_KEY               optional: "Add from screenshot" via Claude Haiku 5.5 (CI sets it from the repo secret when present)
 
 # Hourly: catch-up pull for every Item, alerts and the 7am New York recap (the handler checks the local hour itself).
 [triggers]
