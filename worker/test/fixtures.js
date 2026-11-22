@@ -48,6 +48,14 @@ export function mockPlaid({ tokens } = {}) {
     if (u.pathname === '/item/remove') return R(200, { removed: true });
     if (t.error) return R(400, PLAID_ERR(t.error));
     if (u.pathname === '/accounts/get') return R(200, { accounts: t.accounts, item: { institution_id: 'ins_1', error: t.itemError || null } });
+    if (u.pathname === '/item/get') {
+      return R(200, { item: { item_id: t.item_id, institution_id: 'ins_1', webhook: t.webhook || '', error: t.itemError || null, products: ['transactions'], billed_products: ['transactions'],
+        available_products: ['balance'], consent_expiration_time: t.consentExpiration || null }, status: { transactions: { last_successful_update: t.lastOk || '2026-11-22T14:12:00Z', last_failed_update: t.lastFail || null }, last_webhook: null } });
+    }
+    if (u.pathname === '/accounts/balance/get') {
+      if (t.balanceError) return R(400, PLAID_ERR(t.balanceError, 'INVALID_REQUEST', 'client is not authorized to access the following products: ["balance"]'));
+      return R(200, { accounts: t.liveAccounts || t.accounts, item: { error: null } });
+    }
     if (u.pathname === '/transactions/refresh') {
       if (t.refreshError) return R(400, PLAID_ERR(t.refreshError, 'INVALID_REQUEST', 'this product is not enabled for your account'));
       return R(200, { request_id: 'r1' });

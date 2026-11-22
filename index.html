@@ -405,10 +405,17 @@ button.lad { background: none; border: 0; border-left: 1px solid var(--hero-line
 .cgroups .chips, .tx-p .cgroups .chips { margin: 0; }
 .cgrp + .cgrp { border-top: 1px solid var(--line); padding-top: 8px; }
 .chip-parent { font-weight: 700; }
-.cat-gh { padding: 8px 16px 0; font-size: 12px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.cat-gh { padding: 8px 16px 0; font-size: 12px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.cat-gh > span { min-width: 0; overflow-wrap: anywhere; }
+.cat-gh .cat-sub { margin-left: auto; flex: none; font-size: 12.5px; text-transform: none; letter-spacing: 0; font-weight: 500; padding: 4px 0; }
+.cat-subf { padding: 2px 16px 4px; }
+.cat-subf input[name="nc"] { flex: 1; min-width: 0; }
+.nc-under[hidden] { display: none; }
+#catform { flex-wrap: wrap; }
+#catform select { max-width: 160px; min-width: 0; padding: 9px 8px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface-2); color: inherit; font-size: 14px; }
 .cat-grp { font-size: 11.5px; color: var(--ink-3); }
 select.cat-par { max-width: 128px; min-width: 0; padding: 5px 6px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface-2); color: inherit; font-size: 12.5px; }
-.cat-add select.cat-par { max-width: 108px; padding: 9px 8px; font-size: 14px; }
+.cat-add select.cat-par { max-width: 118px; padding: 9px 4px 9px 6px; font-size: 13px; }
 .cat-add { flex-wrap: wrap; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .cat-list .cn { white-space: normal; overflow: visible; line-height: 1.2; }
@@ -735,6 +742,19 @@ h3 > .icon-pick { display: inline-grid; vertical-align: middle; width: 38px; hei
 .bk-err { color: var(--crit); font-size: 13px; margin: 0; overflow-wrap: anywhere; }
 .bk-err:empty, .bk-ok:empty { display: none; }
 .bk-ok { color: var(--ink-2); font-size: 13px; margin: 0; }
+.bk-plaid { margin: 0; font-size: 12.5px; color: var(--ink-3); display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; min-width: 0; overflow-wrap: anywhere; }
+.bk-plaid .pill { font-size: 11.5px; }
+.card-h .meta .linkbtn { font-size: inherit; color: var(--ink-2); }
+.ps-bank { border: 1px solid var(--line-2); border-radius: 14px; padding: 10px 12px; margin: 0 0 10px; min-width: 0; }
+.ps-bank h4 { margin: 0 0 6px; font-size: 15px; font-weight: 600; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; overflow-wrap: anywhere; }
+.ps-dl { margin: 0; display: grid; gap: 0; }
+.ps-dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--line); min-width: 0; }
+.ps-dl > div:first-child { border-top: 0; }
+.ps-dl dt { color: var(--ink-3); font-size: 13px; flex: 1 1 38%; min-width: 0; }
+.ps-dl dd { margin: 0; font-size: 13.5px; text-align: right; flex: 0 1 auto; max-width: 62%; min-width: 0; overflow-wrap: anywhere; }
+.ps-dl dd.no { color: var(--ink); }
+.ps-dl dd small { display: block; color: var(--ink-3); font-size: 12px; }
+.ps-note { margin: 4px 0 12px; }
 .bk-enr { border: 1px solid var(--line-2); border-radius: 14px; padding: 10px 12px; display: grid; gap: 6px; min-width: 0; }
 .bk-eh { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .bk-eh b { font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
@@ -1475,7 +1495,8 @@ const BT = (() => {
     if (!st.occ) st.occ = {};
     const o = st.occ[key] || (st.occ[key] = {});
     const prev = { mark: key in st.marks ? st.marks[key] : null, paidOn: o.paidOn || '' };
-    st.marks[key] = true; o.paidOn = txn.date; o.txn = txn.id;
+    // A paid date the user set stays (the bank line is only linked to it); otherwise the bank date is the paid date.
+    st.marks[key] = true; if (!(prev.mark && o.paidOn)) o.paidOn = txn.date; o.txn = txn.id;
     return prev;
   }
   function unlinkPayment(st, key, prev) {
@@ -1781,7 +1802,100 @@ const BT = (() => {
     if (k && category) st.bank.rules[k] = category;
   }
 
-  return { groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, strongCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, savingsMove, savedIn, skippedIn, rollup, chartSlot, paidOf, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
+  // ---- Categories: parent groups (the app and the migrations both use these) ----
+  // A parent is itself a pickable category. Phone & Internet, Loans, Taxes and Fees are groups of their own (they were under "Bills & Finance").
+  const CAT_TREE = [['Food', ['Groceries', 'Dining Out', 'Takeout Food', 'Coffee', 'Snacks & Drinks']], ['Transportation', ['Gas', 'Parking & Tolls', 'Rideshare', 'Car Maintenance', 'Insurance']],
+    ['Home', ['Housing', 'Utilities', 'Household', 'Laundry', 'Repairs']], ['Shopping', ['Clothing', 'Electronics', 'Electronics Repair', 'Gifts']], ['Health & Personal', ['Personal care', 'Health']],
+    ['Entertainment', ['Entertainment', 'Gaming', 'Subscriptions', 'Software']], ['Phone & Internet', []], ['Loans', []], ['Taxes', []], ['Fees', []], ['Other', []]];
+  const DEFAULT_PARENT = {};
+  CAT_TREE.forEach(([p, ch]) => ch.forEach(c => { if (c !== p) DEFAULT_PARENT[c] = p; }));
+  // Groups: the defaults, then the user's own (a category mapped to itself in catParents is its own group), with Other last.
+  // A default group the user moved under another group stops being a group.
+  function parentNames(st) {
+    const cp = (st && st.catParents) || {}, ps = [];
+    const add = p => { if (p && p !== 'Other' && !ps.includes(p) && (!cp[p] || cp[p] === p)) ps.push(p); };
+    CAT_TREE.forEach(x => add(x[0])); Object.values(cp).forEach(add);
+    return [...ps, 'Other'];
+  }
+  function parentOf(st, c, ps) {
+    ps = ps || parentNames(st);
+    if (ps.includes(c)) return c;
+    const p = ((st && st.catParents) || {})[c];
+    if (p && ps.includes(p)) return p;
+    const d = DEFAULT_PARENT[c];
+    return d && ps.includes(d) ? d : 'Other';
+  }
+  // Is a category name in use by anything the user keeps (items, learned rules, waiting bank lines)?
+  function catUsed(st, c) {
+    const lists = [st.spends, st.bills, st.plans, st.perPeriod, st.cards].map(l => l || []);
+    if (lists.some(l => l.some(i => i && i.category === c))) return true;
+    const b = st.bank || {};
+    return Object.values(b.rules || {}).includes(c) || (b.inbox || []).some(x => x && (x.category === c || (x.spend && x.spend.category === c)));
+  }
+  // cats-v5: "Bills & Finance" is split. Its default children become groups of their own; anything else the user put under it
+  // becomes its own group too. The old group stays (as its own group) only while something still uses the name.
+  function migrateCats5(o) {
+    const B = 'Bills & Finance', cp = o.catParents || (o.catParents = {});
+    Object.keys(cp).forEach(c => { if (c !== B && cp[c] === B) { if (CAT_TREE.some(x => x[0] === c)) delete cp[c]; else cp[c] = c; } });
+    CAT_TREE.forEach(([p]) => { if (p !== 'Other' && cp[p] === B) delete cp[p]; });
+    ['Phone & Internet', 'Loans', 'Taxes', 'Fees'].forEach(c => { if (!(o.categories || []).includes(c) && !(o.billCats || []).includes(c)) (o.categories || (o.categories = [])).push(c); });
+    const has = (o.categories || []).includes(B) || (o.billCats || []).includes(B);
+    if (catUsed(o, B)) { if (!has) (o.categories || (o.categories = [])).push(B); cp[B] = B; }
+    else { o.categories = (o.categories || []).filter(c => c !== B); o.billCats = (o.billCats || []).filter(c => c !== B); delete cp[B]; }
+    return o;
+  }
+
+  // ---- Match picker: which scheduled items one bank line could be the payment for ----
+  // Strength of a pairing for ordering lists: amount, date (either direction, so late payments rank too) and name, 0..1.
+  function pairScore(t, x) {
+    const amt = Math.abs(t.amount), diff = Math.abs(amt - x.amount), dd = Math.abs(diffDays(x.due, t.date));
+    const sim = nameSim(t.desc || t.rawDesc, x.name), p2p = P2P_RX.test([t.desc, t.rawDesc].join(' '));
+    return 0.4 * Math.max(0, 1 - diff / Math.max(1, 0.25 * x.amount)) + 0.3 * Math.max(0, 1 - dd / 14) + 0.3 * (p2p ? 0.5 : sim);
+  }
+  // Bills, card payments and plan payments around the bank line, not linked to another line yet. Occurrences of the previous two pay
+  // cycles are always offered ("earlier"), paid ones too: a late bank line can belong to an item that was marked or assumed paid
+  // (before tracking started, or autopay by date). Other paid items only with o.paid (or when suggested).
+  function pickCandidates(st, t, today, o) {
+    o = o || {};
+    const c0 = periodRange(st, 'biweekly', 0, today), c1 = periodRange(st, 'biweekly', 1, today), cp = periodRange(st, 'biweekly', -2, today);
+    const lo = [addDays(t.date, -14), c0.start].sort()[0], hi = [addDays(t.date, 15), c1.end].sort().reverse()[0], from = [lo, cp.start].sort()[0];
+    const all = occurrences(st, { start: from, end: hi, view: 'biweekly' }, today, true), occ = st.occ || {};
+    const past = x => x.due >= cp.start && (x.due < c0.start || (x.paid && x.due <= t.date));
+    const list = all.filter(x => ['bill', 'card', 'plan'].includes(x.kind) && x.due >= from && x.due < hi && !(occ[x.key] && occ[x.key].txn)
+      && (x.due >= lo || past(x)) && (o.paid || !x.paid || x.key === o.suggested || past(x)));
+    list.forEach(x => { x.past = past(x); });
+    // Budgets are not payments: the one whose pay cycle holds the transaction date (or the current cycle) is offered as "Count toward ...".
+    const inCyc = x => x.natural <= t.date && t.date < addDays(x.natural, 14), buds = all.filter(x => x.kind === 'spend' && x.on && x.category), cyc = buds.filter(inCyc);
+    const budgets = cyc.length ? cyc : buds.filter(x => x.natural === c0.start);
+    return { list, budgets, c0, c1, cp };
+  }
+  // The picker's sections. Each item shows once, in the first section that takes it.
+  function pickSections(st, t, today, o) {
+    o = o || {};
+    const u = pickCandidates(st, t, today, o), amt = Math.abs(t.amount), sk = o.suggested || '';
+    const rows = u.list.filter(x => !o.match || o.match(x)).map(x => ({ x, sc: pairScore(t, x), dd: Math.abs(diffDays(x.due, t.date)), tol: Math.max(1, x.amount * 0.02) }));
+    const used = new Set(), take = (arr, n) => { const out = arr.filter(r => !used.has(r.x.key)).slice(0, n); out.forEach(r => used.add(r.x.key)); return out; };
+    const by = (a, b) => a.x.due < b.x.due ? -1 : a.x.due > b.x.due ? 1 : 0;
+    const best = take(rows.filter(r => r.x.key === sk || (r.sc >= 0.6 && (!r.x.paid || r.x.past))).sort((a, b) => (b.x.key === sk) - (a.x.key === sk) || b.sc - a.sc), 3);
+    const same = take(rows.filter(r => Math.abs(r.x.amount - amt) <= r.tol + 0.004).sort((a, b) => a.dd - b.dd), 99);
+    const near = take(rows.filter(r => r.dd <= 14 && !(r.x.past && r.x.paid)).sort((a, b) => a.dd - b.dd || b.sc - a.sc), 99);
+    const up = take(rows.filter(r => !r.x.paid && r.x.due >= u.c0.start && r.x.due < u.c1.end).sort(by), 99);
+    const earlier = take(rows.filter(r => r.x.past).sort((a, b) => -by(a, b)), 99);
+    return { best, same, near, up, earlier, budgets: u.budgets, c0: u.c0, c1: u.c1 };
+  }
+  // Links a bank line to an occurrence that is already paid (marked, or assumed paid by date). The money was already counted:
+  // the mark and checkedOn stay as they are, so nothing is added to the totals. The paid date becomes the bank date unless the user set one.
+  function linkPaidOcc(st, key, txn) {
+    if (!st.occ) st.occ = {};
+    if (!st.marks) st.marks = {};
+    const cur = st.occ[key], prev = { mark: key in st.marks ? st.marks[key] : null, occ: cur ? JSON.parse(JSON.stringify(cur)) : null };
+    const o = cur || (st.occ[key] = {});
+    if (!o.paidOn) o.paidOn = txn.date;
+    o.txn = txn.id;
+    return prev;
+  }
+
+  return { CAT_TREE, DEFAULT_PARENT, parentNames, parentOf, catUsed, migrateCats5, pairScore, pickCandidates, pickSections, linkPaidOcc, groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, strongCategory, merchantKey, cleanDesc, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, savingsMove, savedIn, skippedIn, rollup, chartSlot, paidOf, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
 })();
 
 
@@ -1938,12 +2052,8 @@ const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(
 const clone = o => JSON.parse(JSON.stringify(o));
 const TODAY = BT.iso(new Date());
 
-// Parent groups and the default categories under each. A parent is itself a pickable category.
-const CAT_TREE = [['Food', ['Groceries', 'Dining Out', 'Takeout Food', 'Coffee', 'Snacks & Drinks']], ['Transportation', ['Gas', 'Parking & Tolls', 'Rideshare', 'Car Maintenance', 'Insurance']],
-  ['Home', ['Housing', 'Utilities', 'Household', 'Laundry', 'Repairs']], ['Shopping', ['Clothing', 'Electronics', 'Electronics Repair', 'Gifts']], ['Health & Personal', ['Personal care', 'Health']],
-  ['Entertainment', ['Entertainment', 'Gaming', 'Subscriptions', 'Software']], ['Bills & Finance', ['Phone & Internet', 'Loans', 'Taxes', 'Fees']], ['Other', []]];
-const DEFAULT_PARENT = {};
-CAT_TREE.forEach(([p, ch]) => ch.forEach(c => { if (c !== p) DEFAULT_PARENT[c] = p; }));
+// Parent groups and the default categories under each (defined in BT, shared with the migrations).
+const CAT_TREE = BT.CAT_TREE, DEFAULT_PARENT = BT.DEFAULT_PARENT;
 const BILL_GROUPS = ['Fixed', 'Apple Subscriptions', 'Subscriptions', 'Other bills'];
 const GCOLOR = { 'Fixed': 's1', 'Apple Subscriptions': 's2', 'Subscriptions': 's3', 'Other bills': 's4', 'Per paycheck': 's5', 'Pay plans': 's6', 'Credit cards': 's7', 'Spending': 's8' };
 const gc = g => 'var(--' + (GCOLOR[g] || 's4') + ')';
@@ -2050,6 +2160,7 @@ function normalize(s) {
   if (o.bank.balances && (typeof o.bank.balances !== 'object' || !Array.isArray(o.bank.balances.items))) o.bank.balances = null;
   if (o.bank.balances === undefined) o.bank.balances = null;
   if (!o.bank.refreshOK || typeof o.bank.refreshOK !== 'object') o.bank.refreshOK = null;
+  if (!o.bank.gotAt || typeof o.bank.gotAt !== 'object' || Array.isArray(o.bank.gotAt)) o.bank.gotAt = {}; // first time each bank line reached this phone
   if (!Array.isArray(o.bank.order)) o.bank.order = [];
   o.bank.order = o.bank.order.filter((x, i, l) => typeof x === 'string' && l.indexOf(x) === i);
   if (typeof o.settings.hideBalances !== 'boolean') o.settings.hideBalances = false;
@@ -2119,6 +2230,8 @@ function normalize(s) {
   }
   // Insurance here is car insurance: it belongs with Transportation.
   if (!o.imports.includes('cats-v4')) { o.imports.push('cats-v4'); o.catParents['Insurance'] = 'Transportation'; }
+  // "Bills & Finance" is split: Phone & Internet, Loans, Taxes and Fees are groups of their own.
+  if (!o.imports.includes('cats-v5')) { o.imports.push('cats-v5'); BT.migrateCats5(o); }
   // Per-paycheck items are budgets now: the default "Food" budget is "Groceries" (spending in the Groceries category counts toward it).
   if (!o.imports.includes('pp-groceries-1')) {
     o.imports.push('pp-groceries-1');
@@ -2252,7 +2365,9 @@ function likelyMap() {
   LIKELY = new Map();
   try {
     const txns = Object.values((state.bank && state.bank.txns) || {}); if (!txns.length) return LIKELY;
-    const items = BT.occurrences(state, BT.periodRange(state, state.settings.view, 0, TODAY), TODAY).filter(x => !x.paid && ['bill', 'card', 'plan'].includes(x.kind));
+    // The previous pay cycle too: a late bank line (within the ±4 day window) can belong to a bill that was due just before this cycle.
+    const r = BT.periodRange(state, state.settings.view, 0, TODAY), pr = BT.periodRange(state, 'biweekly', -1, TODAY);
+    const items = BT.occurrences(state, { start: [r.start, pr.start].sort()[0], end: r.end, view: r.view }, TODAY).filter(x => !x.paid && ['bill', 'card', 'plan'].includes(x.kind));
     LIKELY = BT.likelyPaidAll(state, items, txns, TODAY);
     LIKELY.forEach((e, k) => { e.item = items.find(x => x.key === k); SEL.set(k, e.item); });
   } catch (e) { LIKELY = new Map(); }
@@ -2776,18 +2891,15 @@ document.addEventListener('change', e => { if (e.target.matches && e.target.matc
 // Category select + icon chooser used inside any item form. Picked icon is saved for that category.
 function allCats() { return [...state.categories, ...state.billCats.filter(c => !state.categories.includes(c))]; }
 // Parent groups: the defaults, then any the user made, with Other last. Categories without a known parent sit under Other.
-function parentNames() {
-  const ps = CAT_TREE.map(x => x[0]).filter(p => p !== 'Other');
-  Object.values(state.catParents || {}).forEach(p => { if (p && p !== 'Other' && !ps.includes(p)) ps.push(p); });
-  return [...ps, 'Other'];
-}
-function parentOf(c) { const ps = parentNames(); return ps.includes(c) ? c : (state.catParents || {})[c] || DEFAULT_PARENT[c] || 'Other'; }
+// A category mapped to itself in catParents is a group of its own (how user groups like "Pets" are made).
+function parentNames() { return BT.parentNames(state); }
+function parentOf(c, ps) { return BT.parentOf(state, c, ps); }
 // [{ parent, items }] with the parent itself first (when it exists as a category), then its children in the default order.
 function catGroups(list, keep) {
   list = (list || allCats()).slice(); if (keep && !list.includes(keep)) list.push(keep);
   const ps = parentNames(), order = c => { const p = DEFAULT_PARENT[c] ? CAT_TREE.find(x => x[0] === DEFAULT_PARENT[c])[1].indexOf(c) : 99; return p < 0 ? 99 : p; };
   return ps.map(par => {
-    const kids = list.filter(c => !ps.includes(c) && parentOf(c) === par).map((c, i) => [c, i]).sort((a, b) => order(a[0]) - order(b[0]) || a[1] - b[1]).map(x => x[0]);
+    const kids = list.filter(c => !ps.includes(c) && parentOf(c, ps) === par).map((c, i) => [c, i]).sort((a, b) => order(a[0]) - order(b[0]) || a[1] - b[1]).map(x => x[0]);
     return { parent: par, items: [...(list.includes(par) ? [par] : []), ...kids] };
   }).filter(g => g.items.length);
 }
@@ -2827,12 +2939,37 @@ function addIconChooser(form) {
 }
 function saveIconChoice(form, cat) { const v = form.elements.icon && form.elements.icon.value; if (v && cat) state.icons[cat] = v; }
 
+// "Under" choices for a new category: none (its own group) or any group.
+const underOpts = (ps, sel, none) => `<option value="">${none || 'Under: none'}</option>${ps.map(p => `<option value="${esc(p)}"${p === sel ? ' selected' : ''}>${esc(p)}</option>`).join('')}`;
+// New category: under a group, or (no group picked) a group of its own.
+// A name that already exists keeps its group unless a group is picked.
+function addCategory(list, name, par) {
+  const v = String(name || '').trim().slice(0, 30); if (!v) return '';
+  const isNew = !allCats().includes(v);
+  if (!state[list].includes(v) && !(list === 'categories' && !isNew)) state[list].push(v);
+  if (isNew || (par && par !== v)) state.catParents[v] = par && par !== v ? par : v;
+  return v;
+}
+// The spending form's "Or new category" gets an "Under" select, shown once a new name is typed.
+function addUnderField(form) {
+  const nc = form && form.elements.newcat; if (!nc) return;
+  const anchor = (form.elements.note || nc).closest('label');
+  anchor.insertAdjacentHTML('afterend', `<label class="fld nc-under" for="f-newpar" hidden><span>Under</span><select id="f-newpar" name="newpar">${underOpts(parentNames(), '', 'None (own group)')}</select></label>`);
+  const lab = form.querySelector('.nc-under'), sync = () => { lab.hidden = !nc.value.trim(); };
+  nc.addEventListener('input', sync); sync();
+}
+let CATUI = { sub: '' }; // "list|group" whose "+ Add" form is open in the category manager
 function catManager() {
-  const ps = parentNames(), row = (c, list) => `<li>
+  const ps = parentNames(), all = allCats();
+  // A group with nothing under it can still be moved under another group; Other and groups with children stay put.
+  const hasKids = p => all.some(c => c !== p && !ps.includes(c) && parentOf(c, ps) === p);
+  const sel = c => `<select class="cat-par" data-cat="${esc(c)}" aria-label="Group for ${esc(c)}"><option value="${esc(c)}"${ps.includes(c) ? ' selected' : ''}>Own group</option>${ps.filter(p => p !== c).map(p => `<option value="${esc(p)}"${!ps.includes(c) && p === parentOf(c, ps) ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select>`;
+  const row = (c, list) => `<li>
       <button class="icon-pick" data-action="pick-icon" data-cat="${esc(c)}" aria-label="Change icon for ${esc(c)}">${catIcon(c)}</button>
-      <span class="cn">${esc(c)}</span>${ps.includes(c) ? '<span class="cat-grp">Group</span>' : `<select class="cat-par" data-cat="${esc(c)}" aria-label="Group for ${esc(c)}">${ps.map(p => `<option${p === parentOf(c) ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select>`}<button class="icon-btn del" data-action="del-cat" data-list="${list}" data-cat="${esc(c)}" aria-label="Remove ${esc(c)}">${ICON.close}</button></li>`;
-  const block = (title, list, key) => `<div class="subhead">${title}</div>${catGroups(state[list]).map(g => `<div class="cat-gh">${esc(g.parent)}</div><ul class="cat-list">${g.items.map(c => row(c, list)).join('')}</ul>`).join('')}
-    <form class="inline cat-add" data-list="${list}"><label class="sr" for="nc-${key}">New ${title.toLowerCase()}</label><input id="nc-${key}" name="nc" placeholder="New category" autocomplete="off"><label class="sr" for="np-${key}">Group</label><select id="np-${key}" name="par" class="cat-par"><option value="">Group (optional)</option>${ps.map(p => `<option>${esc(p)}</option>`).join('')}</select><button class="btn" type="submit">Add</button></form>`;
+      <span class="cn">${esc(c)}</span>${ps.includes(c) && (c === 'Other' || hasKids(c)) ? '<span class="cat-grp">Group</span>' : sel(c)}<button class="icon-btn del" data-action="del-cat" data-list="${list}" data-cat="${esc(c)}" aria-label="Remove ${esc(c)}">${ICON.close}</button></li>`;
+  const sub = (list, key, g, i) => CATUI.sub === list + '|' + g.parent ? `<form class="inline cat-add cat-subf" data-list="${list}"><input type="hidden" name="par" value="${esc(g.parent)}"><label class="sr" for="ncs-${key}${i}">New category under ${esc(g.parent)}</label><input id="ncs-${key}${i}" name="nc" placeholder="New in ${esc(g.parent)}" autocomplete="off" maxlength="30"><button class="btn" type="submit">Add</button><button class="btn" type="button" data-action="cat-sub" data-list="${list}" data-par="${esc(g.parent)}">Cancel</button></form>` : '';
+  const block = (title, list, key) => `<div class="subhead">${title}</div>${catGroups(state[list]).map((g, i) => `<div class="cat-gh"><span>${esc(g.parent)}</span><button type="button" class="linkbtn cat-sub" data-action="cat-sub" data-list="${list}" data-par="${esc(g.parent)}" aria-label="Add a category under ${esc(g.parent)}" aria-expanded="${CATUI.sub === list + '|' + g.parent}">+ Add</button></div><ul class="cat-list">${g.items.map(c => row(c, list)).join('')}</ul>${sub(list, key, g, i)}`).join('')}
+    <form class="inline cat-add" data-list="${list}"><label class="sr" for="nc-${key}">New ${title.toLowerCase()}</label><input id="nc-${key}" name="nc" placeholder="New category" autocomplete="off"><label class="sr" for="np-${key}">Under</label><select id="np-${key}" name="par" class="cat-par">${underOpts(ps)}</select><button class="btn" type="submit">Add</button></form>`;
   const o = incOpen('cat');
   return `<section class="card">${collHead('cat', 'Categories', `<span class="meta">${new Set([...state.categories, ...state.billCats]).size}</span>`)}
     <div class="coll-body" id="coll-cat"${o ? '' : ' hidden'}>${block('Bill categories', 'billCats', 'b')}${block('Spending categories', 'categories', 's')}<div style="height:12px"></div></div></section>`;
@@ -3138,7 +3275,7 @@ function openForm(type, id, extra) {
       el.addEventListener('input', () => { const sc = $('#o-scope'); if (sc) sc.hidden = !(BT.round2(parseFloat(el.value)) !== first); });
     }
   }
-  addIconChooser($('#form'));
+  addIconChooser($('#form')); addUnderField($('#form'));
   setTimeout(() => { const first = $('#form input[type="text"]'); if (first && isNew && window.matchMedia('(min-width:700px)').matches) first.focus(); }, 50);
 }
 function readForm(form, type) {
@@ -3172,7 +3309,7 @@ function readForm(form, type) {
   }
   if (type === 'extra') {
     const nc = (o.newcat || '').slice(0, 30); delete o.newcat;
-    if (nc) { if (!state.categories.includes(nc)) state.categories.push(nc); o.category = nc; }
+    if (nc) { addCategory('categories', nc, form.elements.newpar ? form.elements.newpar.value : ''); o.category = nc; }
     if (!o.category) return err({ k: 'category' }, 'Pick a category.');
   }
   if (type === 'extra' && o.from) {
@@ -3253,7 +3390,7 @@ function openCategory(planId, fresh) {
   openSheet(`<div class="sheet-h"><div><h3>Where does this spending fall?</h3><p class="lede">${esc(p.merchant)} · ${esc(p.provider)} · ${fmt(BT.planStatus(state, p, TODAY).total)} total${needCat().length > 1 && catChain ? ' · ' + needCat().length + ' to go' : ''}</p></div>
     <button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
     ${catChipsHTML('set-cat', `data-id="${p.id}"`, c => p.category === c)}
-    <form class="inline" id="catform" data-id="${p.id}"><label for="newcat" class="sr" style="position:absolute;left:-9999px">New category</label><input id="newcat" name="newcat" placeholder="New category" autocomplete="off"><button class="btn" type="submit">Add</button></form>
+    <form class="inline" id="catform" data-id="${p.id}"><label for="newcat" class="sr" style="position:absolute;left:-9999px">New category</label><input id="newcat" name="newcat" placeholder="New category" autocomplete="off"><label class="sr" for="newpar">Under</label><select id="newpar" name="newpar">${underOpts(parentNames())}</select><button class="btn" type="submit">Add</button></form>
     <div class="actions" style="margin-top:14px"><div class="r"><button class="btn" data-action="close">${fresh ? 'Skip for now' : 'Cancel'}</button></div></div>`);
 }
 function setCategory(id, cat) {
@@ -3489,14 +3626,48 @@ function balanceSheet() {
     <div class="actions"><button type="button" class="btn" data-action="bal-hand">Set balance by hand</button><button type="button" class="btn" data-action="sv-add">Add to savings</button><div class="r">${syncBtnHTML('Sync now', 'class="btn primary" data-action="bal-sync"')}</div></div>`);
   BALUI.open = true;
 }
-// Refresh icon: ask every bank for new activity (when the plan allows it), sync, and say how it went.
+// Refresh icon: ask Plaid for real-time balances (POST /balances/refresh) and always say what happened.
+// When the plan has no real-time balances the Worker sends Plaid's cached ones and the reason, and the toast says so.
+// An older bank service without /balances/refresh: sync as before.
 async function balRefresh() {
   if (!bankReady() || BALUI.busy || BANKUI.syncing || BANKUI.now) return;
   BALUI.busy = true; BANKUI.syncErr = ''; if (BALUI.open && !$('#sheet').hidden) balanceSheet();
-  try { await bankSyncNow(true); } catch (e) { BANKUI.syncErr = e.message; }
+  let r = null, legacy = false, msg = '';
+  try { r = await bankFetch('/balances/refresh', { method: 'POST', body: {} }); }
+  catch (e) { if (e.status === 404) legacy = true; else msg = 'Could not refresh: ' + e.message; }
+  if (legacy) {
+    try { await bankSyncNow(true); } catch (e) { BANKUI.syncErr = e.message; }
+    msg = BANKUI.syncErr ? 'Could not refresh: ' + BANKUI.syncErr : 'Updated just now';
+  } else if (r) {
+    if (Array.isArray(r.balances)) {
+      const prev = (state.bank.balances && state.bank.balances.items) || [], nb = r.balances.filter(b => b && Array.isArray(b.accounts));
+      const items = nb.map(b => b.accounts.length ? b : (prev.find(p => p.itemId === b.itemId) || b));
+      prev.forEach(p => { if (!items.some(b => b.itemId === p.itemId)) items.push(p); });
+      // Only a real-time answer is "now"; otherwise the time is Plaid's own last update (or what it was).
+      const stamp = (r.results || []).map(x => x.lastUpdated).filter(Boolean).sort().pop();
+      state.bank.balances = { at: r.refreshed ? (r.at || new Date().toISOString()) : stamp || (state.bank.balances && state.bank.balances.at) || r.at, items };
+    }
+    if (!(r.results || []).every(x => x.refreshed)) await bankStatusLoad();
+    msg = balRefreshMsg(r);
+    saveQuiet();
+  }
   BALUI.busy = false;
   if (BALUI.open && !$('#sheet').hidden) balanceSheet();
-  toast(BANKUI.syncErr ? 'Could not refresh: ' + BANKUI.syncErr : 'Updated just now');
+  toast(msg);
+}
+function balRefreshMsg(r) {
+  const res = r.results || [], ok = res.filter(x => x.refreshed), no = res.filter(x => !x.refreshed);
+  if (!res.length) return 'No banks to refresh';
+  if (!no.length) return 'Balances updated from your banks';
+  const recon = no.filter(x => x.needsReconnect).map(x => (x.institution || 'A bank') + ' needs reconnect');
+  const off = no.filter(x => !x.needsReconnect);
+  const when = off.map(x => x.lastUpdated || (statusOf(x.itemId) || {}).lastSuccessfulUpdate).filter(Boolean).sort().pop();
+  const why = [...new Set(off.map(x => x.reason).filter(Boolean))].map(w => /[.!?]$/.test(w) ? w : w + '.').join(' ');
+  const parts = [];
+  if (ok.length) parts.push('Balances updated from ' + ok.map(x => x.institution || 'a bank').join(', ') + '.');
+  if (off.length) parts.push((ok.length ? off.map(x => x.institution || 'A bank').join(', ') + " hasn't" : "Your banks haven't") + ' sent new balances' + (when ? ' (Plaid last updated ' + plaidTime(when, false) + ')' : '') + '.' + (why ? ' ' + why : ''));
+  if (recon.length) parts.push(recon.join('. ') + '.');
+  return parts.join(' ');
 }
 // Drag a bank by its grip (pointer events: mouse, pen and touch). Rows slide aside while dragging; the sheet scrolls near its edges.
 const DRAG = { on: false, again: false };
@@ -3942,7 +4113,8 @@ function loadPlaid() {
 /* Bank connections card (Income tab) */
 function bankCard() {
   const b = state.bank, ready = bankReady(), n = (b.inbox || []).length, hn = (b.history || []).length;
-  const head = `<header class="card-h"><div><h2>Bank connections · via Plaid</h2>${ready ? `<span class="meta">${b.lastSync ? 'Last synced ' + esc(relTime(b.lastSync)) : 'Not synced yet'}</span>` : ''}</div>
+  if (ready) setTimeout(bankCardStatus, 0);
+  const head = `<header class="card-h"><div><h2>Bank connections · via Plaid</h2>${ready ? `<span class="meta">${b.lastSync ? 'Last synced ' + esc(relTime(b.lastSync)) : 'Not synced yet'} · <button type="button" class="linkbtn" data-action="bk-status" aria-label="Plaid status details">Details</button></span>` : ''}</div>
     ${ready ? syncBtnHTML('Refresh all', 'class="btn sm" data-action="bk-sync"') : ''}</header>`;
   if (!ready) return `<section class="card" id="bankcard">${head}<div class="card-b bk">
     <p class="note" style="margin:0">Pull in transactions from your banks automatically. Paste the address of your BudTracks bank service. The first time, this phone is paired with it. Your budget stays on this phone.</p>
@@ -3952,7 +4124,7 @@ function bankCard() {
   const enr = BANKUI.enr;
   const list = enr === null ? (BANKUI.loadErr ? `<p class="bk-err" role="alert">${esc(BANKUI.loadErr)}</p>` : '<p class="bk-ok">Loading your banks…</p>')
     : enr.length ? orderBanks(enr, e => e.id).map(e => `<div class="bk-enr"><div class="bk-eh"><b>${esc(e.institution || 'Bank')}</b>${e.needsReconnect ? '<span class="pill soft warn">Needs reconnect</span>' : ''}<span class="bk-sp"></span>${e.needsReconnect ? `<button class="btn sm" data-action="bk-reconnect" data-id="${esc(e.id)}">Reconnect</button>` : `<button class="btn sm" data-action="bk-item-sync" data-id="${esc(e.id)}" aria-label="Sync ${esc(e.institution || 'bank')}"${BANKUI.syncing || BANKUI.now || BANKUI.rowBusy ? ' disabled' : ''}${BANKUI.rowBusy === e.id ? ' aria-busy="true"' : ''}>${BANKUI.rowBusy === e.id ? '<span class="spin" aria-hidden="true"></span>Syncing…' : 'Sync'}</button>`}<button class="btn sm danger" data-action="bk-disc" data-id="${esc(e.id)}">Disconnect</button></div>
-      <ul class="bk-acc">${(e.accounts || []).map(a => `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}</div><div class="sub">${esc([a.subtype || a.type, a.last_four ? '··' + a.last_four : ''].filter(Boolean).join(' · '))}</div></div>
+      ${plaidLine(e.id)}<ul class="bk-acc">${(e.accounts || []).map(a => `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}</div><div class="sub">${esc([a.subtype || a.type, a.last_four ? '··' + a.last_four : ''].filter(Boolean).join(' · '))}</div></div>
         <label class="tgl"><input type="checkbox" data-action="bk-toggle" data-id="${esc(a.id)}" data-eid="${esc(e.id)}"${a.enabled ? ' checked' : ''} aria-label="Sync ${esc(a.name || 'account')}"><span aria-hidden="true"></span></label></li>`).join('') || '<li><div class="sub">No accounts found.</div></li>'}</ul></div>`).join('')
     : '<p class="bk-ok">No banks connected yet. Tap Connect a bank.</p>';
   return `<section class="card" id="bankcard">${head}<div class="card-b bk">${list}
@@ -3961,6 +4133,62 @@ function bankCard() {
     <div class="bk-alerts"><div class="main"><div class="nm">Email alerts</div><div class="sub">A morning recap of this ${VIEWNAME[state.settings.view]} and what is due soon</div></div><button class="btn sm" data-action="alerts-test">Send test email</button></div>
     <p class="bk-err" role="alert">${esc(BANKUI.err)}</p>
     <p class="note" style="margin:0">From the automatic date on, matching bills, paychecks and Klarna, Afterpay and PayPal payments are applied for you, and anything unsure waits in your review list. Earlier ones are yours to add by hand. <button class="linkbtn" style="color:var(--ink-3)" data-action="bk-forget">Remove pairing from this phone</button></p></div></section>`;
+}
+// Under each bank: when Plaid last got new data from it, and a badge when Plaid reports an error on the connection.
+function plaidLine(id) {
+  const st = statusOf(id); if (!st) return '';
+  const err = st.error && st.error.code ? `<span class="pill soft warn" title="${esc(st.error.message || '')}">Plaid error · ${esc(st.error.code)}</span>` : '';
+  const last = st.lastSuccessfulUpdate ? 'Plaid last got new data: ' + plaidTime(st.lastSuccessfulUpdate) : st.statusUnavailable ? 'Plaid could not report on this bank' : 'Plaid has not got data from this bank yet';
+  return `<p class="bk-plaid"><span>${esc(last)}</span>${err}</p>`;
+}
+async function bankCardStatus() {
+  if (await bankStatusLoad()) { if (currentTab() === 'income') render(); if ($('#pstatus') && !$('#sheet').hidden) statusSheet(); }
+}
+// This phone's own view of a bank's lines: how many arrived in the last 24 hours, the newest date, and how many are pending.
+function bankLedger(id, inst) {
+  const ids = new Set();
+  (((state.bank.balances && state.bank.balances.items) || []).find(it => it.itemId === id) || { accounts: [] }).accounts.forEach(a => ids.add(a.id));
+  ((BANKUI.enr || []).find(e => e.id === id) || { accounts: [] }).accounts.forEach(a => ids.add(a.id));
+  const mine = Object.values(state.bank.txns || {}).filter(t => { const a = acctObj(t); return a && (ids.size ? ids.has(a.id) : inst && a.institution === inst); });
+  const day = Date.now() - 864e5, got = state.bank.gotAt || {};
+  return { recv: mine.filter(t => got[t.id] && new Date(got[t.id]).getTime() >= day).length, newest: mine.map(t => t.date).sort().pop() || '', pending: mine.filter(t => t.status === 'pending').length };
+}
+function statusSheet() {
+  const st = BANKUI.status, ro = state.bank.refreshOK;
+  const banks = orderBanks(st && st.items ? st.items.map(x => ({ id: x.itemId, institution: x.institution })) : (BANKUI.enr || []).map(e => ({ id: e.id, institution: e.institution })), x => x.id);
+  const when = iso => iso ? esc(plaidTime(iso)) : '';
+  const can = (x, hint, fb) => {
+    if (x && x.supported === true) return 'Available';
+    if (x && x.supported === false) return `Not available<small>${esc(x.reason || 'Plaid said no')}</small>`;
+    if (x && x.reason) return `Not confirmed<small>${esc(x.reason)}</small>`;
+    if (fb) return fb;
+    return `Not checked yet<small>${esc(hint)}</small>`;
+  };
+  const refFb = ro ? (ro.ok ? 'Available' : `Not available<small>${esc(ro.reason || "Transactions Refresh isn't enabled for this Plaid account")}</small>`) : '';
+  const row = (k, v, cls) => `<div><dt>${k}</dt><dd${cls ? ` class="${cls}"` : ''}>${v}</dd></div>`;
+  const body = banks.map(b => {
+    const x = (st && statusOf(b.id)) || {}, l = bankLedger(b.id, b.institution), newest = [l.newest, x.newestTxn || ''].sort().pop();
+    const err = x.error && x.error.code;
+    return `<div class="ps-bank" data-item="${esc(b.id)}"><h4>${esc(b.institution || 'Bank')}${err ? `<span class="pill soft warn">Plaid error</span>` : ''}</h4><dl class="ps-dl">
+      ${row('Last successful update', x.lastSuccessfulUpdate ? when(x.lastSuccessfulUpdate) : st ? 'Not yet' : 'Unknown')}
+      ${row('Last failed update', x.lastFailedUpdate ? when(x.lastFailedUpdate) : st ? 'None' : 'Unknown')}
+      ${row('Error', err ? `${esc(x.error.code)}<small>${esc(x.error.message || '')}</small>` : st ? 'None' : 'Unknown', err ? 'no' : '')}
+      ${row('On-demand refresh', can(x.refresh, 'Tap Sync now once to find out', refFb))}
+      ${row('Real-time balance', can(x.balance, 'Tap Refresh balances once to find out'))}
+      ${row('Received in the last 24 h', l.recv === 1 ? '1 transaction' : l.recv + ' transactions')}
+      ${row('Newest transaction', newest ? esc(lng(newest)) : 'None yet')}
+      ${row('Pending', l.pending === 1 ? '1 transaction' : l.pending + ' transactions')}
+    </dl></div>`;
+  }).join('');
+  bankSheet(`<div class="sheet-h" id="pstatus"><div><h3>Plaid status</h3><p class="lede">What Plaid reports for each bank${st && st.at ? ' · checked ' + esc(clockTime(st.at)) : ''}.</p></div>${closeBtn}</div>
+    ${BANKUI.statusErr ? `<p class="bk-err" role="alert">${esc(BANKUI.statusErr)}</p>` : ''}${!st && BANKUI.statusBusy ? '<p class="bk-ok">Asking Plaid…</p>' : ''}
+    ${body || '<p class="bk-ok">No banks connected yet.</p>'}
+    <p class="note ps-note">Plaid checks each bank for new activity on its own schedule, a few times a day. Some banks don't share pending card purchases until they post.</p>
+    <div class="actions"><div class="r"><button class="btn" data-action="close">Close</button></div></div>`);
+}
+async function openStatus() {
+  statusSheet();
+  if (await bankStatusLoad(true)) { if ($('#pstatus') && !$('#sheet').hidden) statusSheet(); if (currentTab() === 'income') render(); }
 }
 async function bankCardLoad(force) {
   if (!bankReady() || BANKUI.loading) return;
@@ -4038,6 +4266,7 @@ async function bankCardAct(act, a) {
   const find = id => (BANKUI.enr || []).reduce((r, e) => r || (e.accounts || []).find(x => x.id === id), null);
   if (act === 'bk-sync') return bankSyncNow(!!a.closest('#bankcard')); // the card's Refresh all is the same as the In account refresh
   if (act === 'bk-item-sync') return bankItemSync(a.dataset.id);
+  if (act === 'bk-status') return openStatus();
   if (act === 'bk-disc') return disconnectSheet(a.dataset.id);
   if (act === 'bk-disc-go') return bankDisconnect(a.dataset.id);
   if (act === 'bk-connect') return bankConnectBank();
@@ -4155,9 +4384,11 @@ async function bankSync(o) {
     const allIn = (Array.isArray(r.txns) ? r.txns : []).filter(t => t && t.id), removed = new Set((Array.isArray(r.removed) ? r.removed : []).filter(Boolean));
     const { autoFrom, historyFrom } = state.bank;
     // Ledger: every transaction on or after historyFrom, pending replaced by posted, removed ones gone.
-    allIn.forEach(t => { if (t.date >= historyFrom) state.bank.txns[t.id] = t; if (t.pendingOf && t.pendingOf !== t.id) delete state.bank.txns[t.pendingOf]; });
+    const got = state.bank.gotAt, nowIso = new Date().toISOString();
+    allIn.forEach(t => { if (t.date >= historyFrom) { if (!state.bank.txns[t.id] && !got[t.id]) got[t.id] = nowIso; state.bank.txns[t.id] = t; } if (t.pendingOf && t.pendingOf !== t.id) delete state.bank.txns[t.pendingOf]; });
     removed.forEach(id => { delete state.bank.txns[id]; });
     { const cut = BT.addDays(TODAY, -180); Object.keys(state.bank.txns).forEach(id => { if (!(state.bank.txns[id].date >= cut)) delete state.bank.txns[id]; }); }
+    { const old = Date.now() - 3 * 864e5; Object.keys(got).forEach(id => { if (!state.bank.txns[id] || !(new Date(got[id]).getTime() > old)) delete got[id]; }); }
     const incoming = allIn.filter(t => t.date >= autoFrom), earlier = allIn.filter(t => t.date >= historyFrom && t.date < autoFrom); // older than historyFrom: ignored
     const byId = new Map(); state.bank.inbox.forEach(s => (s.parts || [s.txn]).forEach(t => byId.set(t.id, t))); incoming.forEach(t => byId.set(t.id, t));
     const inbox = [];
@@ -4200,12 +4431,12 @@ async function bankSync(o) {
     pruneSeenTxn();
     const fresh = inbox.filter(s => !(s.parts || [s.txn]).every(t => before.has(t.id))).length;
     const em = errs.length ? errs.map(e => (e.institution ? e.institution + ': ' : '') + (e.needsReconnect ? 'needs reconnect' : e.message || e.error || e.code || 'could not sync')).join('. ') : '';
-    const one = !!(o && o.item), asked = o && o.refreshed && !one ? 'Asked your banks for new activity' : '';
+    const one = !!(o && o.item), asked = o && o.refreshed && !one ? 'Asked your banks for new activity' : '', note = (o && o.note) || '';
     const news = applied || fresh || dropped ? [applied ? applied + ' matched automatically' : '', fresh ? fresh + ' to review' : '', dropped ? dropped + ' updated by your bank' : ''].filter(Boolean).join(', ') : '';
     // New = not in the ledger before this sync (a posted copy of a pending charge we already had does not count).
     const newN = allIn.filter(t => t.date >= historyFrom && !known.has(t.id) && !(t.pendingOf && known.has(t.pendingOf))).length;
     const count = newN ? newN + (newN === 1 ? ' new transaction' : ' new transactions') : 'No new transactions';
-    const msg = em || (one && !auto ? [(o.label || 'Bank') + ' refreshed', news].filter(Boolean).join(' · ') : auto ? news : [count, news, asked].filter(Boolean).join(' · '));
+    const msg = em || (one && !auto ? [(o.label || 'Bank') + (o.refreshed ? ' refreshed' : ' synced'), news, note].filter(Boolean).join(' · ') : auto ? news : [count, news, asked, note].filter(Boolean).join(' · '));
     if (applied || fresh || dropped || !auto) commit(msg); else saveQuiet();
     if (em) BANKUI.syncErr = em;
     if (em && (applied || fresh || dropped || auto)) toast(em);
@@ -4222,11 +4453,37 @@ async function bankRefresh(force) {
   const ro = state.bank.refreshOK;
   if (!force && ro && ro.ok === false && ro.at && Date.now() - new Date(ro.at).getTime() < 864e5) return false; // not enabled: recheck once a day
   try {
-    const r = await bankFetch('/refresh', { method: 'POST', body: {} });
-    state.bank.refreshOK = { ok: !r.notEnabled, at: new Date().toISOString() };
+    const r = await bankFetch('/refresh', { method: 'POST', body: {} }), why = (r.results || []).find(x => x && !x.refreshed && x.reason);
+    state.bank.refreshOK = { ok: !r.notEnabled, at: new Date().toISOString(), ...(r.notEnabled && why ? { reason: why.reason } : {}) };
     return !!r.refreshed;
-  } catch (e) { return false; }
+  } catch (e) { if (e.status === 404) BANKUI.noRefresh = true; return false; }
 }
+// Plaid's view of each bank (GET /status): when it last got new data from the bank, errors, and what the plan allows.
+// Fetched at most every 5 minutes (force: always). Returns true when it fetched. An older bank service without /status is fine.
+async function bankStatusLoad(force) {
+  if (!bankReady() || BANKUI.statusBusy) return false;
+  if (!force && Date.now() - (BANKUI.statusAt || 0) < 5 * 60000) return false;
+  BANKUI.statusAt = Date.now(); BANKUI.statusBusy = true;
+  try { BANKUI.status = await bankFetch('/status'); BANKUI.statusErr = ''; }
+  catch (e) { BANKUI.statusErr = e.status === 404 ? 'This bank service is an older version that cannot report Plaid status. Redeploy the worker to see it.' : e.message; }
+  BANKUI.statusBusy = false;
+  return true;
+}
+const statusOf = id => ((BANKUI.status && BANKUI.status.items) || []).find(x => x.itemId === id) || null;
+// "9:12 AM" today, "Nov 21, 9:12 AM" otherwise, plus how long ago.
+function plaidTime(iso, ago) {
+  if (!iso) return '';
+  const d = new Date(iso); if (isNaN(d)) return '';
+  const t = clockTime(iso), day = BT.iso(d) === BT.iso(new Date()) ? t : md(BT.iso(d)) + ', ' + t;
+  return ago === false ? day : day + ' (' + relTime(iso) + ')';
+}
+// After a Sync now that could not ask the banks: say so, with Plaid's last update per bank when known.
+function scheduleNote(onlyId) {
+  const items = ((BANKUI.status && BANKUI.status.items) || []).filter(x => x.lastSuccessfulUpdate && (!onlyId || x.itemId === onlyId));
+  const last = items.map(x => (x.institution || 'your bank') + ': ' + plaidTime(x.lastSuccessfulUpdate, false)).join(', ');
+  return 'Plaid refreshes on its own schedule' + (last ? '. Last update from ' + last : '');
+}
+const refreshUnavailable = () => !!(BANKUI.noRefresh || (state.bank.refreshOK && state.bank.refreshOK.ok === false));
 // BANKUI.now holds the whole run (refresh + sync) so every Sync button shows a spinner from the tap until the toast.
 // It used to only re-render the Income tab while /refresh ran (which can take many seconds), so on Transactions
 // and Overview the tap looked dead, and a second tap was dropped silently.
@@ -4240,7 +4497,9 @@ async function bankSyncNow(force) {
   try {
     while (BANKUI.syncing) await new Promise(r => setTimeout(r, 120)); // an automatic sync was already running: let it land, then sync again
     const refreshed = await bankRefresh(force === true);
-    await bankSync({ auto: false, refreshed, now: true });
+    let note = '';
+    if (!refreshed && refreshUnavailable()) { await bankStatusLoad(); note = scheduleNote(); }
+    await bankSync({ auto: false, refreshed, now: true, note });
   } finally { BANKUI.now = false; syncPaint(); }
   clearTimeout(BANKUI.follow);
   BANKUI.follow = setTimeout(() => { if (document.visibilityState === 'visible') bankSync({ auto: true }); }, window.BT_FOLLOWUP_MS || 45000);
@@ -4251,11 +4510,15 @@ async function bankItemSync(id) {
   const e = (BANKUI.enr || []).find(x => x.id === id), label = (e && e.institution) || 'Bank';
   BANKUI.rowBusy = id; BANKUI.syncing = true; render();
   let refreshed = false, failed = '';
-  try { const r = await bankFetch('/refresh?item=' + encodeURIComponent(id), { method: 'POST', body: {} }); refreshed = !!r.refreshed; }
+  let note = '';
+  try {
+    const r = await bankFetch('/refresh?item=' + encodeURIComponent(id), { method: 'POST', body: {} }); refreshed = !!r.refreshed;
+    if (!refreshed && r.notEnabled) { await bankStatusLoad(); note = scheduleNote(id); }
+  }
   catch (er) { failed = er.message; }
   BANKUI.syncing = false;
   if (failed) { BANKUI.rowBusy = ''; toast(failed); render(); return; }
-  try { await bankSync({ auto: false, item: id, label, refreshed }); } finally { BANKUI.rowBusy = ''; render(); }
+  try { await bankSync({ auto: false, item: id, label, refreshed, note }); } finally { BANKUI.rowBusy = ''; render(); }
   clearTimeout(BANKUI.follow);
   BANKUI.follow = setTimeout(() => { if (document.visibilityState === 'visible') bankSync({ auto: true, item: id, label }); }, window.BT_FOLLOWUP_MS || 45000);
 }
@@ -4289,8 +4552,10 @@ function applyOne(s, ch, auto) {
   }
   if (kind === 'bill' || (kind === 'transfer' && c)) {
     if (!c || linkedElsewhere(c.key, t)) return false;
-    const prev = { mark: c.key in state.marks ? state.marks[c.key] : null, occ: state.occ[c.key] ? clone(state.occ[c.key]) : null };
     const x = findOcc(c.key, c.date);
+    // Already paid (marked, or assumed paid by date): only link it. Its money was counted; nothing about the totals changes.
+    if (x && x.paid) return rec('bill', { key: c.key, prev: BT.linkPaidOcc(state, c.key, t), linked: true, what: c.name + (kind === 'transfer' ? ' payment' : ' bill') });
+    const prev = { mark: c.key in state.marks ? state.marks[c.key] : null, occ: state.occ[c.key] ? clone(state.occ[c.key]) : null };
     setPaid(c.key, true, !!(x && x.auto), '', false);
     const o = state.occ[c.key] || (state.occ[c.key] = {}); o.paidOn = t.date; o.txn = t.id;
     return rec('bill', { key: c.key, prev, what: c.name + (kind === 'transfer' ? ' payment' : ' bill') });
@@ -4791,32 +5056,17 @@ function matchIssues(t, x) {
   if (Math.abs(diff) > tol + 0.004) out.push(`Amounts differ: transaction ${fmt(amt)}, scheduled ${fmt(x.amount)} (${fmt(Math.abs(diff))} ${diff < 0 ? 'less' : 'more'})`);
   if (Math.abs(dd) > 3) out.push(`Date is ${plural(Math.abs(dd), 'day')} ${dd > 0 ? 'after' : 'before'} the due date (due ${md(x.due)}, paid ${md(t.date)})`);
   if (t.amount < 0) out.push('This is money coming in, but the item is a payment');
-  if (x.paid && (x.key in state.marks ? state.marks[x.key] : !x.auto)) out.push('This item is already marked paid');
+  if (x.paid && (x.key in state.marks ? state.marks[x.key] : !x.auto)) out.push(`Already marked paid on ${md(x.paidOn || x.due)}. Link this transaction to it?`);
   if (BT.nameSim(t.desc || t.rawDesc, x.name) === 0 && !P2PTXT.test([t.desc, t.rawDesc, t.counterparty].join(' ')) && !(exact && Math.abs(dd) <= 3)) out.push(`Names don't look alike (${cleanMerchant(t)} vs ${x.name})`);
   const st = txStatus(t);
   if (['spend', 'match', 'income', 'transfer'].includes(st.k)) out.push('This will replace: ' + st.label);
   return out;
 }
-// Strength of a pairing for ordering lists: amount, date and name, 0..1.
-function pairScore(t, x) {
-  const amt = Math.abs(t.amount), diff = Math.abs(amt - x.amount), dd = Math.abs(BT.diffDays(x.due, t.date));
-  const sim = BT.nameSim(t.desc || t.rawDesc, x.name), p2p = P2PTXT.test([t.desc, t.rawDesc].join(' '));
-  return 0.4 * Math.max(0, 1 - diff / Math.max(1, 0.25 * x.amount)) + 0.3 * Math.max(0, 1 - dd / 14) + 0.3 * (p2p ? 0.5 : sim);
-}
+const pairScore = BT.pairScore;
 const sumHTML = t => `<div class="pk-sum"><div><b>${esc(cleanMerchant(t))}</b><small>${esc([acctDots(t), lng(t.date)].filter(Boolean).join(' · '))}</small></div><span class="amt${t.amount < 0 ? ' in' : ''}">${t.amount < 0 ? '+' : ''}${fmt(Math.abs(t.amount))}</span></div>`;
 const closeBtn = `<button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button>`;
 
 const suggestedKey = t => { const ib = inboxOf(t.id); return ib && ib.pick && ib.pick.key && ['plan', 'bill', 'transfer'].includes(ib.kind) ? ib.pick.key : ''; };
-function pickUniverse(t) {
-  const c0 = BT.periodRange(state, 'biweekly', 0, TODAY), c1 = BT.periodRange(state, 'biweekly', 1, TODAY);
-  const lo = [BT.addDays(t.date, -14), c0.start].sort()[0], hi = [BT.addDays(t.date, 15), c1.end].sort().reverse()[0];
-  const all = BT.occurrences(state, { start: lo, end: hi, view: 'biweekly' }, TODAY, true);
-  const list = all.filter(x => ['bill', 'card', 'plan'].includes(x.kind) && x.due >= lo && x.due < hi && !(state.occ[x.key] && state.occ[x.key].txn) && (PICK.paid || !x.paid || x.key === suggestedKey(t)));
-  // Budgets are not payments: the one whose pay cycle holds the transaction date (or the current cycle) is offered as "Count toward ...".
-  const inCyc = x => x.natural <= t.date && t.date < BT.addDays(x.natural, 14), buds = all.filter(x => x.kind === 'spend' && x.on && x.category), cyc = buds.filter(inCyc);
-  const budgets = cyc.length ? cyc : buds.filter(x => x.natural === c0.start);
-  return { list, budgets, c0, c1 };
-}
 function budOpt(x, t) {
   const left = BT.round2(x.budget - x.spent);
   return `<button type="button" class="bm pk-opt" data-action="pk-pick" data-key="${esc(x.key)}"><span class="pk-r1"><b>Count toward ${esc(x.name)} budget</b></span><span class="pk-r2">Adds ${fmt(Math.abs(t.amount))} to ${esc(x.category)} spending · ${left >= 0 ? fmt(left) + ' left' : fmt(-left) + ' over'} this cycle</span></button>`;
@@ -4826,26 +5076,20 @@ function pkOpt(x, t) {
   const h = [];
   if (Math.abs(diff) >= 0.005) h.push(`<span class="pk-h${Math.abs(diff) > tol ? ' warn' : ''}">${fmt(Math.abs(diff))} ${diff > 0 ? 'more' : 'less'}</span>`);
   if (dd) h.push(`<span class="pk-h${Math.abs(dd) > 3 ? ' warn' : ''}">${plural(Math.abs(dd), 'day')} ${dd > 0 ? 'late' : 'early'}</span>`);
-  if (x.paid) h.push(`<span class="pk-h warn">${x.key in state.marks ? 'Marked paid' : 'Assumed paid'}</span>`);
+  if (x.paid) h.push(`<span class="pk-h warn">${x.key in state.marks && state.marks[x.key] ? 'Marked paid' : 'Assumed paid'}</span>`);
   return `<button type="button" class="bm pk-opt" data-action="pk-pick" data-key="${esc(x.key)}"><span class="pk-r1"><b>${esc(x.name)}</b><span class="amt">${fmt(x.amount)}</span></span><span class="pk-r2">${esc(kindText(x))} · due ${md(x.due)}</span>${h.length ? `<span class="pk-r3">${h.join('')}</span>` : ''}</button>`;
 }
 function pkListHTML() {
   const t = txnOf(PICK.id); if (!t) return '';
-  const { list, budgets, c0, c1 } = pickUniverse(t), amt = Math.abs(t.amount), q = PICK.q.trim().toLowerCase();
-  list.forEach(x => SEL.set(x.key, x)); budgets.forEach(x => SEL.set(x.key, x));
+  const q = PICK.q.trim().toLowerCase();
   const hay = x => [x.name, x.note, kindText(x), x.category, fmt(x.amount), x.amount.toFixed(2)].join(' ').toLowerCase();
-  const rows = list.filter(x => !q || hay(x).includes(q)).map(x => ({ x, sc: pairScore(t, x), dd: Math.abs(BT.diffDays(x.due, t.date)), tol: Math.max(1, x.amount * 0.02) }));
-  const sk = suggestedKey(t);
-  const used = new Set(), take = (arr, n) => { const o = arr.filter(r => !used.has(r.x.key)).slice(0, n); o.forEach(r => used.add(r.x.key)); return o; };
-  const by = (a, b) => a.x.due < b.x.due ? -1 : a.x.due > b.x.due ? 1 : 0;
-  const best = take(rows.filter(r => r.x.key === sk || (r.sc >= 0.6 && !r.x.paid)).sort((a, b) => (b.x.key === sk) - (a.x.key === sk) || b.sc - a.sc), 3);
-  const same = take(rows.filter(r => Math.abs(r.x.amount - amt) <= r.tol + 0.004).sort((a, b) => a.dd - b.dd), 99);
-  const near = take(rows.filter(r => r.dd <= 14).sort((a, b) => a.dd - b.dd || b.sc - a.sc), 99);
-  const up = take(rows.filter(r => !r.x.paid && r.x.due >= c0.start && r.x.due < c1.end).sort(by), 99);
+  // Earlier = the previous two pay cycles, paid and assumed-paid items included (for late bank lines).
+  const { best, same, near, up, earlier, budgets } = BT.pickSections(state, t, TODAY, { paid: PICK.paid, suggested: suggestedKey(t), match: x => !q || hay(x).includes(q) });
+  [best, same, near, up, earlier].forEach(a => a.forEach(r => SEL.set(r.x.key, r.x))); budgets.forEach(x => SEL.set(x.key, x));
   const sec = (title, arr) => arr.length ? `<div class="pk-sec">${title}</div><div class="pk-grp">${arr.map(r => pkOpt(r.x, t)).join('')}</div>` : '';
   const bq = budgets.filter(x => !q || ['count toward', x.name, x.category, 'budget'].join(' ').toLowerCase().includes(q));
   const bsec = bq.length && t.amount > 0 ? `<div class="pk-sec">Budgets</div><div class="pk-grp">${bq.map(x => budOpt(x, t)).join('')}</div>` : '';
-  const body = sec('Best match', best) + sec('Same amount', same) + sec('Near this date', near) + sec('Everything upcoming', up) + bsec;
+  const body = sec('Best match', best) + sec('Same amount', same) + sec('Near this date', near) + sec('Everything upcoming', up) + sec('Earlier', earlier) + bsec;
   return (body || `<p class="note" style="margin-top:14px">${q ? 'Nothing matches that search.' : 'Nothing you entered is waiting for a payment around this date.'}</p>`)
     + `<div class="pk-more"><button type="button" class="linkbtn" data-action="pk-paid">${PICK.paid ? 'Hide paid items' : 'Show paid items too'}</button></div>`;
 }
@@ -4923,7 +5167,8 @@ function likelyAct(act, a) {
   const key = a.dataset.key;
   switch (act) {
     case 'likely-open': likelySheet(key); break;
-    case 'likely-first': { const first = [...likelyMap().keys()].find(k => { const e = likelyMap().get(k); return e.item && !e.item.paid; }); if (first) likelySheet(first); break; }
+    case 'likely-first': { const r = BT.periodRange(state, state.settings.view, 0, TODAY), ks = [...likelyMap().keys()].filter(k => { const e = likelyMap().get(k); return e.item && !e.item.paid; });
+      const first = ks.find(k => likelyMap().get(k).item.date >= r.start) || ks[0]; if (first) likelySheet(first); break; }
     case 'likely-yes': { const e = likelyMap().get(key); if (e) doMatch(e.txn.id, e.item); break; }
     case 'likely-no': { const e = likelyMap().get(key); if (!e) break; const nm = state.bank.notMatch[key] || (state.bank.notMatch[key] = []); nm.push(e.txn.id); closeSheet(); commit('Okay, not that one'); break; }
     case 'likely-other': likelyTxnSheet(key); break;
@@ -5147,6 +5392,7 @@ document.addEventListener('click', async e => {
     case 'via-row-edit': viaSheet(+a.dataset.i); break;
     case 'del-via': state.payVia.splice(+a.dataset.i, 1); commit('Removed. Items keep their label.'); break;
     case 'set-icon': state.icons[a.dataset.cat] = a.dataset.icon; closeSheet(); commit('Icon updated'); break;
+    case 'cat-sub': { const k = a.dataset.list + '|' + a.dataset.par; CATUI.sub = CATUI.sub === k ? '' : k; render(); if (CATUI.sub) setTimeout(() => { const f = document.querySelector('.cat-subf input[name="nc"]'); if (f) f.focus(); }, 30); break; }
     case 'del-cat': {
       const list = a.dataset.list, c = a.dataset.cat;
       if (!a.classList.contains('arm')) { a.classList.add('arm'); a.innerHTML = 'Remove?'; a.classList.remove('icon-btn'); a.classList.add('btn', 'sm', 'danger'); break; }
@@ -5170,7 +5416,7 @@ document.addEventListener('click', async e => {
     case 'set-cat': setCategory(a.dataset.id, a.dataset.cat); break;
     case 'bank-import': openBank(); break;
     case 'alerts-test': alertsTest(a); break;
-    case 'bk-sync': case 'bk-item-sync': case 'bk-connect': case 'bk-reconnect': case 'bk-toggle': case 'bk-disc': case 'bk-disc-go': case 'bk-forget': bankCardAct(act, a); break;
+    case 'bk-sync': case 'bk-item-sync': case 'bk-status': case 'bk-connect': case 'bk-reconnect': case 'bk-toggle': case 'bk-disc': case 'bk-disc-go': case 'bk-forget': bankCardAct(act, a); break;
     case 'ix-open': case 'ix-accept': case 'ix-change': case 'ix-pick': case 'ix-cat': case 'ix-cats': case 'ix-new': case 'ix-edit': case 'ix-skip': case 'ix-all': case 'ix-undo': inboxAct(act, a); break;
     case 'tx-note': case 'tx-note-save': case 'tx-review': case 'tx-filter': case 'tx-more': case 'tx-open': case 'tx-back': case 'tx-cats': case 'tx-in': case 'tx-cat': case 'tx-sugg': case 'tx-match': case 'tx-edit': case 'tx-ignore': case 'tx-undo': case 'tx-refund': case 'tx-paycheck': case 'tx-sv': txAct(act, a); break;
     case 'pc-out': payPartOut(a.dataset.id); break;
@@ -5231,14 +5477,14 @@ document.addEventListener('submit', e => {
   }
   if (e.target.classList.contains('cat-add')) {
     const list = e.target.dataset.list, v = e.target.elements.nc.value.trim().slice(0, 30);
-    if (v && !state[list].includes(v)) { state[list].push(v); const par = e.target.elements.par.value; if (par && par !== v) state.catParents[v] = par; commit('Added ' + v); }
+    if (v && !state[list].includes(v)) { const par = e.target.elements.par.value; addCategory(list, v, par); CATUI.sub = ''; commit('Added ' + v + (par && par !== v ? ' under ' + par : ' as its own group')); }
   }
   if (e.target.id === 'svform') { saveSavings(e.target); return; }
   if (e.target.id === 'budamt') { saveBudgetAmount(e.target); return; }
   if (e.target.id === 'svadd') { saveSavingsAdd(e.target); return; }
   if (e.target.id === 'svbank') { state.savings.bank = e.target.elements.bank.value.trim().slice(0, 30); commit('Bank name saved'); accountSheet(true); return; }
   if (e.target.id === 'acctform') { saveAccount(e.target); return; }
-  if (e.target.id === 'catform') { const v = e.target.elements.newcat.value.trim(); if (v) setCategory(e.target.dataset.id, v.slice(0, 30)); }
+  if (e.target.id === 'catform') { const v = addCategory('categories', e.target.elements.newcat.value, e.target.elements.newpar.value); if (v) setCategory(e.target.dataset.id, v); }
 });
 
 /* ---------- Logo: cursive T with arms, coin head behind a laptop ---------- */

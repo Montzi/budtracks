@@ -485,7 +485,8 @@ test('POST /refresh reports PRODUCT_NOT_ENABLED per Item without failing', async
     const r = await call(env, 'POST', '/refresh', { key }); assert.equal(r.status, 200);
     const b = await r.json();
     assert.equal(b.refreshed, false); assert.equal(b.notEnabled, true);
-    assert.equal(b.results[0].refreshed, false); assert.equal(b.results[0].code, 'PRODUCT_NOT_ENABLED'); assert.match(b.results[0].reason, /not enabled/);
+    assert.equal(b.results[0].refreshed, false); assert.equal(b.results[0].code, 'PRODUCT_NOT_ENABLED');
+    assert.equal(b.results[0].reason, "Transactions Refresh isn't enabled for this Plaid account"); assert.match(b.results[0].message, /not enabled/);
     // A different error on the same call also never throws.
     t.tokens.tok_good.refreshError = 'INVALID_PRODUCT';
     assert.equal((await (await call(env, 'POST', '/refresh', { key })).json()).notEnabled, true);
@@ -563,5 +564,123 @@ test('item-scoped sync with a wrong ack commits nothing and does not touch the o
     await sync(env, key, '?item=item_1&ack=wrong');
     assert.equal(getItem(env, 'item_2').cursor, null); assert.equal(getItem(env, 'item_2').pending.token, full.syncToken);
     assert.equal(getItem(env, 'item_1').cursor, null);
+  });
+});
+
+// ---------- v13: Plaid status, real-time balances, honest refresh, pending ----------
+test('GET /status: per-Item last update, failure, error, products and cached refresh/balance support (needs auth)', async () => {
+  const t = withBalances();
+  t.tokens.tok_good.lastOk = '2026-11-22T14:12:00Z'; t.tokens.tok_good.lastFail = '2026-11-21T03:00:00Z'; t.tokens.tok_good.refreshError = 'PRODUCT_NOT_ENABLED';
+  t.tokens.tok_dead = { item_id: 'item_dead', accounts: [], batches: [], itemError: { error_type: 'ITEM_ERROR', error_code: 'ITEM_LOGIN_REQUIRED', error_message: 'the login details of this item have changed' } };
+  const p = mockPlaid(t);
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    await env.BT_KV.put('item:item_dead', JSON.stringify({ token: await encrypt(env, 'tok_dead'), institution: 'Santander', cursor: null }));
+    assert.equal((await call(env, 'GET', '/status')).status, 401);
+    // Before anything was tried, support is unknown (null), never guessed.
+    let b = await (await call(env, 'GET', '/status', { key })).json();
+    assert.equal(b.refresh, null); assert.equal(b.balance, null);
+    assert.equal(p.calls.filter((c) => c.path === '/transactions/refresh' || c.path === '/accounts/balance/get').length, 0, 'status never probes');
+    await call(env, 'POST', '/refresh', { key });
+    b = await (await call(env, 'GET', '/status', { key })).json();
+    const by = Object.fromEntries(b.items.map((x) => [x.itemId, x]));
+    assert.equal(by.item_1.institution, 'Chase'); assert.equal(by.item_1.lastSuccessfulUpdate, '2026-11-22T14:12:00Z'); assert.equal(by.item_1.lastFailedUpdate, '2026-11-21T03:00:00Z');
+    assert.equal(by.item_1.error, null); assert.equal(by.item_1.needsReconnect, false); assert.deepEqual(by.item_1.products, ['transactions']);
+    assert.equal(by.item_1.consentExpiration, null); assert.equal('webhook' in by.item_1, true);
+    assert.equal(by.item_1.refresh.supported, false); assert.equal(by.item_1.refresh.code, 'PRODUCT_NOT_ENABLED'); assert.match(by.item_1.refresh.reason, /Transactions Refresh isn't enabled/);
+    assert.deepEqual(by.item_dead.error, { code: 'ITEM_LOGIN_REQUIRED', message: 'the login details of this item have changed', type: 'ITEM_ERROR' });
+    assert.equal(by.item_dead.needsReconnect, true);
+    assert.equal(b.env, 'sandbox'); assert.ok(b.at);
+  });
+});
+
+test('GET /status: an Item Plaid cannot describe is reported, not dropped; newest txn date comes from KV after a sync', async () => {
+  const p = mockPlaid({ tokens: { tok_good: withBalances().tokens.tok_good, tok_gone: { item_id: 'item_gone', accounts: [], batches: [], error: 'ITEM_NOT_FOUND' } } });
+  const base = mockPlaid(); // default fixture has transactions
+  await withPlaid(base, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    await sync(env, key);
+    const st = await (await call(env, 'GET', '/status', { key })).json();
+    assert.equal(st.items[0].newestTxn, '2026-11-14');
+  });
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    await env.BT_KV.put('item:item_gone', JSON.stringify({ token: await encrypt(env, 'tok_gone'), institution: 'Gone Bank', cursor: null }));
+    const st = await (await call(env, 'GET', '/status', { key })).json();
+    const g = st.items.find((x) => x.itemId === 'item_gone');
+    assert.equal(g.statusUnavailable, true); assert.equal(g.error.code, 'ITEM_NOT_FOUND'); assert.equal(st.items.length, 2);
+  });
+});
+
+test('POST /balances/refresh: real-time balances on success, stored encrypted, support cached', async () => {
+  const t = withBalances();
+  t.tokens.tok_good.liveAccounts = t.tokens.tok_good.accounts.map((a) => a.account_id === 'acc_chk' ? { ...a, balances: { ...a.balances, available: 1111.11, current: 1111.11 } } : a);
+  const p = mockPlaid(t);
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    assert.equal((await call(env, 'POST', '/balances/refresh')).status, 401);
+    const r = await call(env, 'POST', '/balances/refresh', { key }); assert.equal(r.status, 200);
+    const b = await r.json();
+    assert.equal(b.refreshed, true); assert.equal(b.notEnabled, false);
+    assert.deepEqual(b.results, [{ itemId: 'item_1', institution: 'Chase', refreshed: true }]);
+    assert.equal(b.balances[0].refreshed, true); assert.equal(b.balances[0].accounts.find((a) => a.id === 'acc_chk').available, 1111.11);
+    assert.equal(p.calls.filter((c) => c.path === '/accounts/balance/get').length, 1);
+    const stored = env.BT_KV.m.get('bal:item_1'); assert.ok(stored && !stored.includes('1111.11'), 'stored encrypted');
+    assert.equal(JSON.parse(await decrypt(env, stored)).accounts[0].available, 1111.11);
+    const st = await (await call(env, 'GET', '/status', { key })).json();
+    assert.equal(st.balance.supported, true); assert.equal(st.items[0].balance.supported, true);
+  });
+});
+
+test('POST /balances/refresh: not in the plan -> cached balances with timestamps and the reason, per Item', async () => {
+  const t = withBalances(); t.tokens.tok_good.balanceError = 'INVALID_PRODUCT';
+  t.tokens.tok_good.accounts[0].balances.last_updated_datetime = '2026-11-22T14:12:00Z';
+  t.tokens.tok_dead = { item_id: 'item_dead', accounts: [], batches: [], error: 'ITEM_LOGIN_REQUIRED' };
+  const p = mockPlaid(t);
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    await env.BT_KV.put('item:item_dead', JSON.stringify({ token: await encrypt(env, 'tok_dead'), institution: 'Dead Bank', cursor: null }));
+    const b = await (await call(env, 'POST', '/balances/refresh', { key })).json();
+    assert.equal(b.refreshed, false);
+    const r1 = b.results.find((x) => x.itemId === 'item_1'), rd = b.results.find((x) => x.itemId === 'item_dead');
+    assert.equal(r1.refreshed, false); assert.equal(r1.notEnabled, true); assert.equal(r1.code, 'INVALID_PRODUCT');
+    assert.equal(r1.reason, "Real-time refresh isn't included in your Plaid plan"); assert.match(r1.message, /not authorized/);
+    assert.equal(r1.lastUpdated, '2026-11-22T14:12:00Z');
+    const b1 = b.balances.find((x) => x.itemId === 'item_1');
+    assert.equal(b1.cached, true); assert.equal(b1.accounts.find((a) => a.id === 'acc_chk').available, 1200.5, 'falls back to /accounts/get');
+    assert.equal(b1.accounts.find((a) => a.id === 'acc_chk').lastUpdated, '2026-11-22T14:12:00Z');
+    assert.equal(rd.refreshed, false); assert.equal(rd.needsReconnect, true); assert.equal(rd.reason, 'This bank needs you to sign in again');
+    assert.deepEqual(b.balances.find((x) => x.itemId === 'item_dead').accounts, []);
+    const st = await (await call(env, 'GET', '/status', { key })).json();
+    assert.equal(st.items.find((x) => x.itemId === 'item_1').balance.supported, false);
+    assert.match(st.items.find((x) => x.itemId === 'item_1').balance.reason, /Real-time refresh isn't included/);
+  });
+});
+
+test('POST /refresh?item= propagates the not-enabled reason and code for that Item', async () => {
+  const t = withBalances(); t.tokens.tok_good.refreshError = 'PRODUCT_NOT_ENABLED';
+  const q = mockPlaid(t);
+  await withPlaid(q, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    const b = await (await call(env, 'POST', '/refresh?item=item_1', { key })).json();
+    assert.equal(b.results.length, 1);
+    assert.deepEqual({ ...b.results[0], message: undefined }, { itemId: 'item_1', institution: 'Chase', refreshed: false, reason: "Transactions Refresh isn't enabled for this Plaid account", message: undefined, code: 'PRODUCT_NOT_ENABLED', notEnabled: true, needsReconnect: false });
+  });
+});
+
+test('/sync passes pending transactions through, including a late pending one older than `since` on a cursor delta', async () => {
+  const late = tx('t_late', 'acc_chk', '2026-11-12', 'SHELL OIL 5521', 38, { pending: true, authorized_date: '2026-11-03' });
+  const tok = { item_id: 'item_1', accounts: [checking], batches: [[{ added: checkingTxns, modified: [], removed: [] }], [{ added: [late], modified: [], removed: [] }]] };
+  const p = mockPlaid({ tokens: { tok_good: tok } });
+  await withPlaid(p, async () => {
+    const { env, key } = await paired(); await enrollGood(env, key);
+    const a = await sync(env, key, '?since=2026-11-01');
+    const pend = a.txns.find((t) => t.id === 'pl:t_pend'); assert.equal(pend.status, 'pending'); assert.equal(pend.amount, 52.1);
+    // Next delta (cursor set) carries a pending charge whose authorized_date is before the app's since: it must not be dropped.
+    const b = await sync(env, key, '?since=2026-11-08&ack=' + a.syncToken);
+    assert.deepEqual(b.txns.map((t) => [t.id, t.status, t.date]), [['pl:t_late', 'pending', '2026-11-03']]);
+    // A full pull still honours since.
+    const c = await sync(env, key, '?since=2026-11-11&full=1');
+    assert.ok(!c.txns.some((t) => t.id === 'pl:t_late')); assert.ok(c.txns.some((t) => t.id === 'pl:t_pay'));
   });
 });

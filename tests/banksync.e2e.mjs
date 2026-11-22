@@ -1043,22 +1043,24 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     await openPicker('pl:zelle');
     const head = await page.locator('.pk-head').innerText(); assert.match(head, /Zelle/); assert.match(head, /Chime ••1234/); assert.match(head, /Nov 20/); assert.match(head, /\$280\.00/);
     assert.ok(await page.locator('.pk-find input').count());
-    const secs = await page.locator('.pk-sec').allInnerTexts(); assert.deepEqual(secs.map(x => x.toLowerCase()), ['best match', 'same amount', 'near this date', 'everything upcoming']);
+    // v13: an "Earlier" section (the previous two pay cycles, paid items included) follows the upcoming list.
+    const secs = await page.locator('.pk-sec').allInnerTexts(); assert.deepEqual(secs.map(x => x.toLowerCase()), ['best match', 'same amount', 'near this date', 'everything upcoming', 'earlier']);
     assert.match(await page.locator('.pk-opt').first().innerText(), /Car payment/);
     const car = await page.locator('.pk-opt[data-key="b:car:2026-11-20"]').innerText(); assert.match(car, /Bill · due Nov 20/); assert.match(car, /\$280\.00/);
-    assert.match(await page.locator('.pk-opt[data-key^="b:ins:"]').innerText(), /Bill · due Dec 5/);
-    assert.ok(!/Phone/.test(await page.locator('#pklist').innerText()), 'paid item hidden');
+    assert.match(await page.locator('.pk-opt[data-key="b:ins:2026-12-05"]').innerText(), /Bill · due Dec 5/);
+    assert.match(await page.locator('.pk-opt[data-key="b:ins:2026-11-05"]').innerText(), /Bill · due Nov 5/, 'last cycle\'s insurance (same amount) is offered too');
+    assert.equal(await page.locator('.pk-opt[data-key="b:ph:2026-11-23"]').count(), 0, 'paid upcoming item hidden');
     await sheetNoHScroll(page, '390 picker'); await page.waitForTimeout(450); await page.screenshot({ path: SHOTS + '/picker-390.png' });
     const m = await page.evaluate(() => { const l = document.querySelector('#pklist'), h = document.querySelector('.pk-head'), top = h.getBoundingClientRect().top; l.scrollTop = l.scrollHeight; return { can: l.scrollHeight > l.clientHeight, at: l.scrollTop, same: Math.abs(h.getBoundingClientRect().top - top) < 1, sheetH: document.querySelector('#sheet .sheet').getBoundingClientRect().height }; });
     assert.ok(m.can && m.at > 0 && m.same, JSON.stringify(m)); assert.ok(m.sheetH > 700, 'full height ' + m.sheetH);
     assert.match(await page.locator('.pk-more').innerText(), /Show paid items too/);
   });
   await step('search filters; Show paid items too reveals the paid phone bill marked as such', async () => {
-    await page.fill('#pkq', 'insur'); assert.equal(await page.locator('.pk-opt').count(), 1); assert.ok(await page.evaluate(() => document.activeElement.id === 'pkq'));
+    await page.fill('#pkq', 'insur'); assert.equal(await page.locator('.pk-opt').count(), 2, 'this month and last month'); assert.ok(await page.evaluate(() => document.activeElement.id === 'pkq'));
     await page.fill('#pkq', ''); await page.click('[data-action="pk-paid"]');
-    const t = await page.locator('.pk-opt[data-key^="b:ph:"]').innerText(); assert.match(t, /Marked paid/);
+    const t = await page.locator('.pk-opt[data-key="b:ph:2026-11-23"]').innerText(); assert.match(t, /Marked paid/);
     assert.match(await page.locator('[data-action="pk-paid"]').innerText(), /Hide paid items/);
-    await page.click('[data-action="pk-paid"]'); assert.equal(await page.locator('.pk-opt[data-key^="b:ph:"]').count(), 0);
+    await page.click('[data-action="pk-paid"]'); assert.equal(await page.locator('.pk-opt[data-key="b:ph:2026-11-23"]').count(), 0);
   });
   await step('a clean match links at once with a toast; toast Undo works', async () => {
     await page.click('.pk-opt[data-key="b:car:2026-11-20"]');

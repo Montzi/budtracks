@@ -128,6 +128,8 @@ const shapeBalance = (a, off) => ({
   id: a.account_id, name: a.name || a.official_name || '', mask: a.mask || null, type: a.type, subtype: a.subtype || null,
   available: num(a.balances?.available), current: num(a.balances?.current), limit: num(a.balances?.limit),
   currency: a.balances?.iso_currency_code || a.balances?.unofficial_currency_code || 'USD', enabled: !off.has(a.account_id, a.type),
+  // When the bank last updated this balance (Plaid sends it for some institutions only).
+  ...(a.balances?.last_updated_datetime ? { lastUpdated: a.balances.last_updated_datetime } : {}),
 });
 const balanceItem = (it, accounts, off) => ({ itemId: it.id, institution: it.institution, accounts: accounts.map((a) => shapeBalance(a, off)) });
 
@@ -293,9 +295,14 @@ async function sync(env, since, full, ack, only) {
     const accts = new Map((ar.body.accounts || []).map((a) => [a.account_id, a]));
     const res = await syncItem(env, it.token, full ? null : it.cursor);
     if (res.r) { if (res.r.code !== 'PRODUCT_NOT_READY') err(res.r); continue; }
-    const keep = (t) => !off.has(t.account_id, accts.get(t.account_id)?.type) && (!since || (t.authorized_date || t.date) >= since);
-    for (const t of [...res.added, ...res.modified]) if (keep(t)) txns.push(normalizeTxn(t, accts.get(t.account_id), it.institution));
+    // `since` only trims the first (cursor-less) or a full pull. Deltas from a cursor are always new to the app: a pending
+    // charge Plaid reports late can carry an older authorized_date, and dropping it would lose it for good once the cursor moves.
+    const fresh = full || !it.cursor;
+    const keep = (t) => !off.has(t.account_id, accts.get(t.account_id)?.type) && (!since || !fresh || (t.authorized_date || t.date) >= since);
+    let newest = '';
+    for (const t of [...res.added, ...res.modified]) if (keep(t)) { const n = normalizeTxn(t, accts.get(t.account_id), it.institution); txns.push(n); if (n.date > newest) newest = n.date; }
     for (const r of res.removed) if (r?.transaction_id) removed.add('pl:' + r.transaction_id);
+    if (newest) await noteNewest(env, it.id, newest);
     // Park the new cursor as pending only now that every page succeeded; it is committed by a later ack.
     if (res.cursor && res.cursor !== it.cursor) {
       await env.BT_KV.put(itemKey(it.id), JSON.stringify({ ...it.rec, pending: { cursor: res.cursor, token: syncToken, at: new Date().toISOString() } }));
@@ -321,6 +328,24 @@ async function getBalances(env) {
 // report it per Item instead of failing the request.
 const NOT_ENABLED = new Set(['PRODUCT_NOT_ENABLED', 'INVALID_PRODUCT', 'PRODUCT_NOT_READY', 'ADDITIONAL_CONSENT_REQUIRED', 'UNAUTHORIZED_PRODUCT', 'API_NOT_ENABLED']);
 const notEnabled = (r) => NOT_ENABLED.has(r.code) || r.status === 401 || r.status === 403 || /not (?:enabled|authorized|available)|not authorised/i.test(plaidMsg(r));
+// A plain sentence for why a Plaid call did not do what was asked. `what` names the feature ("Transactions Refresh").
+function whyNot(r, what, plan) {
+  if (needsReconnect(r)) return 'This bank needs you to sign in again';
+  if (r.code === 'PRODUCT_NOT_READY') return 'Plaid is still loading this bank for the first time';
+  if (r.code === 'ADDITIONAL_CONSENT_REQUIRED') return `This bank connection hasn't been given consent for ${what}`;
+  if (notEnabled(r)) return plan || `${what} isn't enabled for this Plaid account`;
+  return plaidMsg(r);
+}
+// What Plaid allowed the last time each feature was asked for, per Item: { at, items: { [itemId]: { supported, reason, code } } }.
+// /status reports it without calling the feature again (a refresh is not free on every plan).
+async function noteSupport(env, k, list) {
+  let cur = null; try { cur = JSON.parse((await env.BT_KV.get(k)) || 'null'); } catch { /* corrupt: start over */ }
+  const items = { ...(cur?.items || {}) }, at = new Date().toISOString();
+  for (const x of list) items[x.itemId] = x.refreshed ? { supported: true, at } : { supported: !x.notEnabled ? null : false, reason: x.reason, code: x.code || null, at };
+  const vals = Object.values(items);
+  const supported = vals.some((v) => v.supported === true) ? true : vals.length && vals.every((v) => v.supported === false) ? false : null;
+  await env.BT_KV.put(k, JSON.stringify({ at, supported, reason: supported === false ? vals[0].reason : null, items }));
+}
 async function refresh(env, only) {
   const results = [], items = await loadItems(env);
   if (only && !items.some((x) => x.id === only)) throw new HttpError(404, 'unknown item');
@@ -328,9 +353,74 @@ async function refresh(env, only) {
     if (only && it.id !== only) continue;
     const r = await plaid(env, '/transactions/refresh', { access_token: it.token });
     if (r.ok) results.push({ itemId: it.id, institution: it.institution, refreshed: true });
-    else results.push({ itemId: it.id, institution: it.institution, refreshed: false, reason: plaidMsg(r), code: r.code || null, notEnabled: notEnabled(r), needsReconnect: needsReconnect(r) });
+    else results.push({ itemId: it.id, institution: it.institution, refreshed: false, reason: whyNot(r, 'Transactions Refresh'), message: plaidMsg(r), code: r.code || null, notEnabled: notEnabled(r), needsReconnect: needsReconnect(r) });
   }
+  if (results.length) await noteSupport(env, 'refresh:supported', results);
   return { refreshed: results.some((x) => x.refreshed), notEnabled: results.length > 0 && results.every((x) => !x.refreshed && x.notEnabled), results };
+}
+
+// Real-time balances: /accounts/balance/get asks each bank right now (the Balance product; often not on the Trial plan).
+// When Plaid says no, fall back to the cached /accounts/get balances and say why, per Item. Never silent.
+const BAL_PLAN = "Real-time refresh isn't included in your Plaid plan";
+const newestStamp = (accounts) => accounts.map((a) => a.balances?.last_updated_datetime).filter(Boolean).sort().pop() || null;
+async function balancesRefresh(env) {
+  const off = await getOff(env), out = [], results = [], at = new Date().toISOString();
+  for (const it of await loadItems(env)) {
+    const r = await plaid(env, '/accounts/balance/get', { access_token: it.token });
+    if (r.ok) {
+      const accts = r.body?.accounts || [];
+      out.push({ ...balanceItem(it, accts, off), refreshed: true, at });
+      results.push({ itemId: it.id, institution: it.institution, refreshed: true });
+      await env.BT_KV.put('bal:' + it.id, await encrypt(env, JSON.stringify({ at, accounts: out.at(-1).accounts })));
+      continue;
+    }
+    const res = { itemId: it.id, institution: it.institution, refreshed: false, reason: whyNot(r, 'Real-time balance', BAL_PLAN), message: plaidMsg(r), code: r.code || null, notEnabled: notEnabled(r), needsReconnect: needsReconnect(r) };
+    const ar = await plaid(env, '/accounts/get', { access_token: it.token });
+    if (ar.ok) {
+      const accts = ar.body?.accounts || [];
+      res.lastUpdated = newestStamp(accts);
+      out.push({ ...balanceItem(it, accts, off), refreshed: false, cached: true, lastUpdated: res.lastUpdated });
+    } else {
+      res.needsReconnect = res.needsReconnect || needsReconnect(ar);
+      out.push({ itemId: it.id, institution: it.institution, accounts: [], needsReconnect: res.needsReconnect, error: plaidMsg(ar) });
+    }
+    results.push(res);
+  }
+  if (results.length) await noteSupport(env, 'balance:supported', results);
+  return { refreshed: results.some((x) => x.refreshed), notEnabled: results.length > 0 && results.every((x) => !x.refreshed && x.notEnabled), balances: out, results, at };
+}
+
+// Newest transaction date the Worker has handed out per Item (one small KV write, only when it moves forward).
+async function noteNewest(env, id, date) {
+  const k = 'stats:' + id;
+  let cur = null; try { cur = JSON.parse((await env.BT_KV.get(k)) || 'null'); } catch { /* corrupt */ }
+  if (cur?.newest && cur.newest >= date) return;
+  await env.BT_KV.put(k, JSON.stringify({ ...(cur || {}), newest: date, at: new Date().toISOString() }));
+}
+
+// What Plaid says about each Item: when it last got new data from the bank, the last failure, any error, products,
+// plus what we learned about on-demand refresh and real-time balances (cached, never probed here).
+async function status(env) {
+  const readJ = async (k) => { try { return JSON.parse((await env.BT_KV.get(k)) || 'null'); } catch { return null; } };
+  const rs = await readJ('refresh:supported'), bs = await readJ('balance:supported'), items = [];
+  for (const it of await loadItems(env)) {
+    const st = await readJ('stats:' + it.id);
+    const base = { itemId: it.id, institution: it.institution, refresh: rs?.items?.[it.id] || null, balance: bs?.items?.[it.id] || null, ...(st?.newest ? { newestTxn: st.newest } : {}) };
+    const r = await plaid(env, '/item/get', { access_token: it.token });
+    if (!r.ok) { items.push({ ...base, error: { code: r.code || null, message: plaidMsg(r) }, needsReconnect: needsReconnect(r), statusUnavailable: true }); continue; }
+    const item = r.body?.item || {};
+    // Plaid returns `status` next to `item`; read it from inside `item` too in case that ever changes.
+    const tx = r.body?.status?.transactions || item.status?.transactions || {};
+    const e = item.error && item.error.error_code ? { code: item.error.error_code, message: item.error.error_message || item.error.display_message || '', type: item.error.error_type || null } : null;
+    items.push({
+      ...base, institutionId: item.institution_id || null,
+      lastSuccessfulUpdate: tx.last_successful_update || null, lastFailedUpdate: tx.last_failed_update || null,
+      error: e, needsReconnect: !!(e && RECONNECT.has(e.code)),
+      products: item.products || [], billedProducts: item.billed_products || [], availableProducts: item.available_products || [],
+      consentExpiration: item.consent_expiration_time || null, webhook: item.webhook || null,
+    });
+  }
+  return { items, refresh: rs ? { supported: rs.supported, reason: rs.reason, at: rs.at } : null, balance: bs ? { supported: bs.supported, reason: bs.reason, at: bs.at } : null, env: plaidEnv(env), at: new Date().toISOString() };
 }
 
 async function toggle(env, accountId, body) {
@@ -660,6 +750,8 @@ export default {
         else if (m === 'POST' && path === '/sandbox/item') out = env.PLAID_ENV === 'sandbox' ? await sandboxItem(env, await readJsonOpt(req)) : (() => { throw new HttpError(404, 'not found'); })();
         else if (m === 'GET' && path === '/accounts') out = await accounts(env);
         else if (m === 'GET' && path === '/balances') out = await getBalances(env);
+        else if (m === 'GET' && path === '/status') out = await status(env);
+        else if (m === 'POST' && path === '/balances/refresh') out = await balancesRefresh(env);
         else if (m === 'POST' && path === '/refresh') out = await refresh(env, url.searchParams.get('item') || '');
         else if (m === 'GET' && path === '/sync') out = await sync(env, url.searchParams.get('since'), url.searchParams.get('full') === '1', url.searchParams.get('ack') || '', url.searchParams.get('item') || '');
         else if (m === 'POST' && (mt = /^\/accounts\/([\w-]+)\/toggle$/.exec(path))) out = await toggle(env, mt[1], await readJson(req));
