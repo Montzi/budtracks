@@ -119,11 +119,11 @@ const jpegSize = (page, data) => page.evaluate(d => new Promise(ok => { const i 
   const before = await spentSoFar(page);
   await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx-card');
 
-  await step('Transactions header: "Screenshot" button next to Sync now, fits at 390', async () => {
+  await step('Transactions header: "Screenshot" button in the header, Sync chip in the filter row, fits at 390', async () => {
     const btn = page.locator('.tx-card .card-h [data-action="shot-open"]');
     assert.equal(await btn.count(), 1);
     assert.match(await btn.innerText(), /Screenshot/);
-    assert.equal(await page.locator('.tx-card .card-h [data-action="bk-sync"]').count(), 1);
+    assert.equal(await page.locator('.tx-card .tx-chips [data-action="bk-sync"]').count(), 1);
     const [hb, card] = await Promise.all([page.locator('.tx-hb').boundingBox(), page.locator('.tx-card').boundingBox()]);
     assert.ok(hb.x + hb.width <= card.x + card.width + 0.5, 'header buttons inside the card');
     await noHScroll(page, 'transactions 390');

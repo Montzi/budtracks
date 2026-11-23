@@ -231,7 +231,7 @@ for (const [w, h] of [[390, 844], [669, 951], [951, 669], [1000, 703]]) {
   const { ctx, page, errs } = await newPage(390, 844, { dark: false, hash: '#transactions' });
   await step('390: chips read All · Review · N · Added · Matched · Skipped on one line, no page scroll', async () => {
     await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx-chips');
-    const m = await page.evaluate(() => { const row = document.querySelector('.tx-chips'), cs = [...row.querySelectorAll('.chip')];
+    const m = await page.evaluate(() => { const row = document.querySelector('.tx-chips'), cs = [...row.querySelectorAll('.chip:not(.chip-sync)')];
       return { t: cs.map(c => c.textContent), tops: cs.map(c => Math.round(c.getBoundingClientRect().top)), fs: getComputedStyle(cs[0]).fontSize, sw: row.scrollWidth, cw: row.clientWidth, ox: getComputedStyle(row).overflowX }; });
     assert.equal(m.t.length, 5); assert.equal(m.t[0], 'All'); assert.match(m.t[1], /^Review · \d+$/); assert.deepEqual(m.t.slice(2), ['Added', 'Matched', 'Skipped']);
     assert.equal(new Set(m.tops).size, 1, 'one line ' + m.tops); assert.equal(m.fs, '13px');

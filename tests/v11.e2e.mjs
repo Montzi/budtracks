@@ -291,7 +291,7 @@ for (const [w, h] of SIZES) {
     await page.evaluate(() => { window.BT_FOLLOWUP_MS = 600000; const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.bank.lastSync = new Date(Date.now() - 20 * 60e3).toISOString(); localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
     await page.reload({ waitUntil: 'load' }); await page.evaluate(() => { window.BT_FOLLOWUP_MS = 600000; });
     await page.waitForSelector('.tx-card [data-action="bk-sync"]:not([disabled])');
-    assert.match(await page.locator('.tx-card .meta').innerText(), /Last synced 20 min ago/);
+    assert.match(await page.locator('.tx-card .meta').innerText(), /Updated 20 min ago/);
     mock.txns = SPLIT.concat(NEW3); mock.syncDelay = 1200;
     const n = calls.length;
     await page.click('.tx-card [data-action="bk-sync"]');
@@ -300,8 +300,8 @@ for (const [w, h] of SIZES) {
     await page.waitForFunction(() => /3 new transactions/.test(document.querySelector('#toast').textContent), null, { timeout: 5000 });
     assert.ok(calls.slice(n).some(c => c.p === '/sync'), 'synced');
     await page.waitForSelector('.tx-card [data-action="bk-sync"]:not([disabled])');
-    assert.equal((await page.locator('.tx-card [data-action="bk-sync"]').innerText()).trim(), 'Sync now');
-    assert.match(await page.locator('.tx-card .meta').innerText(), /Last synced just now/);
+    assert.equal((await page.locator('.tx-card [data-action="bk-sync"]').innerText()).trim(), 'Sync');
+    assert.match(await page.locator('.tx-card .meta').innerText(), /Updated just now/);
     await quiet(page);
     await page.screenshot({ path: SHOTS + '/tx-light-390.png' });
   });

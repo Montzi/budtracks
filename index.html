@@ -861,12 +861,25 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 /* Plans segmented control, Transactions tab, Latest paycheck */
 .plans-seg { justify-self: start; }
 .tabs a { min-width: 0; white-space: nowrap; letter-spacing: -.01em; }
-.tx-filters { padding: 0 10px 6px; display: grid; gap: 10px; }
+.tx-filters { padding: 0 8px 6px; display: grid; gap: 10px; }
 .tx-filters { grid-template-columns: minmax(0, 1fr); }
 /* Filter chips stay on one line; if a very narrow screen can't fit them, the row scrolls by itself (no page scroll). */
-.tx-chips { margin: 0; gap: 4px; flex-wrap: nowrap; overflow-x: auto; min-width: 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.tx-chips { margin: 0; gap: 2px; flex-wrap: nowrap; overflow-x: auto; min-width: 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .tx-chips::-webkit-scrollbar { display: none; }
-.tx-chips .chip { padding: 6px 7px; font-size: 13px; letter-spacing: -.01em; flex: none; white-space: nowrap; }
+.tx-chips .chip { padding: 6px 5px; font-size: 13px; letter-spacing: -.02em; flex: none; white-space: nowrap; }
+.tx-chips .chip-sync { display: inline-flex; align-items: center; gap: 3px; padding: 6px 5px; border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); color: var(--accent); background: transparent; }
+.tx-chips .chip-sync svg { width: 12px; height: 12px; flex: none; }
+.tx-chips .chip-sync .spin { width: 11px; height: 11px; border-width: 2px; border-color: currentColor; border-right-color: transparent; }
+.tx-chips .chip-sync:disabled { opacity: .75; }
+.tx-card .card-h > div:first-child { min-width: 0; }
+.tx-card .card-h .meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-sum { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 16px 10px; min-width: 0; }
+.tx-sum-b { display: flex; align-items: baseline; gap: 8px; min-width: 0; border: 0; background: transparent; padding: 2px 0; color: var(--ink); text-align: left; font: inherit; }
+.tx-sum-b span { font-size: 13px; color: var(--ink-3); white-space: nowrap; }
+.tx-sum-b b { font-family: var(--mono); font-size: 17px; font-weight: 600; white-space: nowrap; }
+.tx-sum-b::after { content: "›"; color: var(--ink-3); opacity: .8; }
+.tx-sum .seg { flex: none; }
+.tx-sum .seg button { padding: 5px 11px; font-size: 12.5px; }
 .tx-find { display: flex; gap: 8px; min-width: 0; }
 .tx-find input, .tx-find select { min-width: 0; flex: 1 1 0; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
 .tx-find select { flex: 0 1 45%; }
@@ -2149,7 +2162,8 @@ function hatSheet() {
     <div class="hat-sw">${HAT_COLORS.map(([n, c]) => `<button class="sw-c" data-action="hat-color" data-c="${c}" aria-pressed="${h.color === c}" aria-label="${n}" title="${n}" style="--c:${c}"></button>`).join('')}
       <label class="sw-custom" title="Custom color"><input type="color" id="hatcustom" value="${h.color}" aria-label="Custom color"><span>Custom</span></label></div>
     <div class="subhead" style="border:0;padding-left:0;margin-top:10px">Facing</div>
-    <div class="seg kind-seg"><button type="button" data-action="hat-dir" data-d="front" aria-pressed="${h.dir === 'front'}">Front (dad hat)</button><button type="button" data-action="hat-dir" data-d="back" aria-pressed="${h.dir === 'back'}">Backwards</button></div>`);
+    <div class="seg kind-seg"><button type="button" data-action="hat-dir" data-d="front" aria-pressed="${h.dir === 'front'}">Front (dad hat)</button><button type="button" data-action="hat-dir" data-d="back" aria-pressed="${h.dir === 'back'}">Backwards</button></div>
+    <div class="subhead" style="border:0;padding-left:0;margin-top:10px">Appearance</div>${themeSeg()}`);
   $('#hatcustom').addEventListener('change', e => setHat({ color: e.target.value }));
 }
 function setHat(p) {
@@ -2539,12 +2553,12 @@ function heroNums(r, s) {
 function spentRows(s, r) {
   const rows = [];
   s.items.forEach(x => {
-    if (x.kind === 'spend') { (x.spends || []).forEach(e => rows.push({ x: e, date: e.date, amount: e.amount, name: e.name, sub: esc(e.category) + ' · counted in ' + esc(x.name) + ' budget' + (shotTagOf(e.ref) ? ' ' + shotTagOf(e.ref) : '') })); return; }
+    if (x.kind === 'spend') { (x.spends || []).forEach(e => rows.push({ x: e, date: e.date, amount: e.amount, name: e.name, note: e.memo, sub: esc(e.category) + ' · counted in ' + esc(x.name) + ' budget' + (shotTagOf(e.ref) ? ' ' + shotTagOf(e.ref) : '') })); return; }
     if (!(BT.paidOf(x) > 0)) return;
-    const sub = x.kind === 'extra' ? esc(x.category) + (x.memo ? ' · ' + esc(x.memo) : '') + (x.shot ? ' ' + shotTag(x.shot) : '') : x.kind === 'unalloc' ? 'Not recorded yet' : x.kind === 'plan' ? esc(x.note) : x.kind === 'card' ? 'Card payment' : esc(baseCat(x));
-    rows.push({ x, date: x.date, amount: x.amount, name: x.name, sub: sub + (x.kind !== 'extra' && x.kind !== 'unalloc' ? ' · paid ' + md(x.date) : '') });
+    const sub = x.kind === 'extra' ? esc(x.category) + (x.shot ? ' ' + shotTag(x.shot) : '') : x.kind === 'unalloc' ? 'Not recorded yet' : x.kind === 'plan' ? esc(x.note) : x.kind === 'card' ? 'Card payment' : esc(baseCat(x));
+    rows.push({ x, date: x.date, amount: x.amount, name: x.name, note: x.memo, sub: sub + (x.kind !== 'extra' && x.kind !== 'unalloc' ? ' · paid ' + md(x.date) : '') });
   });
-  unreviewedLines(r).forEach(t => rows.push({ t, date: t.date, amount: t.amount, name: cleanMerchant(t), sub: esc(acctDots(t) || 'Bank') + ' · ' + md(t.date) + ' <span class="pill soft">To review</span>' }));
+  unreviewedLines(r).forEach(t => rows.push({ t, date: t.date, amount: t.amount, name: cleanMerchant(t), note: noteOfTxn(t), sub: esc(acctDots(t) || 'Bank') + ' · ' + md(t.date) + ' <span class="pill soft">To review</span>' }));
   return rows.sort((a, b) => b.date.localeCompare(a.date));
 }
 // Every unpaid amount behind "Still due": dated items by due date, then what is left in budgets. Sums to summary.due.
@@ -2569,10 +2583,11 @@ function rowTap(o) {
 function listRow(o, late) {
   const d = BT.parse(o.date), tap = rowTap(o);
   return `<li class="row${tap ? ' tap' : ''}" ${tap}${tap ? ` tabindex="0" role="button" aria-label="${esc(o.name)}: ${hid() ? 'amount hidden' : fmt(o.amount)}"` : ''}><div class="date" aria-hidden="true"><span class="dow">${o.budget ? 'Bud' : DOW[d.getDay()]}</span><span class="dd">${o.budget ? '—' : d.getDate()}</span></div>
-    <div class="main"><div class="nm">${esc(o.name)}${late ? ' <span class="pill soft warn">Past due</span>' : ''}</div><div class="sub">${o.sub}</div></div><div class="amt">${hm(o.amount)}</div></li>`;
+    <div class="main"><div class="nm">${esc(o.name)}${late ? ' <span class="pill soft warn">Past due</span>' : ''}</div><div class="sub">${o.sub}</div>${o.note ? `<div class="nlabel">${esc(o.note)}</div>` : ''}</div><div class="amt">${hm(o.amount)}</div></li>`;
 }
-function heroListSheet(which) {
-  const view = state.settings.view, r = BT.periodRange(state, view, offset, TODAY), h = heroNums(r), s = h.s;
+function heroListSheet(which, mode) {
+  const view = state.settings.view, month = mode === 'month', r = month ? BT.periodRange(state, 'monthly', 0, TODAY) : BT.periodRange(state, view, mode === 'cycle' ? 0 : offset, TODAY), h = heroNums(r), s = h.s;
+  const vn = month ? 'month' : VIEWNAME[view];
   const spent = which === 'spent', rows = spent ? spentRows(s, r) : dueRows(s);
   const total = BT.round2(rows.reduce((a, o) => a + o.amount, 0));
   let body = '';
@@ -2583,9 +2598,9 @@ function heroListSheet(which) {
     const dated = rows.filter(o => !o.budget), buds = rows.filter(o => o.budget);
     body = (dated.length ? `<ul class="rows">${dated.map(o => listRow(o, o.date < TODAY)).join('')}</ul>` : '') + (buds.length ? `<div class="subhead hl-day"><span>Left in budgets</span><span>${hm(buds.reduce((a, o) => a + o.amount, 0))}</span></div><ul class="rows">${buds.map(o => listRow(o)).join('')}</ul>` : '');
   }
-  openSheet(`<div class="sheet-h"><div><h3>${spent ? 'Spent so far' : 'Still due'}</h3><p class="lede">This ${VIEWNAME[view]} · ${rangeLabel(r)}</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+  openSheet(`<div class="sheet-h"><div><h3>${spent ? 'Spent so far' : 'Still due'}</h3><p class="lede">This ${vn} · ${rangeLabel(r)}</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
     <div class="hl-total"><span>${rows.length} ${rows.length === 1 ? 'item' : 'items'}</span><b id="hl-sum">${hm(total)}</b></div>
-    <div class="hl-list">${body || `<div class="empty">${spent ? 'Nothing spent yet this ' + VIEWNAME[view] + '.' : 'Nothing left to pay this ' + VIEWNAME[view] + '.'}</div>`}</div>`);
+    <div class="hl-list">${body || `<div class="empty">${spent ? 'Nothing spent yet this ' + vn + '.' : 'Nothing left to pay this ' + vn + '.'}</div>`}</div>`);
 }
 function viewOverview() {
   const view = state.settings.view;
@@ -4217,6 +4232,16 @@ function relTime(iso) {
   if (m < 1440) return Math.round(m / 60) + ' h ago';
   return Math.round(m / 1440) + ' d ago';
 }
+// Short "Updated …" line for the Transactions header: just now, N min ago, N h ago, yesterday, or the date.
+function updatedAgo(iso) {
+  const t = new Date(iso), m = Math.round((Date.now() - t.getTime()) / 60000);
+  if (!(m >= 1)) return 'just now';
+  if (m < 60) return m + ' min ago';
+  const day = BT.iso(t);
+  if (day === TODAY) return Math.round(m / 60) + ' h ago';
+  if (day === BT.addDays(TODAY, -1)) return 'yesterday';
+  return md(day);
+}
 function loadPlaid() {
   if (window.Plaid) return Promise.resolve();
   return new Promise((ok, no) => {
@@ -4877,6 +4902,7 @@ function linkShot(o, t, x, useBank, auto) {
   const prev = { amount: x.amount, date: x.date };
   if (useBank) x.amount = BT.round2(Math.abs(t.amount));
   x.bank = t.id;
+  if (x.note && x.note !== 'Bank sync') { o.bank.notes = o.bank.notes || {}; o.bank.notes[t.id] = x.note; }
   o.bank.seen[t.id] = { res: 'spend', kind: 'spend', spendId: x.id, src: 'shot', date: t.date, amount: t.amount, desc: t.desc, at: new Date().toISOString(), auto: !!auto, txn: t, what: x.category + ' · ' + x.desc, shotPrev: prev };
   o.bank.inbox = (o.bank.inbox || []).filter(s => !(s.parts || [s.txn]).some(p => p && p.id === t.id));
   o.bank.history = (o.bank.history || []).filter(h => h.id !== t.id);
@@ -4886,6 +4912,7 @@ function linkShot(o, t, x, useBank, auto) {
 // never links to it automatically again.
 function unlinkShot(o, id, r) {
   const x = o.spends.find(z => z.id === r.spendId);
+  if (o.bank.notes && x && o.bank.notes[id] === x.note) delete o.bank.notes[id];
   if (x) { delete x.bank; if (r.shotPrev) { x.amount = r.shotPrev.amount; x.date = r.shotPrev.date; } }
   delete o.bank.seen[id];
   notShot(o, id, r.spendId);
@@ -5067,7 +5094,7 @@ const shotTagOf = id => { const x = (state.spends || []).find(z => z.id === id);
 function shotWaitHTML() {
   const cut = BT.addDays(TODAY, -60), l = (state.spends || []).filter(x => x && x.shot && !x.bank && x.date >= cut).sort((a, b) => a.date < b.date ? 1 : -1);
   if (!l.length) return '';
-  return `<div class="shot-wait"><div class="tx-day">From screenshots · waiting for bank</div>${l.map(x => `<button type="button" class="tx-main shot-w" data-action="edit" data-type="extra" data-id="${esc(x.id)}"><span class="tx-l"><b>${esc(x.desc || x.category)}</b><span class="tx-s">${md(x.date)} · ${esc(x.category)}${x.shot.pending ? ' <span class="pill soft">Pending</span>' : ''}</span></span><span class="tx-r"><span class="amt">${fmt(x.amount)}</span>${shotTag('waiting')}</span></button>`).join('')}</div>`;
+  return `<div class="shot-wait"><div class="tx-day">From screenshots · waiting for bank</div>${l.map(x => `<button type="button" class="tx-main shot-w" data-action="edit" data-type="extra" data-id="${esc(x.id)}"><span class="tx-l"><b>${esc(x.desc || x.category)}</b><span class="tx-s">${md(x.date)} · ${esc(x.category)}${x.shot.pending ? ' <span class="pill soft">Pending</span>' : ''}</span>${x.note && x.note !== 'Bank sync' ? `<span class="nlabel">${esc(x.note)}</span>` : ''}</span><span class="tx-r"><span class="amt">${fmt(x.amount)}</span>${shotTag('waiting')}</span></button>`).join('')}</div>`;
 }
 // A transaction that already has a decision (seen) never waits in the review list. Review rows whose pending twin was decided
 // inherit that decision. Runs on load and after every sync; the Transactions chip also prefers seen over the inbox.
@@ -5326,6 +5353,13 @@ function txListHTML() {
   shown.forEach(t => { if (t.date !== day) { day = t.date; out += `<div class="tx-day">${lng(day)}</div>`; } out += txRow(t); });
   return out + (all.length > shown.length ? `<div class="tx-more"><button class="btn" data-action="tx-more">Show more (${all.length - shown.length})</button></div>` : '');
 }
+// "Spent this pay cycle" for the Transactions tab: the hero's Spent so far for the current cycle, or for the calendar month.
+function txSummaryHTML() {
+  const view = state.settings.view, mo = view === 'monthly' || state.settings.txRange === 'month';
+  const r = BT.periodRange(state, mo ? 'monthly' : view, 0, TODAY), amt = heroNums(r).spentAll;
+  const what = mo ? 'month' : VIEWNAME[view], rg = mo ? 'month' : 'cycle';
+  return `<div class="tx-sum"><button type="button" class="tx-sum-b" data-action="spent-list" data-r="${rg}" aria-label="Spent this ${what}: ${hid() ? 'amount hidden' : fmt(amt)}. See the list"><span>Spent this ${what}</span><b id="tx-spent">${hm(amt)}</b></button>${view === 'monthly' ? '' : `<div class="seg" role="group" aria-label="Spent period"><button type="button" data-action="tx-range" data-r="cycle" aria-pressed="${!mo}">${view === 'weekly' ? 'Week' : 'Cycle'}</button><button type="button" data-action="tx-range" data-r="month" aria-pressed="${mo}">Month</button></div>`}</div>`;
+}
 function viewTransactions() {
   const has = Object.keys(state.bank.txns).length > 0;
   if (!has && !bankReady()) return `<div class="stack"><section class="card"><header class="card-h"><h2>Transactions</h2></header><div class="card-b"><div class="empty">Connect a bank and every transaction shows up here, with what BudTracks did with it. <a class="linkbtn" href="#income">Go to Income → Bank connections</a></div></div></section></div>`;
@@ -5333,8 +5367,9 @@ function viewTransactions() {
   const banks = [...new Set(Object.values(state.bank.txns).map(txBankKey))].sort((a, b) => bankRank(a) - bankRank(b) || a.localeCompare(b));
   const n = cnt('review'), ready = state.bank.inbox.filter(bulkOk).length;
   const F = [['all', 'All'], ['review', 'Review' + (n ? ' · ' + n : '')], ['added', 'Added'], ['matched', 'Matched'], ['ignored', 'Skipped']];
-  return `<div class="stack"><section class="card tx-card"><header class="card-h"><div><h2>Transactions</h2><span class="meta">${bankReady() && state.bank.lastSync ? 'Last synced ' + esc(relTime(state.bank.lastSync)) : 'From your connected banks'}</span></div>${bankReady() ? `<div class="tx-hb"><button type="button" class="btn sm shot-btn" data-action="shot-open" aria-label="Add from screenshot">${ICON.shot}<span>Screenshot</span></button>${syncBtnHTML('Sync now', 'class="btn sm" data-action="bk-sync"')}</div>` : ''}</header>
-    <div class="tx-filters"><div class="chips tx-chips" role="group" aria-label="Show">${F.map(([v, l]) => `<button class="chip" data-action="tx-filter" data-f="${v}" aria-pressed="${TXUI.filter === v}">${esc(l)}</button>`).join('')}</div>
+  return `<div class="stack"><section class="card tx-card"><header class="card-h"><div><h2>Transactions</h2><span class="meta">${bankReady() && state.bank.lastSync ? 'Updated ' + esc(updatedAgo(state.bank.lastSync)) : 'From your connected banks'}</span></div>${bankReady() ? `<div class="tx-hb"><button type="button" class="btn sm shot-btn" data-action="shot-open" aria-label="Add from screenshot">${ICON.shot}<span>Screenshot</span></button></div>` : ''}</header>
+    ${txSummaryHTML()}
+    <div class="tx-filters"><div class="chips tx-chips" role="group" aria-label="Show">${F.map(([v, l]) => `<button class="chip" data-action="tx-filter" data-f="${v}" aria-pressed="${TXUI.filter === v}">${esc(l)}</button>`).join('')}${bankReady() ? syncBtnHTML(ICON.refresh + '<span>Sync</span>', 'class="chip chip-sync" data-action="bk-sync" aria-label="Sync now"') : ''}</div>
       <div class="tx-find"><input id="txq" type="search" placeholder="Search merchant" value="${esc(TXUI.q)}" aria-label="Search transactions" autocomplete="off">${banks.length > 1 ? `<select id="txbank" aria-label="Bank filter"><option value="">All banks</option>${banks.map(b => `<option value="${esc(b)}"${TXUI.bank === b ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>` : ''}</div>
       ${TXUI.filter === 'review' && n ? `<div class="bx-top"><button class="btn sm" data-action="ix-open">Review one by one</button><button class="btn primary sm" data-action="ix-all" data-tx="1"${ready ? '' : ' disabled'}>Accept all (${ready})</button></div>` : ''}</div>
     ${TXUI.filter === 'all' && !TXUI.q && !TXUI.bank ? shotWaitHTML() : ''}<div id="txlist" class="tx-list">${txListHTML()}</div></section></div>`;
@@ -5685,7 +5720,8 @@ document.addEventListener('click', async e => {
     case 'sv-del': state.savings.tx = state.savings.tx.filter(t => t.id !== a.dataset.id); commit('Removed'); accountSheet(true); break;
     case 'sound': state.settings.sound = state.settings.sound === false; commit(state.settings.sound ? 'Sound on' : 'Sound off'); if (state.settings.sound) chime(); break;
     case 'occ': openOcc(a.dataset.key); break;
-    case 'spent-list': heroListSheet('spent'); break;
+    case 'spent-list': heroListSheet('spent', a.dataset.r); break;
+    case 'tx-range': state.settings.txRange = a.dataset.r === 'month' ? 'month' : 'cycle'; try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} clearTimeout(timer); timer = setTimeout(flush, 600); render(); break;
     case 'due-list': heroListSheet('due'); break;
     case 'chart-range': state.settings.chartRange = a.dataset.r === 'month' ? 'month' : 'cycle'; try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} clearTimeout(timer); timer = setTimeout(flush, 600); render(); break;
     case 'lg-toggle': { const g = a.dataset.g, li = a.closest('li'), on = !li.classList.contains('open'); li.classList.toggle('open', on); a.setAttribute('aria-expanded', on); const k = li.querySelector('.lg-kids'); if (k) k.hidden = !on; setLegendOpen(g, on); break; }
