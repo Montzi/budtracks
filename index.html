@@ -78,7 +78,9 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .app { max-width: 1080px; margin: 0 auto; padding: 14px 16px 104px; display: grid; gap: 16px; }
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 4px; }
 .brand { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; flex: 1 1 100%; min-width: 0; }
-.brand .sync { font-size: 11.5px; margin-top: -2px; }
+.brand .sync { font-size: 11.5px; margin-top: 8px; }
+/* Tab logo: about 70% of the content width (JS refines it in buildMarks), room under the T's stem so "Saved" never touches it. */
+#logoOut .wm { font-size: min(calc((100vw - 32px) * .175), 90px); padding-bottom: .34em; }
 .mark { font-family: var(--display); font-size: 30px; line-height: 1; letter-spacing: -0.01em; }
 .mark i { color: var(--brass); font-style: italic; }
 .sync { font-size: 12px; color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; }
@@ -222,13 +224,20 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .plan:hover { background: var(--surface-2); }
 .plan { gap: 8px; }
 .pc-r1, .pc-r2, .pc-r3 { display: flex; align-items: center; gap: 4px 10px; min-width: 0; }
-.pc-r1 { justify-content: space-between; align-items: baseline; }
+.pc-r1 { justify-content: space-between; align-items: flex-start; }
 .pc-r1 .nm { font-size: 16px; font-weight: 700; min-width: 0; flex: 1 1 auto; overflow-wrap: anywhere; }
-.pc-r1 .amt { font-size: 20px; font-weight: 600; flex: none; white-space: nowrap; }
+.pc-r1 .amt, .pc-r1 .pc-dd { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; font-size: 20px; font-weight: 600; line-height: 1.2; white-space: nowrap; }
+.pc-nx { display: flex; flex-direction: column; align-items: flex-end; flex: none; gap: 1px; text-align: right; }
+.pc-nx .pc-due { margin: 0; display: flex; align-items: baseline; gap: 6px; }
+.pc-dl { font: 500 12px/1 var(--body); color: var(--ink-3); letter-spacing: 0; }
+.pc-due.late .pc-dl { color: color-mix(in srgb, var(--warn) 65%, var(--ink)); }
+.pc-due.late .pc-dd { color: color-mix(in srgb, var(--warn) 65%, var(--ink)); }
+.pc-due.done { font: 600 13px/1.2 var(--body); }
+.pc-nx .pc-due.done { margin-top: 2px; }
 .pc-r2 { flex-wrap: wrap; justify-content: space-between; }
 .pc-l { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
 .pc-l .tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pc-due { font-size: 13px; color: var(--ink-2); white-space: nowrap; margin-left: auto; }
+.pc-due { font-size: 13px; color: var(--ink); white-space: nowrap; margin-left: auto; }
 .pc-due.late { color: color-mix(in srgb, var(--warn) 65%, var(--ink)); font-weight: 600; }
 .pc-due.done { color: var(--good); font-weight: 600; }
 .pc-r3 .pips { flex: 1; min-width: 0; }
@@ -504,7 +513,12 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .via-new.editing { border-color: var(--accent); }
 
 /* Service logos: your own upload, else the service's own icon, else a colored letter. The letter is drawn with CSS so it is never page text. */
-.slogo { position: relative; display: inline-grid; place-items: center; flex: none; width: var(--s, 22px); height: var(--s, 22px); border-radius: calc(var(--s, 22px) * .28); background: hsl(var(--h, 200) 42% 40%); color: #fff; font: 700 calc(var(--s, 22px) * .5) / 1 var(--body); overflow: hidden; vertical-align: middle; }
+.slogo { position: relative; display: inline-grid; place-items: center; flex: none; width: var(--s, 22px); height: var(--s, 22px); border-radius: calc(var(--s, 22px) * .28); background: var(--bg, hsl(var(--h, 200) 42% 40%)); color: var(--fg, #fff); font: 700 calc(var(--s, 22px) * var(--fk, .5)) / 1 var(--body); overflow: hidden; vertical-align: middle; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 16%, transparent); }
+.slogo-cat { background: var(--surface-2); color: var(--ink-2); }
+.slogo-cat svg { width: 58%; height: 58%; }
+.row .nm .slogo, .bm-d .slogo, .shot-r1 .slogo { margin-right: 7px; }
+.bm-d b { display: inline-flex; align-items: center; }
+.tx-main > .slogo { margin-top: 1px; }
 .slogo::before { content: attr(data-l); }
 .slogo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #fff; opacity: 0; }
 .slogo img.ok { opacity: 1; }
@@ -918,8 +932,8 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 .tx-list { padding: 0 0 8px; }
 .tx-day { position: sticky; top: 0; z-index: 2; padding: 6px 16px; font-size: 12px; font-weight: 600; letter-spacing: .03em; color: var(--ink-3); background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .tx { border-bottom: 1px solid var(--line); min-width: 0; }
-.tx-main { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; width: 100%; padding: 10px 16px; border: 0; background: transparent; color: inherit; text-align: left; min-width: 0; }
-.tx-l { display: grid; gap: 2px; min-width: 0; }
+.tx-main { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; width: 100%; padding: 10px 16px; border: 0; background: transparent; color: inherit; text-align: left; min-width: 0; }
+.tx-l { display: grid; gap: 2px; min-width: 0; flex: 1; }
 .tx-l b { font-weight: 600; font-size: 14.5px; overflow-wrap: anywhere; }
 .tx-s { font-size: 12.5px; color: var(--ink-3); }
 .tx-r { display: grid; justify-items: end; gap: 4px; flex: none; max-width: 52%; }
@@ -2217,38 +2231,89 @@ const VIA_SUGGEST = ['PayPal', 'Credit card', 'Apple', 'Bank', 'Cash App', 'Venm
 const catIcon = c => c ? iconSVG(iconFor(state, c)) : '';
 // Sun 11/22/2026
 const dws = s => { const d = BT.parse(s); return DOW[d.getDay()] + ' ' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + '/' + d.getFullYear(); };
+// NOV 26, or NOV 26 '27 when it is not this year
+const dueShort = s => { const d = BT.parse(s); return ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][d.getMonth()] + ' ' + d.getDate() + (d.getFullYear() !== BT.parse(TODAY).getFullYear() ? " '" + String(d.getFullYear()).slice(-2) : ''); };
 /* ---------- Service logos ---------- */
-// key, name pattern, the service's own domain (its icon is loaded from there; no third-party icon service).
-const SVC = [['klarna', /klarna/, 'klarna.com'], ['afterpay', /after\s*pay|clearpay/, 'afterpay.com'], ['paypal', /pay\s*pal/, 'paypal.com'], ['affirm', /affirm/, 'affirm.com'],
-  ['zip', /^zip\b|quadpay/, 'zip.co'], ['sezzle', /sezzle/, 'sezzle.com'], ['capitalone', /capital\s*one/, 'capitalone.com'], ['citizens', /citizens/, 'citizensbank.com'],
-  ['santander', /santander/, 'santanderbank.com'], ['pnc', /\bpnc\b/, 'pnc.com'], ['chime', /chime/, 'chime.com'], ['chase', /\bchase\b|jp\s*morgan/, 'chase.com'],
-  ['bankofamerica', /bank\s*of\s*america|\bbofa\b/, 'bankofamerica.com'], ['wellsfargo', /wells\s*fargo/, 'wellsfargo.com'], ['citi', /^citi(bank)?\b/, 'citi.com'],
-  ['usbank', /u\.?s\.?\s*bank/, 'usbank.com'], ['discover', /discover/, 'discover.com'], ['amex', /american\s*express|\bamex\b/, 'americanexpress.com'], ['ally', /^ally\b/, 'ally.com'],
-  ['schwab', /schwab/, 'schwab.com'], ['usaa', /\busaa\b/, 'usaa.com'], ['td', /\btd\s*bank\b/, 'td.com'], ['truist', /truist/, 'truist.com'], ['fidelity', /fidelity/, 'fidelity.com'],
-  ['apple', /^apple\b/, 'apple.com'], ['cashapp', /cash\s*app/, 'cash.app'], ['venmo', /venmo/, 'venmo.com']];
+// key, name/merchant pattern (lowercase text), the service's own domain (its icon is loaded from there; no third-party icon service), badge background, badge text color, badge letter, display name.
+// Order matters: the first pattern that matches wins, so specific ones (Uber Eats, YouTube) come before general ones (Uber, Google).
+const SVC = [['klarna', /klarna/, 'klarna.com', '#FFA8CD', '#0B051D', 'K', 'Klarna'], ['afterpay', /after\s*pay|clearpay/, 'afterpay.com', '#B2FCE4', '#000', 'A', 'Afterpay'], ['paypal', /pay\s*pal/, 'paypal.com', '#003087', '#fff', 'P', 'PayPal'], ['affirm', /affirm/, 'affirm.com', '#0FA0EA', '#fff', 'A', 'Affirm'],
+  ['zip', /^zip\b|quadpay/, 'zip.co', '#1A0826', '#AA8FFF', 'Z', 'Zip'], ['sezzle', /sezzle/, 'sezzle.com', '#8333D4', '#fff', 'S', 'Sezzle'], ['capitalone', /capital\s*one/, 'capitalone.com', '#004977', '#D03027', 'C', 'Capital One'], ['citizens', /citizens/, 'citizensbank.com', '#008555', '#fff', 'C', 'Citizens'],
+  ['santander', /santander/, 'santanderbank.com', '#EC0000', '#fff', 'S', 'Santander'], ['pnc', /\bpnc\b/, 'pnc.com', '#EF7622', '#fff', 'P', 'PNC'], ['chime', /chime/, 'chime.com', '#1EC677', '#fff', 'C', 'Chime'], ['chase', /\bchase\b|jp\s*morgan/, 'chase.com', '#117ACA', '#fff', 'C', 'Chase'],
+  ['bankofamerica', /bank\s*of\s*america|\bbofa\b/, 'bankofamerica.com', '#E31837', '#fff', 'B', 'Bank of America'], ['wellsfargo', /wells\s*fargo/, 'wellsfargo.com', '#D71E28', '#FFCD41', 'W', 'Wells Fargo'], ['citi', /^citi(bank)?\b/, 'citi.com', '#056DAE', '#fff', 'C', 'Citi'],
+  ['usbank', /u\.?s\.?\s*bank/, 'usbank.com', '#0C2074', '#fff', 'U', 'U.S. Bank'], ['discover', /discover/, 'discover.com', '#FF6000', '#fff', 'D', 'Discover'], ['amex', /american\s*express|\bamex\b/, 'americanexpress.com', '#006FCF', '#fff', 'A', 'American Express'], ['ally', /^ally\b/, 'ally.com', '#650360', '#fff', 'A', 'Ally'],
+  ['schwab', /schwab/, 'schwab.com', '#00A0DF', '#fff', 'S', 'Schwab'], ['usaa', /\busaa\b/, 'usaa.com', '#0A2C4F', '#fff', 'U', 'USAA'], ['td', /\btd\s*bank\b/, 'td.com', '#35B34B', '#fff', 'T', 'TD Bank'], ['truist', /truist/, 'truist.com', '#2E1A47', '#fff', 'T', 'Truist'], ['fidelity', /fidelity/, 'fidelity.com', '#368727', '#fff', 'F', 'Fidelity'],
+  ['apple', /^apple\b|\bapple\.com/, 'apple.com', '#000', '#fff', 'A', 'Apple'], ['cashapp', /cash\s*app/, 'cash.app', '#00D632', '#fff', '$', 'Cash App'], ['venmo', /venmo/, 'venmo.com', '#3D95CE', '#fff', 'V', 'Venmo'], ['zelle', /\bzelle\b/, 'zellepay.com', '#6D1ED4', '#fff', 'Z', 'Zelle'],
+  ['doordash', /door\s*dash/, 'doordash.com', '#FF3008', '#fff', 'D', 'DoorDash'], ['ubereats', /uber\s*\*?\s*eats|ubereats/, 'ubereats.com', '#06C167', '#000', 'UE', 'Uber Eats'], ['uber', /\buber\b/, 'uber.com', '#000', '#fff', 'U', 'Uber'], ['lyft', /\blyft\b/, 'lyft.com', '#FF00BF', '#fff', 'L', 'Lyft'],
+  ['instacart', /instacart/, 'instacart.com', '#0AAD0A', '#fff', 'I', 'Instacart'], ['grubhub', /grub\s*hub/, 'grubhub.com', '#F63440', '#fff', 'G', 'GrubHub'], ['postmates', /postmates/, 'postmates.com', '#000', '#fff', 'P', 'Postmates'],
+  ['walmart', /wal\s*-?\s*mart|\bwm\s+supercenter/, 'walmart.com', '#0071DC', '#FFC220', 'W', 'Walmart'], ['amazon', /amazon|\bamzn\b|prime\s*video/, 'amazon.com', '#232F3E', '#FF9900', 'a', 'Amazon'], ['tmobile', /t\s*-\s*mobile|\btmobile\b|\bt\s+mobile\b/, 't-mobile.com', '#E20074', '#fff', 'T', 'T-Mobile'],
+  ['ebay', /\bebay\b/, 'ebay.com', '#fff', '#E53238', 'e', 'eBay'], ['target', /\btarget\b/, 'target.com', '#CC0000', '#fff', 'T', 'Target'], ['costco', /costco/, 'costco.com', '#005DAA', '#E31837', 'C', 'Costco'], ['starbucks', /starbucks/, 'starbucks.com', '#00704A', '#fff', 'S', 'Starbucks'],
+  ['mcdonalds', /mc\s*donald/, 'mcdonalds.com', '#DA291C', '#FFC72C', 'M', "McDonald's"], ['chickfila', /chick\s*-?\s*fil\s*-?\s*a/, 'chick-fil-a.com', '#E51636', '#fff', 'C', 'Chick-fil-A'], ['dunkin', /dunkin/, 'dunkindonuts.com', '#FF671F', '#fff', 'D', "Dunkin'"],
+  ['netflix', /netflix/, 'netflix.com', '#000', '#E50914', 'N', 'Netflix'], ['spotify', /spotify/, 'spotify.com', '#1DB954', '#000', 'S', 'Spotify'], ['youtube', /youtube|youtu\.be/, 'youtube.com', '#FF0000', '#fff', 'Y', 'YouTube'], ['google', /\bgoogle\b/, 'google.com', '#fff', '#4285F4', 'G', 'Google'],
+  ['hulu', /\bhulu\b/, 'hulu.com', '#1CE783', '#000', 'H', 'Hulu'], ['disney', /disney/, 'disneyplus.com', '#113CCF', '#fff', 'D', 'Disney+'],
+  ['shell', /\bshell\b/, 'shell.com', '#FBCE07', '#DD1D21', 'S', 'Shell'], ['exxon', /exxon|\bmobil\b/, 'exxon.com', '#ED1B2D', '#fff', 'E', 'Exxon'], ['bp', /\bbp\b/, 'bp.com', '#009900', '#FFE600', 'B', 'BP'], ['wawa', /\bwawa\b/, 'wawa.com', '#DA1F26', '#FFCD00', 'W', 'Wawa'],
+  ['cvs', /\bcvs\b/, 'cvs.com', '#CC0000', '#fff', 'C', 'CVS'], ['walgreens', /walgreen/, 'walgreens.com', '#E31837', '#fff', 'W', 'Walgreens'], ['bestbuy', /best\s*buy/, 'bestbuy.com', '#0046BE', '#FFE000', 'B', 'Best Buy'], ['homedepot', /home\s*depot/, 'homedepot.com', '#F96302', '#fff', 'H', 'Home Depot'],
+  ['lowes', /\blowe'?s\b/, 'lowes.com', '#004990', '#fff', 'L', "Lowe's"], ['verizon', /verizon/, 'verizon.com', '#000', '#CD040B', 'V', 'Verizon'], ['att', /\bat\s*&\s*t\b|\batt\b/, 'att.com', '#00A8E0', '#fff', 'A', 'AT&T'], ['xfinity', /xfinity|comcast/, 'xfinity.com', '#000', '#fff', 'X', 'Xfinity'],
+  ['geico', /geico/, 'geico.com', '#003B7E', '#fff', 'G', 'Geico'], ['progressive', /progressive/, 'progressive.com', '#0077C8', '#fff', 'P', 'Progressive'], ['planetfitness', /planet\s*fitness/, 'planetfitness.com', '#5E2A84', '#F9F600', 'P', 'Planet Fitness'],
+  ['etsy', /\betsy\b/, 'etsy.com', '#F1641E', '#fff', 'E', 'Etsy'], ['shein', /\bshein\b/, 'shein.com', '#000', '#fff', 'S', 'Shein'], ['temu', /\btemu\b/, 'temu.com', '#FB7701', '#fff', 'T', 'Temu'], ['nike', /\bnike\b/, 'nike.com', '#000', '#fff', 'N', 'Nike'], ['adidas', /adidas/, 'adidas.com', '#000', '#fff', 'A', 'Adidas']];
+const SVC_PAY = new Set(['paypal', 'venmo', 'cashapp', 'zelle', 'klarna', 'afterpay', 'affirm', 'sezzle', 'zip']);   // payment methods: "PAYPAL *SPOTIFY" is Spotify
 const svcKey = name => { const n = String(name || '').toLowerCase().trim(), h = SVC.find(x => x[1].test(n)); return h ? h[0] : n.replace(/[^a-z0-9]+/g, '').slice(0, 24); };
-const svcDomain = key => (SVC.find(x => x[0] === key) || [])[2] || '';
+const svcRow = key => SVC.find(x => x[0] === key);
+const svcDomain = key => (svcRow(key) || [])[2] || '';
 const svcOn = () => state.settings.svcIcons !== false;
-const svcSrc = (d, n) => n === 0 ? 'https://' + d + '/favicon.ico' : n === 1 ? 'https://' + d + '/apple-touch-icon.png' : '';
-const SVCNET = {};                          // key -> working icon URL, or 'bad'; remembered for this visit so re-renders do not flash or retry
-function svcLogo(name, size) {
-  const nm = String(name || '').trim(); if (!nm) return '';
-  const key = svcKey(nm), d = svcDomain(key), own = state.logos && state.logos[key];
-  const L = (nm.match(/[A-Za-z0-9]/) || ['?'])[0].toUpperCase(), hue = [...(key || nm)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+// A bank line's merchant: each of its own text fields is tried on its own (never the account, so a Chase account does not make every row Chase), merchants before payment apps.
+function merchKey(t) {
+  const fs = [cleanMerchant(t), t.counterparty, t.desc, t.rawDesc].map(x => String(x || '').toLowerCase().trim()).filter(Boolean);
+  for (const pay of [false, true]) for (const f of fs) { const h = SVC.find(x => SVC_PAY.has(x[0]) === pay && x[1].test(f)); if (h) return h[0]; }
+  return '';
+}
+// Icons: https://www.<domain>/apple-touch-icon.png, https://<domain>/apple-touch-icon.png, then the same two for favicon.ico. One probe per service, not per row.
+const svcCands = d => { const h = d.replace(/^www\./, ''), o = []; ['apple-touch-icon.png', 'favicon.ico'].forEach(f => ['www.' + h, h].forEach(x => { const u = 'https://' + x + '/' + f; if (!o.includes(u)) o.push(u); })); return o; };
+const ICACHE = 'budtrack.icons', ITTL = 7 * 864e5;
+const SVCNET = {}, PROBING = {};            // key -> working icon URL, or 'bad'
+const icRead = () => { try { return JSON.parse(localStorage.getItem(ICACHE) || '{}') || {}; } catch (e) { return {}; } };
+const icWrite = (k, u) => { try { const o = icRead(), now = Date.now(); Object.keys(o).forEach(x => { if (!o[x] || now - o[x].t > ITTL) delete o[x]; }); if (u == null) delete o[k]; else o[k] = { u, t: now }; localStorage.setItem(ICACHE, JSON.stringify(o)); } catch (e) {} };
+{ const o = icRead(), now = Date.now(); Object.keys(o).forEach(k => { const e = o[k]; if (e && typeof e.u === 'string' && now - e.t < ITTL && (e.u === '' || /^https:\/\//.test(e.u))) SVCNET[k] = e.u || 'bad'; }); }
+function svcLogo(name, size) { const nm = String(name || '').trim(); return nm ? svcBadge(svcKey(nm), nm, size) : ''; }
+function svcBadge(key, nm, size) {
+  const b = svcRow(key), d = b ? b[2] : '', own = state.logos && state.logos[key];
+  const L = b ? b[5] : (nm.match(/[A-Za-z0-9]/) || ['?'])[0].toUpperCase(), hue = [...(key || nm)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
   let img = '';
   if (own) img = `<img class="ok" src="${esc(own)}" alt="" data-own="1">`;
-  else if (d && svcOn() && SVCNET[key] !== 'bad') img = SVCNET[key] ? `<img class="ok" src="${esc(SVCNET[key])}" alt="" data-k="${key}" data-n="9" referrerpolicy="no-referrer">` : `<img src="${svcSrc(d, 0)}" alt="" data-k="${key}" data-n="0" referrerpolicy="no-referrer" decoding="async">`;
-  return `<span class="slogo" style="--h:${hue};--s:${size || 22}px" data-l="${esc(L)}" data-svc="${esc(key)}" aria-hidden="true">${img}</span>`;
+  else if (d && svcOn() && SVCNET[key] !== 'bad') {
+    if (SVCNET[key]) img = `<img class="ok" src="${esc(SVCNET[key])}" alt="" data-k="${key}" referrerpolicy="no-referrer">`;
+    else setTimeout(() => svcProbe(key), 0);
+  }
+  const st = `--h:${hue};--s:${size || 22}px` + (b ? `;--bg:${b[3]};--fg:${b[4]}` : '') + (L.length > 1 ? ';--fk:.38' : '');
+  return `<span class="slogo" style="${st}" data-l="${esc(L)}" data-svc="${esc(key)}" aria-hidden="true">${img}</span>`;
 }
-// Icon from the service's own site: favicon.ico, then apple-touch-icon.png, then the letter. error/load do not bubble, so capture them.
-function svcNext(img) {
-  const k = img.dataset.k, n = +img.dataset.n + 1, src = svcSrc(svcDomain(k), n);
-  if (src) { img.dataset.n = n; img.src = src; } else { SVCNET[k] = 'bad'; img.remove(); }
+function svcShow(key, url) {
+  document.querySelectorAll(`.slogo[data-svc="${key}"]`).forEach(s => { if (s.querySelector('img')) return;
+    const i = document.createElement('img'); i.className = 'ok'; i.alt = ''; i.dataset.k = key; i.referrerPolicy = 'no-referrer'; i.src = url; s.appendChild(i); });
 }
-document.addEventListener('error', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.dataset && t.dataset.k && t.dataset.n !== '9') svcNext(t); }, true);
-document.addEventListener('load', e => { const t = e.target; if (!(t && t.tagName === 'IMG' && t.dataset && t.dataset.k) || t.dataset.n === '9') return;
-  if (t.naturalWidth < 16 && svcSrc(svcDomain(t.dataset.k), +t.dataset.n + 1)) return svcNext(t);
-  t.classList.add('ok'); SVCNET[t.dataset.k] = t.currentSrc || t.src; }, true);
+function svcProbe(key) {
+  const d = svcDomain(key); if (!d || !svcOn() || SVCNET[key] || PROBING[key]) return;
+  PROBING[key] = 1; const c = svcCands(d); let i = 0;
+  const next = () => {
+    if (i >= c.length) { delete PROBING[key]; SVCNET[key] = 'bad'; if (navigator.onLine !== false) icWrite(key, ''); return; }
+    const u = c[i++], im = new Image(); im.referrerPolicy = 'no-referrer';
+    im.onload = () => { if (im.naturalWidth < 16 || im.naturalHeight < 16) return next(); delete PROBING[key]; SVCNET[key] = u; icWrite(key, u); svcShow(key, u); };
+    im.onerror = next; im.src = u;
+  };
+  next();
+}
+// A remembered icon that stops loading (offline, site changed): forget it, show the letter again, retry on the next visit.
+document.addEventListener('error', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.dataset && t.dataset.k) { SVCNET[t.dataset.k] = 'bad'; icWrite(t.dataset.k, null); t.remove(); } }, true);
+// A logo for a typed name (bill, spend, screenshot line), only when it is a known brand or has your upload; otherwise nothing.
+function nameLogo(name, size) { const nm = String(name || '').trim(), k = svcKey(nm); return nm && (svcRow(k) || (state.logos && state.logos[k])) ? svcBadge(k, svcRow(k) ? svcRow(k)[6] : nm, size) : ''; }
+// Transaction rows: the merchant's logo, your own upload, or a neutral category icon.
+function merchLogo(t, size, knownOnly) {
+  const k = merchKey(t), nm = cleanMerchant(t), own = svcKey(nm);
+  if (k) return svcBadge(k, svcRow(k)[6], size);
+  if (state.logos && state.logos[own]) return svcBadge(own, nm, size);
+  if (knownOnly) return '';
+  let c = ''; try { const r = state.bank.seen[t.id], x = r && r.spendId && state.spends.find(z => z.id === r.spendId); c = t.amount < 0 ? '' : (x && x.category) || BT.guessCategory(state, t).category || ''; } catch (e) {}
+  return `<span class="slogo slogo-cat" style="--s:${size || 28}px" aria-hidden="true">${t.amount < 0 ? iconSVG('cash') : catIcon(c || 'Other')}</span>`;
+}
 // Your own logo: cropped square, 96x96 PNG, kept small enough (about 20KB) to live in the saved data and backups.
 async function logoFromFile(file) {
   const url = URL.createObjectURL(file);
@@ -2627,7 +2692,7 @@ function budgetSheet(id) {
     <div class="bud-bar big${over ? ' over' : ''}" role="img" aria-label="${esc(budgetLine(b).replace(/<[^>]+>/g, ''))}"><i style="width:${Math.min(100, b.spent / b.budget * 100)}%"></i></div>` : '<p class="note">No budget set yet. Set an amount and spending in the ' + esc(b.category || 'matching') + ' category counts toward it each pay cycle.</p>'}
     ${b.category ? '' : '<p class="note">Pick a category so spending can count toward this budget.</p>'}
     <div class="subhead" style="border:0;padding-left:0;margin-top:12px">Counted toward it · ${b.spends.length}${b.category ? ' · ' + esc(b.category) : ''}</div>
-    <ul class="rows" style="padding:0">${b.spends.slice().sort((x, y) => x.date < y.date ? 1 : -1).map(e => `<li class="row tap" data-action="edit" data-type="extra" data-id="${esc(e.ref)}" tabindex="0" role="button" aria-label="Edit ${esc(e.name)}: ${fmt(e.amount)}"><div class="date" aria-hidden="true"><span class="dow">${DOW[BT.parse(e.date).getDay()]}</span><span class="dd">${BT.parse(e.date).getDate()}</span></div><div class="main"><div class="nm">${esc(e.name)}</div><div class="sub">${md(e.date)}${e.memo ? ' · ' + esc(e.memo) : ''}${shotTagOf(e.ref) ? ' ' + shotTagOf(e.ref) : ''}<span class="edit-hint"> · Edit</span></div></div><div class="amt">${fmt(e.amount)}</div></li>`).join('') || '<li class="empty">Nothing spent yet this cycle.</li>'}</ul>
+    <ul class="rows" style="padding:0">${b.spends.slice().sort((x, y) => x.date < y.date ? 1 : -1).map(e => `<li class="row tap" data-action="edit" data-type="extra" data-id="${esc(e.ref)}" tabindex="0" role="button" aria-label="Edit ${esc(e.name)}: ${fmt(e.amount)}"><div class="date" aria-hidden="true"><span class="dow">${DOW[BT.parse(e.date).getDay()]}</span><span class="dd">${BT.parse(e.date).getDate()}</span></div><div class="main"><div class="nm">${nameLogo(e.name, 20)}${esc(e.name)}</div><div class="sub">${md(e.date)}${e.memo ? ' · ' + esc(e.memo) : ''}${shotTagOf(e.ref) ? ' ' + shotTagOf(e.ref) : ''}<span class="edit-hint"> · Edit</span></div></div><div class="amt">${fmt(e.amount)}</div></li>`).join('') || '<li class="empty">Nothing spent yet this cycle.</li>'}</ul>
     <div class="actions"><button type="button" class="btn" data-action="add" data-type="extra">Add spending</button><button type="button" class="btn" data-action="skip-cycle" data-key="${esc(b.key)}" data-name="${esc(b.name)} budget">Skip this cycle</button><div class="r"><button type="button" class="btn primary" data-action="bud-amt" data-id="${esc(id)}">Edit budget amount</button></div></div>`);
 }
 // The hero's money numbers for one period. "Spent so far" also counts bank money out that isn't recorded yet (to review).
@@ -2670,7 +2735,7 @@ function rowTap(o) {
 function listRow(o, late) {
   const d = BT.parse(o.date), tap = rowTap(o);
   return `<li class="row${tap ? ' tap' : ''}" ${tap}${tap ? ` tabindex="0" role="button" aria-label="${esc(o.name)}: ${hid() ? 'amount hidden' : fmt(o.amount)}"` : ''}><div class="date" aria-hidden="true"><span class="dow">${o.budget ? 'Bud' : DOW[d.getDay()]}</span><span class="dd">${o.budget ? '—' : d.getDate()}</span></div>
-    <div class="main"><div class="nm">${esc(o.name)}${late ? ' <span class="pill soft warn">Past due</span>' : ''}</div><div class="sub">${o.sub}</div>${o.note ? `<div class="nlabel">${esc(o.note)}</div>` : ''}</div><div class="amt">${hm(o.amount)}</div></li>`;
+    <div class="main"><div class="nm">${o.t ? merchLogo(o.t, 20, true) : nameLogo(o.name, 20)}${esc(o.name)}${late ? ' <span class="pill soft warn">Past due</span>' : ''}</div><div class="sub">${o.sub}</div>${o.note ? `<div class="nlabel">${esc(o.note)}</div>` : ''}</div><div class="amt">${hm(o.amount)}</div></li>`;
 }
 function heroListSheet(which, mode) {
   const view = state.settings.view, month = mode === 'month', r = month ? BT.periodRange(state, 'monthly', 0, TODAY) : BT.periodRange(state, view, mode === 'cycle' ? 0 : offset, TODAY), h = heroNums(r), s = h.s;
@@ -2809,7 +2874,7 @@ const BILL_CHIPS = [['fixed', 'Fixed', 's1'], ['subs', 'Subscriptions', 's3'], [
 function billRow(b) {
   const k = likelyKeyFor('bill', b.id);
   return `<li class="row tap" data-action="edit" data-type="bill" data-id="${b.id}" tabindex="0" role="button" aria-label="Edit ${esc(b.name)}">
-        <span></span><div class="daybadge">${ord(b.day)}</div><div class="main"><div class="nm">${esc(b.name)}${b.active === false ? ' <span class="pill soft">Paused</span>' : ''}${k ? likelyPill(k) : ''}</div><div class="sub">${b.category ? catIcon(b.category) + '<span class="bcat">' + esc(b.category) + '</span> · ' : ''}${b.note ? esc(b.note) + ' · ' : ''}Due the ${ord(b.day)}${b.via ? ' <span class="tag via">via ' + esc(viaText(b.via)) + '</span>' : ''}</div>${k ? likelyDetail(k) : ''}</div><div class="amt">${fmt(b.amount)}</div></li>`;
+        <span></span><div class="daybadge">${ord(b.day)}</div><div class="main"><div class="nm">${nameLogo(b.name, 20)}${esc(b.name)}${b.active === false ? ' <span class="pill soft">Paused</span>' : ''}${k ? likelyPill(k) : ''}</div><div class="sub">${b.category ? catIcon(b.category) + '<span class="bcat">' + esc(b.category) + '</span> · ' : ''}${b.note ? esc(b.note) + ' · ' : ''}Due the ${ord(b.day)}${b.via ? ' <span class="tag via">via ' + esc(viaText(b.via)) + '</span>' : ''}</div>${k ? likelyDetail(k) : ''}</div><div class="amt">${fmt(b.amount)}</div></li>`;
 }
 // Everything that repeats, by day of the month: bills, subscriptions (Apple too), card minimums, then budgets (no due day).
 function allRecurringHTML() {
@@ -2875,11 +2940,11 @@ function viewPlans() {
   }).join('');
   const card = ({ p, s }) => {
     const stopped = !!p.endDate, late = !stopped && !s.completed && s.next && s.next.date < TODAY;
-    const due = stopped ? `<span class="pc-due">Stopped ${dws(p.endDate)}</span>` : s.completed ? '<span class="pc-due done">Paid off</span>' : `<span class="pc-due${late ? ' late' : ''}">${late ? 'Past due' : 'Due'} ${dws(s.next.date)}</span>`;
+    const due = stopped ? `<span class="pc-due"><span class="pc-dl">Stopped</span> <span class="pc-dd">${dueShort(p.endDate)}</span></span>` : s.completed ? '<span class="pc-due done">Paid off</span>' : `<span class="pc-due${late ? ' late' : ''}"><span class="pc-dl">${late ? 'Past due' : 'Due'}</span> <span class="pc-dd">${dueShort(s.next.date)}</span></span>`;
     const nth = s.completed ? `${p.total} of ${p.total} · paid` : stopped ? `${s.paidCount} of ${p.total} paid` : `${s.next.n} of ${p.total}`;
     return `<div class="plan" data-action="edit" data-type="plan" data-id="${p.id}" tabindex="0" role="button" aria-label="Edit ${esc(p.merchant)}">
-    <div class="pc-r1"><div class="nm">${esc(p.merchant)}</div><div class="amt">${fmt(s.next ? s.next.amount : p.amount)}</div></div>
-    <div class="pc-r2"><div class="pc-l"><span class="tag prov-tag">${svcLogo(p.provider, 20)}<span>${esc(p.provider)}</span></span><button class="tag" data-action="pick-cat" data-id="${p.id}">${p.category ? catIcon(p.category) : ''}${esc(p.category || 'Add category')}</button></div>${due}</div>
+    <div class="pc-r1"><div class="nm">${esc(p.merchant)}</div><div class="pc-nx"><div class="amt">${fmt(s.next ? s.next.amount : p.amount)}</div>${due}</div></div>
+    <div class="pc-r2"><div class="pc-l"><span class="tag prov-tag">${svcLogo(p.provider, 20)}<span>${esc(p.provider)}</span></span><button class="tag" data-action="pick-cat" data-id="${p.id}">${p.category ? catIcon(p.category) : ''}${esc(p.category || 'Add category')}</button></div></div>
     <div class="pc-r3"><div class="pips" role="img" aria-label="${s.paidCount} of ${p.total} paid">${Array.from({ length: p.total }, (_, i) => `<i class="${i < s.paidCount ? 'on' : s.next && i === s.next.n - 1 ? 'nx' : ''}"></i>`).join('')}</div><span class="pc-n">${nth}</span></div>
     <div class="pc-r4"><span class="pc-t">Purchased ${dws(s.purchased)}${s.ends && !stopped ? ` · ${s.completed ? 'Ended' : 'Ends'} ${dws(s.ends)}` : ''} · ${s.completed ? fmt(s.total) + ' total' : '<b>' + fmt(s.owed) + '</b> left'} <em>· ${FREQ[p.freq].toLowerCase()}</em></span>${stopped ? `<button class="btn sm" data-action="restore-item" data-type="plan" data-id="${p.id}">Restore</button>` : ''}</div>
   </div>`; };
@@ -3039,6 +3104,10 @@ function viewIncome() {
 /* ---------- Service logos: settings, upload sheet ---------- */
 function logoNames() {
   const out = ['Klarna', 'Afterpay', 'PayPal', 'Affirm', 'Zip', 'Sezzle'], seen = new Set(out.map(svcKey));
+  // Merchants found in your bank lines come first (their key is the one the rows use), then banks and the rest.
+  const found = [], unk = {}; Object.values(state.bank.txns || {}).forEach(t => { if (!t || !t.date) return; const k = merchKey(t);
+    if (k) { if (!seen.has(k)) { seen.add(k); found.push(svcRow(k)[6]); } } else { const n = cleanMerchant(t), u = svcKey(n); if (u) (unk[u] = unk[u] || { n, c: 0 }).c++; } });
+  out.unshift(...found.sort(), ...Object.values(unk).filter(x => x.c >= 2).sort((p, q) => q.c - p.c).slice(0, 8).map(x => x.n).filter(n => { const k = svcKey(n); if (seen.has(k)) return false; seen.add(k); return true; }));
   const add = n => { n = String(n || '').trim(); const k = svcKey(n); if (n && k && !seen.has(k)) { seen.add(k); out.push(n); } };
   ((state.bank.balances && state.bank.balances.items) || []).forEach(it => add(it.institution));
   (BANKUI.enr || []).forEach(e => add(e.institution));
@@ -5199,7 +5268,7 @@ function scanReview() {
   const row = x => `<div class="shot-row${x.on ? '' : ' off'}" data-i="${x.i}">
     <input type="checkbox" class="shot-on" data-shot="on" data-i="${x.i}" aria-label="Add ${esc(x.merchant)} ${fmt(x.amount)}"${x.on ? ' checked' : ''}>
     <div class="shot-f">
-      <div class="shot-r1"><input type="text" class="shot-m" data-shot="merchant" data-i="${x.i}" value="${esc(x.merchant)}" maxlength="60" aria-label="Merchant" autocomplete="off"><span class="amt${x.out ? '' : ' in'}">${x.out ? '' : '+'}${fmt(x.amount)}</span></div>
+      <div class="shot-r1">${nameLogo(x.merchant, 22)}<input type="text" class="shot-m" data-shot="merchant" data-i="${x.i}" value="${esc(x.merchant)}" maxlength="60" aria-label="Merchant" autocomplete="off"><span class="amt${x.out ? '' : ' in'}">${x.out ? '' : '+'}${fmt(x.amount)}</span></div>
       <div class="shot-r2"><input type="date" data-shot="date" data-i="${x.i}" value="${esc(x.date)}" aria-label="Date">${x.guessDate ? '<span class="pill soft warn">date?</span>' : ''}${x.pending ? '<span class="pill soft">Pending</span>' : ''}${!x.out ? '<span class="pill soft">Money in</span>' : ''}${SHOT_KIND[x.kind] && (x.out || x.kind !== 'deposit') ? `<span class="pill soft">${SHOT_KIND[x.kind]}</span>` : ''}${x.dupe ? '<span class="pill soft warn">Already in BudTracks</span>' : ''}</div>
       <div class="shot-r3"><select data-shot="category" data-i="${x.i}" aria-label="Category for ${esc(x.merchant)}">${catOptsHTML(x.category)}</select><input type="text" data-shot="note" data-i="${x.i}" value="${esc(x.note)}" maxlength="120" placeholder="Note (optional)" aria-label="Note" autocomplete="off"></div>
     </div></div>`;
@@ -5288,7 +5357,7 @@ function inboxRow(s) {
     panel = `<div class="bx-ch">${!showCats ? `<div class="h">Match to</div><div class="chips">${cands}${s.kind === 'plan' ? `<button class="chip" data-action="ix-new" data-id="${id}">New plan</button>` : ''}${t.amount > 0 ? `<button class="chip" data-action="ix-cats" data-id="${id}">Count as spending…</button>` : ''}</div>`
       : `<div class="h">Category</div>${catChipsHTML('ix-cat', `data-id="${id}"`, c => s.kind === 'spend' && s.category === c)}`}</div>`;
   }
-  return `<div class="bm bx" data-id="${id}"><div class="bm-d"><b>${grp ? 'Paycheck ' + md(s.pick.date) : esc(cleanMerchant(t))}</b><span class="amt${money ? ' in' : ''}">${money ? '+' : ''}${fmt(total)}</span></div>
+  return `<div class="bm bx" data-id="${id}"><div class="bm-d"><b>${grp ? 'Paycheck ' + md(s.pick.date) : merchLogo(t, 22, true) + '<span>' + esc(cleanMerchant(t)) + '</span>'}</b><span class="amt${money ? ' in' : ''}">${money ? '+' : ''}${fmt(total)}</span></div>
     <div class="bm-m">${grp ? md(t.date) + ' · ' + s.parts.length + ' deposits' : md(t.date) + (acctText(t) ? ' · ' + esc(acctText(t)) : '')}${t.status === 'pending' ? ' · pending' : ''}</div>
     ${grp ? `<div class="bm-m bx-split">Split: ${splitLine(s.parts.map(p => ({ acct: acctDots(p), amount: p.amount })))}</div>` : ''}
     <div class="bx-g"><span class="pill conf-${s.confidence}">${{ high: 'Sure', medium: 'Likely', low: 'Unsure' }[s.confidence]}</span><span class="g-t">${guessHTML(s)}</span></div>
@@ -5358,7 +5427,7 @@ function inboxAct(act, a) {
 /* Earlier transactions: before the automatic date, listed to add by hand. Money in can only be hidden for now. */
 function historyRow(t) {
   const id = esc(t.id), money = t.amount < 0, g = BT.guessCategory(state, t);
-  return `<div class="bm bx" data-id="${id}"><div class="bm-d"><b>${esc(cleanMerchant(t))}</b><span class="amt${money ? ' in' : ''}">${money ? '+' : ''}${fmt(Math.abs(t.amount))}</span></div>
+  return `<div class="bm bx" data-id="${id}"><div class="bm-d"><b>${merchLogo(t, 22, true)}<span>${esc(cleanMerchant(t))}</span></b><span class="amt${money ? ' in' : ''}">${money ? '+' : ''}${fmt(Math.abs(t.amount))}</span></div>
     <div class="bm-m">${md(t.date)}${acctText(t) ? ' · ' + esc(acctText(t)) : ''}${t.status === 'pending' ? ' · pending' : ''}${money ? ' · money in' : ' · looks like ' + esc(g.category)}</div>
     <div class="bx-a">${money ? '' : `<button class="btn sm primary" data-action="hx-add" data-id="${id}">Add</button>`}<button class="btn sm" data-action="hx-hide" data-id="${id}">Hide</button></div></div>`;
 }
@@ -5466,7 +5535,7 @@ function txList() {
 function txRow(t) {
   const st = txStatus(t), money = t.amount < 0, open = TXUI.open === t.id, id = esc(t.id);
   return `<div class="tx${open ? ' open' : ''}" data-id="${id}"><button class="tx-main" data-action="tx-open" data-id="${id}" aria-expanded="${open}">
-    <span class="tx-l"><b>${esc(cleanMerchant(t))}</b><span class="tx-s">${esc(acctDots(t))}${t.status === 'pending' ? ' <span class="pill soft">Pending</span>' : ''}</span>${noteOfTxn(t) ? `<span class="nlabel">${esc(noteOfTxn(t))}</span>` : ''}</span>
+    ${merchLogo(t, 28)}<span class="tx-l"><b>${esc(cleanMerchant(t))}</b><span class="tx-s">${esc(acctDots(t))}${t.status === 'pending' ? ' <span class="pill soft">Pending</span>' : ''}</span>${noteOfTxn(t) ? `<span class="nlabel">${esc(noteOfTxn(t))}</span>` : ''}</span>
     <span class="tx-r"><span class="amt${money ? ' in' : ''}">${money ? '+' : ''}${fmt(Math.abs(t.amount))}</span><span class="txc k-${st.k}">${esc(st.label)}</span></span></button>${open ? txPanel(t, st) : ''}</div>`;
 }
 function txPanel(t, st) {
@@ -6037,6 +6106,11 @@ function buildMarks() {
   document.querySelectorAll('.wm').forEach(m => {
     if (!m.offsetWidth) return;
     m.querySelectorAll('svg.arms').forEach(s => s.remove());
+    if (m.parentNode && m.parentNode.id === 'logoOut') {
+      m.style.fontSize = '';
+      const f0 = parseFloat(getComputedStyle(m).fontSize), app = document.querySelector('.app'), cw = (app ? app.clientWidth : innerWidth) - 32;
+      if (m.offsetWidth) m.style.fontSize = (f0 * Math.min(cw * .7, 360) / m.offsetWidth).toFixed(2) + 'px';
+    }
     const f = parseFloat(getComputedStyle(m).fontSize), s = m.querySelector('.stem'), hd = m.querySelector('.hd');
     const top = f * 1.42, gap = f * .17, W = m.offsetWidth + gap * 2, drop = f * .62, sw = f * .1;
     const cx = s.offsetLeft + s.offsetWidth / 2 + gap, base = s.offsetTop + s.offsetHeight - top, ext = f * .24;

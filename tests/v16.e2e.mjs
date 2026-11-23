@@ -15,6 +15,8 @@ const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0
 const addD = (s, n) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const dws = s => { const d = new Date(s + 'T12:00:00'); return DOW[d.getDay()] + ' ' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + '/' + d.getFullYear(); };
+const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+const short = s => { const d = new Date(s + 'T12:00:00'); return MON[d.getMonth()] + ' ' + d.getDate() + (d.getFullYear() !== new Date().getFullYear() ? " '" + String(d.getFullYear()).slice(-2) : ''); };   // v17: big due dates
 const TODAY = iso(new Date()), PAY = addD(TODAY, -6);
 // A 32x32 solid PNG standing in for a service's icon.
 const png = (n, rgb) => { const crc = (() => { const t = []; for (let i = 0; i < 256; i++) { let c = i; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[i] = c >>> 0; } return b => { let c = ~0; for (const x of b) c = t[(c ^ x) & 255] ^ (c >>> 8); return ~c >>> 0; }; })();
@@ -48,6 +50,8 @@ async function newPage(w, h, o) {
   // Every icon URL the page ever puts in an <img> (headless Chromium never sends a bare /favicon.ico to the network, so the first try is read here).
   await page.addInitScript(() => { window.__srcs = []; const seen = n => { if (n.nodeType === 1) { if (n.matches('.slogo img')) window.__srcs.push(n.getAttribute('src')); n.querySelectorAll('.slogo img').forEach(i => window.__srcs.push(i.getAttribute('src'))); } };
     new MutationObserver(ms => ms.forEach(m => { m.addedNodes.forEach(seen); if (m.type === 'attributes' && m.target.matches('.slogo img')) window.__srcs.push(m.target.getAttribute('src')); })).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] }); });
+  // v17: the page probes icons with detached Images; record every src they are given (Playwright cannot intercept favicon.ico requests).
+  await page.addInitScript(() => { window.__probed = []; const d = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src'); Object.defineProperty(HTMLImageElement.prototype, 'src', { configurable: true, get() { return d.get.call(this); }, set(v) { window.__probed.push(String(v)); d.set.call(this, v); } }); });
   // Service domains: icons load (or 404 when the test says so). Every request is recorded.
   await page.route(/^https:\/\/(?!worker\.test)[^/]*(klarna|afterpay|paypal|chase|capitalone|affirm|zip|sezzle)\.[a-z]+\//, route => { const u = route.request().url(); hits.push(u);
     if (o.icon404) return route.fulfill({ status: 404, body: 'no' });
@@ -89,7 +93,7 @@ for (const [w, h] of [[390, 844], [669, 951], [951, 669]]) for (const dark of [f
   await step(`${tag}: plan card rows, labels and no overlap`, async () => {
     const t = i => planOf(page, ['Nike', 'Adidas'][i]);
     const k = t(0), kt = (await k.textContent()).replace(/\s+/g, ' ');
-    assert.ok(kt.includes(`Due ${dws(addD(TODAY, 5))}`), kt);
+    assert.ok(kt.includes(`Due ${short(addD(TODAY, 5))}`) && !kt.includes(dws(addD(TODAY, 5))), kt);
     assert.ok(/\b2 of 4\b/.test(kt), kt);
     assert.ok(kt.includes(`Purchased ${dws(addD(TODAY, -28))}`) && kt.includes(`Ends ${dws(addD(TODAY, 33))}`), kt);
     assert.match(kt, /\$119\.96 left/);   // 3 payments of 39.99 (rounded)
@@ -97,7 +101,7 @@ for (const [w, h] of [[390, 844], [669, 951], [951, 669]]) for (const dark of [f
     assert.equal(await k.locator('.pc-r1 .amt').textContent(), '$39.99');
     assert.ok(/^Klarna/.test((await k.locator('.prov-tag').textContent()).trim()));
     const late = (await t(1).textContent()).replace(/\s+/g, ' ');
-    assert.ok(late.includes(`Past due ${dws(addD(TODAY, -3))}`) && /\b2 of 4\b/.test(late), late);
+    assert.ok(late.includes(`Past due ${short(addD(TODAY, -3))}`) && /\b2 of 4\b/.test(late), late);
     assert.ok(await t(1).locator('.pc-due.late').count() === 1, 'warn color class');
     const lateColor = await t(1).locator('.pc-due').evaluate(e => getComputedStyle(e).color), okColor = await t(0).locator('.pc-due').evaluate(e => getComputedStyle(e).color);
     assert.notEqual(lateColor, okColor);
@@ -109,9 +113,9 @@ for (const [w, h] of [[390, 844], [669, 951], [951, 669]]) for (const dark of [f
     // No overlap between the left and right items of rows 1 and 2, and nothing wider than the card.
     for (const el of await page.locator('.plan').all()) {
       const g = await el.evaluate(e => { const q = s => { const x = e.querySelector(s).getBoundingClientRect(); return { l: x.left, r: x.right, t: x.top, b: x.bottom }; }, c = e.getBoundingClientRect();
-        return { nm: q('.pc-r1 .nm'), amt: q('.pc-r1 .amt'), pl: q('.pc-l'), due: q('.pc-due'), card: { l: c.left, r: c.right }, pips: q('.pips'), n: q('.pc-n') }; });
+        return { nm: q('.pc-r1 .nm'), amt: q('.pc-r1 .amt'), pl: q('.pc-l'), due: q('.pc-nx'), card: { l: c.left, r: c.right }, pips: q('.pips'), n: q('.pc-n') }; });
       assert.ok(!overlap(g.nm, g.amt), 'row 1 overlap ' + JSON.stringify(g));
-      assert.ok(!overlap(g.pl, g.due), 'row 2 overlap ' + JSON.stringify(g));
+      assert.ok(!overlap(g.nm, g.due), 'row 1 name/due overlap ' + JSON.stringify(g));
       assert.ok(!overlap(g.pips, g.n), 'row 3 overlap');
       for (const k2 of ['nm', 'amt', 'pl', 'due', 'n']) assert.ok(g[k2].l >= g.card.l - 0.5 && g[k2].r <= g.card.r + 0.5, k2 + ' inside card');
     }
@@ -146,8 +150,7 @@ await step('service logo: icon from the provider domain; letter when off; letter
   const { page, hits } = await newPage(390, 844, { hash: '#plans' });
   const first = planOf(page, 'Nike').locator('.prov-tag .slogo');
   await first.locator('img').waitFor({ state: 'attached' }); await page.waitForTimeout(500);
-  assert.ok((await tried(page)).includes('https://klarna.com/favicon.ico'), 'first tries favicon.ico: ' + (await tried(page)).join(','));
-  assert.match(await first.locator('img').getAttribute('src'), /^https:\/\/klarna\.com\/(favicon\.ico|apple-touch-icon\.png)$/);
+  assert.match(await first.locator('img').getAttribute('src'), /^https:\/\/www\.klarna\.com\/apple-touch-icon\.png$/);
   assert.equal(await first.locator('img').evaluate(i => getComputedStyle(i).opacity), '1', 'loaded icon is visible');
   const sz = await first.evaluate(e => e.getBoundingClientRect().width); assert.ok(sz >= 20 && sz <= 24, 'size ' + sz);
   assert.ok(hits.some(u => /klarna\.com\//.test(u)) && !hits.some(u => /google|gstatic|duckduckgo|clearbit/.test(u)), 'only the service domain is asked');
@@ -168,7 +171,7 @@ await step('service logo: icon from the provider domain; letter when off; letter
   await f.page.waitForTimeout(800);
   assert.equal(await f.page.locator('.plan .slogo img').count(), 0, 'failed images removed');
   assert.equal(await planOf(f.page, 'Nike').locator('.prov-tag .slogo').getAttribute('data-l'), 'K');
-  const tr = await tried(f.page); assert.ok(tr.includes('https://klarna.com/favicon.ico') && f.hits.some(u => /klarna\.com\/apple-touch-icon\.png/.test(u)), 'tried favicon then apple-touch-icon: ' + tr.join(',') + ' | ' + f.hits.join(','));
+  assert.deepEqual((await f.page.evaluate(() => window.__probed)).filter(u => /klarna\.com/.test(u)), ['https://www.klarna.com/apple-touch-icon.png', 'https://klarna.com/apple-touch-icon.png', 'https://www.klarna.com/favicon.ico', 'https://klarna.com/favicon.ico'], 'tried in order');
   await f.page.context().close();
 });
 
@@ -177,7 +180,7 @@ await step('Bank connections card and In account list show the bank icon from it
   await page.waitForSelector('.bk-eh');
   await page.waitForTimeout(500);
   const img = page.locator('.bk-eh .slogo[data-svc="chase"] img');
-  assert.match(await img.getAttribute('src'), /^https:\/\/chase\.com\/(favicon\.ico|apple-touch-icon\.png)$/);
+  assert.match(await img.getAttribute('src'), /^https:\/\/www\.chase\.com\/apple-touch-icon\.png$/);
   assert.ok(hits.some(u => /chase\.com/.test(u)));
   const keys = await page.evaluate(() => { const l = document.querySelectorAll('.svc-list .slogo'); return [...l].map(e => e.dataset.svc); });
   for (const k of ['klarna', 'afterpay', 'paypal', 'affirm', 'zip', 'sezzle', 'chase']) assert.ok(keys.includes(k), k + ' in ' + keys);
