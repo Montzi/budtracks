@@ -77,7 +77,8 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 
 .app { max-width: 1080px; margin: 0 auto; padding: 14px 16px 104px; display: grid; gap: 16px; }
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 4px; }
-.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; flex: 1 1 100%; min-width: 0; }
+.brand .sync { font-size: 11.5px; margin-top: -2px; }
 .mark { font-family: var(--display); font-size: 30px; line-height: 1; letter-spacing: -0.01em; }
 .mark i { color: var(--brass); font-style: italic; }
 .sync { font-size: 12px; color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; }
@@ -219,11 +220,25 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .plan { padding: 14px 16px; display: grid; gap: 10px; border-top: 1px solid var(--line); cursor: pointer; }
 .plan:first-of-type { border-top: 0; }
 .plan:hover { background: var(--surface-2); }
-.plan-h { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
-.plan-h .nm { font-size: 15px; }
+.plan { gap: 8px; }
+.pc-r1, .pc-r2, .pc-r3 { display: flex; align-items: center; gap: 4px 10px; min-width: 0; }
+.pc-r1 { justify-content: space-between; align-items: baseline; }
+.pc-r1 .nm { font-size: 16px; font-weight: 700; min-width: 0; flex: 1 1 auto; overflow-wrap: anywhere; }
+.pc-r1 .amt { font-size: 20px; font-weight: 600; flex: none; white-space: nowrap; }
+.pc-r2 { flex-wrap: wrap; justify-content: space-between; }
+.pc-l { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.pc-l .tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-due { font-size: 13px; color: var(--ink-2); white-space: nowrap; margin-left: auto; }
+.pc-due.late { color: color-mix(in srgb, var(--warn) 65%, var(--ink)); font-weight: 600; }
+.pc-due.done { color: var(--good); font-weight: 600; }
+.pc-r3 .pips { flex: 1; min-width: 0; }
+.pc-n { font-size: 12px; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pc-r4 { font-size: 12px; color: var(--ink-3); display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: center; justify-content: space-between; }
+.pc-r4 .pc-t { min-width: 0; overflow-wrap: anywhere; }
+.pc-r4 .pc-t em { font-style: normal; }
 .tag { font-size: 11.5px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line-2); color: var(--ink-2); background: var(--surface); }
 button.tag:hover { border-color: var(--accent); color: var(--accent); }
-.tag.prov-tag { font-weight: 600; letter-spacing: .02em; }
+.tag.prov-tag { font-weight: 600; letter-spacing: .02em; display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px 2px 3px; }
 .pips { display: flex; gap: 4px; }
 .pips i { flex: 1; height: 6px; border-radius: 99px; background: var(--line); }
 .pips i.on { background: var(--ink); }
@@ -488,6 +503,23 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .via-row .btn[hidden] { display: none; }
 .via-new.editing { border-color: var(--accent); }
 
+/* Service logos: your own upload, else the service's own icon, else a colored letter. The letter is drawn with CSS so it is never page text. */
+.slogo { position: relative; display: inline-grid; place-items: center; flex: none; width: var(--s, 22px); height: var(--s, 22px); border-radius: calc(var(--s, 22px) * .28); background: hsl(var(--h, 200) 42% 40%); color: #fff; font: 700 calc(var(--s, 22px) * .5) / 1 var(--body); overflow: hidden; vertical-align: middle; }
+.slogo::before { content: attr(data-l); }
+.slogo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #fff; opacity: 0; }
+.slogo img.ok { opacity: 1; }
+button.slogo-btn { display: inline-flex; border: 0; background: none; padding: 0; border-radius: 8px; }
+button.slogo-btn:hover .slogo { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tile .k .slogo-btn { margin: -2px 0; }
+.bx-hd .bx-sh { display: flex; align-items: center; gap: 8px; }
+.bk-eh .slogo { margin-right: -2px; }
+.svc-chk { display: flex; align-items: center; gap: 10px; }
+.svc-chk input { width: 20px; height: 20px; }
+.svc-list { list-style: none; margin: 0; padding: 0; }
+.svc-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+.svc-list li:first-child { border-top: 0; }
+.svc-list .nm { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.logo-big { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
 .brandlock { display: inline-flex; align-items: center; gap: 2px; }
 .brandlock .logo { height: 72px; width: auto; margin: -18px 0 -16px 4px; }
 .hero-brand .brandlock .logo { height: 76px; }
@@ -2109,6 +2141,7 @@ const SEED = (() => {
     unalloc: [],
     billCats: ['Subscriptions', 'Housing', 'Utilities', 'Transportation', 'Insurance', 'Phone & Internet', 'Loans', 'Taxes', 'Entertainment', 'Software', 'Other'],
     icons: {},
+    logos: {},
     account: null
   };
 })();
@@ -2182,6 +2215,54 @@ const gc = g => 'var(--' + (GCOLOR[g] || 's4') + ')';
 const PROVIDERS = ['Klarna', 'Afterpay', 'PayPal', 'Other'];
 const VIA_SUGGEST = ['PayPal', 'Credit card', 'Apple', 'Bank', 'Cash App', 'Venmo', 'Zelle', 'Google Pay'];
 const catIcon = c => c ? iconSVG(iconFor(state, c)) : '';
+// Sun 11/22/2026
+const dws = s => { const d = BT.parse(s); return DOW[d.getDay()] + ' ' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + '/' + d.getFullYear(); };
+/* ---------- Service logos ---------- */
+// key, name pattern, the service's own domain (its icon is loaded from there; no third-party icon service).
+const SVC = [['klarna', /klarna/, 'klarna.com'], ['afterpay', /after\s*pay|clearpay/, 'afterpay.com'], ['paypal', /pay\s*pal/, 'paypal.com'], ['affirm', /affirm/, 'affirm.com'],
+  ['zip', /^zip\b|quadpay/, 'zip.co'], ['sezzle', /sezzle/, 'sezzle.com'], ['capitalone', /capital\s*one/, 'capitalone.com'], ['citizens', /citizens/, 'citizensbank.com'],
+  ['santander', /santander/, 'santanderbank.com'], ['pnc', /\bpnc\b/, 'pnc.com'], ['chime', /chime/, 'chime.com'], ['chase', /\bchase\b|jp\s*morgan/, 'chase.com'],
+  ['bankofamerica', /bank\s*of\s*america|\bbofa\b/, 'bankofamerica.com'], ['wellsfargo', /wells\s*fargo/, 'wellsfargo.com'], ['citi', /^citi(bank)?\b/, 'citi.com'],
+  ['usbank', /u\.?s\.?\s*bank/, 'usbank.com'], ['discover', /discover/, 'discover.com'], ['amex', /american\s*express|\bamex\b/, 'americanexpress.com'], ['ally', /^ally\b/, 'ally.com'],
+  ['schwab', /schwab/, 'schwab.com'], ['usaa', /\busaa\b/, 'usaa.com'], ['td', /\btd\s*bank\b/, 'td.com'], ['truist', /truist/, 'truist.com'], ['fidelity', /fidelity/, 'fidelity.com'],
+  ['apple', /^apple\b/, 'apple.com'], ['cashapp', /cash\s*app/, 'cash.app'], ['venmo', /venmo/, 'venmo.com']];
+const svcKey = name => { const n = String(name || '').toLowerCase().trim(), h = SVC.find(x => x[1].test(n)); return h ? h[0] : n.replace(/[^a-z0-9]+/g, '').slice(0, 24); };
+const svcDomain = key => (SVC.find(x => x[0] === key) || [])[2] || '';
+const svcOn = () => state.settings.svcIcons !== false;
+const svcSrc = (d, n) => n === 0 ? 'https://' + d + '/favicon.ico' : n === 1 ? 'https://' + d + '/apple-touch-icon.png' : '';
+const SVCNET = {};                          // key -> working icon URL, or 'bad'; remembered for this visit so re-renders do not flash or retry
+function svcLogo(name, size) {
+  const nm = String(name || '').trim(); if (!nm) return '';
+  const key = svcKey(nm), d = svcDomain(key), own = state.logos && state.logos[key];
+  const L = (nm.match(/[A-Za-z0-9]/) || ['?'])[0].toUpperCase(), hue = [...(key || nm)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+  let img = '';
+  if (own) img = `<img class="ok" src="${esc(own)}" alt="" data-own="1">`;
+  else if (d && svcOn() && SVCNET[key] !== 'bad') img = SVCNET[key] ? `<img class="ok" src="${esc(SVCNET[key])}" alt="" data-k="${key}" data-n="9" referrerpolicy="no-referrer">` : `<img src="${svcSrc(d, 0)}" alt="" data-k="${key}" data-n="0" referrerpolicy="no-referrer" decoding="async">`;
+  return `<span class="slogo" style="--h:${hue};--s:${size || 22}px" data-l="${esc(L)}" data-svc="${esc(key)}" aria-hidden="true">${img}</span>`;
+}
+// Icon from the service's own site: favicon.ico, then apple-touch-icon.png, then the letter. error/load do not bubble, so capture them.
+function svcNext(img) {
+  const k = img.dataset.k, n = +img.dataset.n + 1, src = svcSrc(svcDomain(k), n);
+  if (src) { img.dataset.n = n; img.src = src; } else { SVCNET[k] = 'bad'; img.remove(); }
+}
+document.addEventListener('error', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.dataset && t.dataset.k && t.dataset.n !== '9') svcNext(t); }, true);
+document.addEventListener('load', e => { const t = e.target; if (!(t && t.tagName === 'IMG' && t.dataset && t.dataset.k) || t.dataset.n === '9') return;
+  if (t.naturalWidth < 16 && svcSrc(svcDomain(t.dataset.k), +t.dataset.n + 1)) return svcNext(t);
+  t.classList.add('ok'); SVCNET[t.dataset.k] = t.currentSrc || t.src; }, true);
+// Your own logo: cropped square, 96x96 PNG, kept small enough (about 20KB) to live in the saved data and backups.
+async function logoFromFile(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const im = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('That file is not an image.')); i.src = url; });
+    const w = im.naturalWidth || im.width, h = im.naturalHeight || im.height, c = Math.min(w, h); if (!c) throw new Error('That file is not an image.');
+    for (const px of [96, 80, 64, 48, 32]) {
+      const cv = document.createElement('canvas'); cv.width = cv.height = px; const g = cv.getContext('2d');
+      g.fillStyle = '#fff'; g.fillRect(0, 0, px, px); g.drawImage(im, (w - c) / 2, (h - c) / 2, c, c, 0, 0, px, px);
+      const out = cv.toDataURL('image/png'); if (out.length <= 27000) return out;
+    }
+    throw new Error('That image is too detailed to shrink. Try a simpler one.');
+  } finally { URL.revokeObjectURL(url); }
+}
 const FREQ = { weekly: 'Weekly', biweekly: 'Every 2 weeks', monthly: 'Monthly', once: 'One time' };
 const VIEWNAME = { weekly: 'week', biweekly: 'pay cycle', monthly: 'month' };
 const ICON = {
@@ -2239,6 +2320,9 @@ function normalize(s) {
   if (!o.occ || typeof o.occ !== 'object') o.occ = {};
   if (!Array.isArray(o.billCats)) o.billCats = ['Housing', 'Utilities', 'Transportation', 'Insurance', 'Phone & Internet', 'Loans', 'Taxes', 'Entertainment', 'Software', 'Other'];
   if (!o.icons || typeof o.icons !== 'object') o.icons = {};
+  // Your own service logos: key -> small PNG data URL. Anything else is dropped.
+  if (!o.logos || typeof o.logos !== 'object' || Array.isArray(o.logos)) o.logos = {};
+  Object.keys(o.logos).forEach(k => { const v = o.logos[k]; if (typeof v !== 'string' || !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(v) || v.length > 40000) delete o.logos[k]; });
   // Repeating paychecks stop filling themselves in. From the current pay cycle on, each deposit asks for its amount.
   o.income.forEach(i => { if (i.freq !== 'once' && !i.askFrom) { i.askFrom = BT.periodRange(o, 'biweekly', 0, TODAY).start; i.perCycle = i.perCycle || {}; } });
   // v5: Paid via becomes a saved list; existing labels like "Bank **1234" become bank + last 4.
@@ -2787,15 +2871,18 @@ function viewPlans() {
   const prov = PROVIDERS.map(pv => {
     const l = active.filter(x => x.p.provider === pv);
     if (pv === 'Other' && !l.length) return '';
-    return `<div class="tile"><div class="k">${pv}</div><div class="v">${fmt0(l.reduce((a, x) => a + x.s.owed, 0))}<small>${l.length} active</small></div></div>`;
+    return `<div class="tile"><div class="k"><button type="button" class="slogo-btn" data-action="logo-sheet" data-name="${pv}" aria-label="Logo for ${pv}">${svcLogo(pv, 22)}</button><span>${pv}</span></div><div class="v">${fmt0(l.reduce((a, x) => a + x.s.owed, 0))}<small>${l.length} active</small></div></div>`;
   }).join('');
-  const card = ({ p, s }) => `<div class="plan" data-action="edit" data-type="plan" data-id="${p.id}" tabindex="0" role="button" aria-label="Edit ${esc(p.merchant)}">
-    <div class="plan-h"><div class="main"><div class="nm">${esc(p.merchant)}</div><div class="sub" style="margin-top:4px"><span class="tag prov-tag">${esc(p.provider)}</span><button class="tag" data-action="pick-cat" data-id="${p.id}">${p.category ? catIcon(p.category) : ''}${esc(p.category || 'Add category')}</button><span class="bought">Bought ${md(s.purchased)}</span></div></div>
-      <div style="text-align:right"><div class="amt">${fmt(s.next ? s.next.amount : p.amount)}</div><div class="sub" style="justify-content:flex-end">${FREQ[p.freq]}</div></div></div>
-    <div class="pips" role="img" aria-label="${s.paidCount} of ${p.total} paid">${Array.from({ length: p.total }, (_, i) => `<i class="${i < s.paidCount ? 'on' : s.next && i === s.next.n - 1 ? 'nx' : ''}"></i>`).join('')}</div>
-    <div class="plan-f">${p.endDate ? `<span>Stopped ${md(p.endDate)}</span><button class="btn sm" data-action="restore-item" data-type="plan" data-id="${p.id}">Restore</button>` : s.completed ? `<span>Paid in full · ${p.total} of ${p.total}</span>` : `<span>Next <b>${lng(s.next.date)}</b> · payment ${s.next.n} of ${p.total}</span>`}<span>${s.completed ? fmt(s.total) + ' total' : '<b>' + fmt(s.owed) + '</b> left'}</span></div>
-    ${!s.completed && !p.endDate ? `<div class="plan-f plan-end"><span>${s.left} ${s.left === 1 ? 'payment' : 'payments'} left</span><span>Ends <b>${lng(s.ends)}</b></span></div>` : ''}
-  </div>`;
+  const card = ({ p, s }) => {
+    const stopped = !!p.endDate, late = !stopped && !s.completed && s.next && s.next.date < TODAY;
+    const due = stopped ? `<span class="pc-due">Stopped ${dws(p.endDate)}</span>` : s.completed ? '<span class="pc-due done">Paid off</span>' : `<span class="pc-due${late ? ' late' : ''}">${late ? 'Past due' : 'Due'} ${dws(s.next.date)}</span>`;
+    const nth = s.completed ? `${p.total} of ${p.total} · paid` : stopped ? `${s.paidCount} of ${p.total} paid` : `${s.next.n} of ${p.total}`;
+    return `<div class="plan" data-action="edit" data-type="plan" data-id="${p.id}" tabindex="0" role="button" aria-label="Edit ${esc(p.merchant)}">
+    <div class="pc-r1"><div class="nm">${esc(p.merchant)}</div><div class="amt">${fmt(s.next ? s.next.amount : p.amount)}</div></div>
+    <div class="pc-r2"><div class="pc-l"><span class="tag prov-tag">${svcLogo(p.provider, 20)}<span>${esc(p.provider)}</span></span><button class="tag" data-action="pick-cat" data-id="${p.id}">${p.category ? catIcon(p.category) : ''}${esc(p.category || 'Add category')}</button></div>${due}</div>
+    <div class="pc-r3"><div class="pips" role="img" aria-label="${s.paidCount} of ${p.total} paid">${Array.from({ length: p.total }, (_, i) => `<i class="${i < s.paidCount ? 'on' : s.next && i === s.next.n - 1 ? 'nx' : ''}"></i>`).join('')}</div><span class="pc-n">${nth}</span></div>
+    <div class="pc-r4"><span class="pc-t">Purchased ${dws(s.purchased)}${s.ends && !stopped ? ` · ${s.completed ? 'Ended' : 'Ends'} ${dws(s.ends)}` : ''} · ${s.completed ? fmt(s.total) + ' total' : '<b>' + fmt(s.owed) + '</b> left'} <em>· ${FREQ[p.freq].toLowerCase()}</em></span>${stopped ? `<button class="btn sm" data-action="restore-item" data-type="plan" data-id="${p.id}">Restore</button>` : ''}</div>
+  </div>`; };
   // Category chart: total purchase value per category, all plans
   const byCat = {};
   st.forEach(({ p, s }) => { const c = p.category || 'Uncategorized'; byCat[c] = BT.round2((byCat[c] || 0) + s.total); });
@@ -2938,6 +3025,7 @@ function viewIncome() {
   ${catManager()}
   ${viaManager()}
   ${bankCard()}
+  ${logosCard()}
   <section class="card appear"><header class="card-h"><div><h2>Appearance</h2><span class="meta">Auto follows your phone</span></div>${themeSeg()}</header></section>
   <section class="card"><header class="card-h"><h2>Your data</h2></header>
     <div class="card-b" style="display:grid;gap:12px">
@@ -2947,6 +3035,40 @@ function viewIncome() {
     </div>
   </section></div>`;
 }
+
+/* ---------- Service logos: settings, upload sheet ---------- */
+function logoNames() {
+  const out = ['Klarna', 'Afterpay', 'PayPal', 'Affirm', 'Zip', 'Sezzle'], seen = new Set(out.map(svcKey));
+  const add = n => { n = String(n || '').trim(); const k = svcKey(n); if (n && k && !seen.has(k)) { seen.add(k); out.push(n); } };
+  ((state.bank.balances && state.bank.balances.items) || []).forEach(it => add(it.institution));
+  (BANKUI.enr || []).forEach(e => add(e.institution));
+  state.payVia.forEach(m => { if (SVC.some(x => x[1].test(String(m.bank || '').toLowerCase()))) add(m.bank); });
+  return out;
+}
+function logosCard() {
+  return `<section class="card" id="svclogos"><header class="card-h"><div><h2>Service logos</h2><span class="meta">Klarna, banks and other services</span></div></header>
+    <div class="card-b" style="display:grid;gap:10px">
+      <label class="svc-chk"><input type="checkbox" data-action="svc-icons" ${svcOn() ? 'checked' : ''}><span>Show service icons from their websites</span></label>
+      <p class="note" style="margin:0">Each icon is loaded from the service's own site, so that site sees a request. Turn this off for privacy: letters show instead. A logo you upload always wins and stays in your backup.</p>
+      <ul class="svc-list">${logoNames().map(n => { const k = svcKey(n); return `<li>${svcLogo(n, 24)}<span class="nm">${esc(n)}</span>${state.logos[k] ? `<button type="button" class="btn sm" data-action="logo-rm" data-name="${esc(n)}">Remove</button>` : ''}<button type="button" class="btn sm" data-action="logo-up" data-name="${esc(n)}">Logo</button></li>`; }).join('')}</ul>
+    </div></section>`;
+}
+const LOGOUI = { name: '' };
+function logoSheet(name) {
+  const k = svcKey(name), own = !!state.logos[k];
+  openSheet(`<div class="sheet-h"><div><h3>${esc(name)} logo</h3><p class="lede">${own ? 'Your own logo is showing.' : svcOn() && svcDomain(k) ? 'Showing the icon from its website, or a letter when that is not available.' : 'Showing a letter. Add a logo to replace it.'}</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    <div class="logo-big">${svcLogo(name, 56)}<span class="note" style="margin:0">Pick a picture. It is cropped square and shrunk to a small PNG that is saved with your data.</span></div>
+    <div class="form-err" id="ferr" role="alert"></div>
+    <div class="actions"><div class="r">${own ? `<button type="button" class="btn danger" data-action="logo-rm" data-name="${esc(name)}" data-sheet="1">Remove</button>` : ''}<button type="button" class="btn primary" data-action="logo-up" data-name="${esc(name)}" data-sheet="1">Upload</button></div></div>`);
+}
+const logoFile = document.createElement('input');
+logoFile.type = 'file'; logoFile.accept = 'image/*'; logoFile.id = 'logofile'; logoFile.hidden = true; document.body.appendChild(logoFile);
+logoFile.addEventListener('change', async () => {
+  const f = logoFile.files && logoFile.files[0], name = LOGOUI.name; logoFile.value = ''; if (!f || !name) return;
+  const inSheet = !$('#sheet').hidden;
+  try { const url = await logoFromFile(f); state.logos[svcKey(name)] = url; if (inSheet) closeSheet(); commit(name + ' logo saved'); }
+  catch (e) { const m = e && e.message ? e.message : 'Could not use that file.'; if (inSheet && $('#ferr')) $('#ferr').textContent = m; else toast(m); }
+});
 
 /* ---------- Paid via (payment methods) ---------- */
 const CARD_TYPES = ['Visa', 'Mastercard', 'Discover', 'Amex', 'Checking'];
@@ -3742,7 +3864,7 @@ function balanceSheet() {
     it.accounts.filter(a => OWED_TYPES.includes(a.type)).forEach(a => owed.push([it, a]));
     if (!accs.length) return '';
     const i = shown.indexOf(it), hid_ = 'bh-' + esc(it.itemId);
-    return `<div class="bal-bank" data-item="${esc(it.itemId)}"><div class="bx-hd">${multi ? `<button type="button" class="grip" data-grip="${esc(it.itemId)}" aria-label="Drag to reorder ${esc(it.institution || 'bank')}" aria-describedby="${hid_}">${ICON.grip}</button>` : ''}<div class="bx-sh" id="${hid_}">${esc(it.institution || 'Bank')}</div>${edit ? `<span class="mvs"><button type="button" class="icon-btn sm" data-action="bank-move" data-id="${esc(it.itemId)}" data-dir="-1" aria-label="Move up" aria-describedby="${hid_}"${i === 0 ? ' disabled' : ''}>${ICON.up}</button><button type="button" class="icon-btn sm" data-action="bank-move" data-id="${esc(it.itemId)}" data-dir="1" aria-label="Move down" aria-describedby="${hid_}"${i === shown.length - 1 ? ' disabled' : ''}>${ICON.down}</button></span>` : ''}</div><ul class="bal-acc">${accs.map(a => {
+    return `<div class="bal-bank" data-item="${esc(it.itemId)}"><div class="bx-hd">${multi ? `<button type="button" class="grip" data-grip="${esc(it.itemId)}" aria-label="Drag to reorder ${esc(it.institution || 'bank')}" aria-describedby="${hid_}">${ICON.grip}</button>` : ''}<div class="bx-sh" id="${hid_}">${svcLogo(it.institution || 'Bank', 22)}${esc(it.institution || 'Bank')}</div>${edit ? `<span class="mvs"><button type="button" class="icon-btn sm" data-action="bank-move" data-id="${esc(it.itemId)}" data-dir="-1" aria-label="Move up" aria-describedby="${hid_}"${i === 0 ? ' disabled' : ''}>${ICON.up}</button><button type="button" class="icon-btn sm" data-action="bank-move" data-id="${esc(it.itemId)}" data-dir="1" aria-label="Move down" aria-describedby="${hid_}"${i === shown.length - 1 ? ' disabled' : ''}>${ICON.down}</button></span>` : ''}</div><ul class="bal-acc">${accs.map(a => {
       return `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}${a.mask ? ' <span class="mask">••' + esc(a.mask) + '</span>' : ''}</div><div class="sub">${balSub(a)}</div></div>
         ${svMark(it, a)}<label class="tgl"><input type="checkbox" data-action="bal-count" data-id="${esc(a.id)}"${countedAcct(a) ? ' checked' : ''} aria-label="Count ${esc((it.institution || '') + ' ' + (a.name || 'account'))} in total"><span aria-hidden="true"></span></label></li>`;
     }).join('')}</ul></div>`;
@@ -4266,7 +4388,7 @@ function bankCard() {
     <p class="bk-err" role="alert">${esc(BANKUI.err)}</p></div></section>`;
   const enr = BANKUI.enr;
   const list = enr === null ? (BANKUI.loadErr ? `<p class="bk-err" role="alert">${esc(BANKUI.loadErr)}</p>` : '<p class="bk-ok">Loading your banks…</p>')
-    : enr.length ? orderBanks(enr, e => e.id).map(e => `<div class="bk-enr"><div class="bk-eh"><b>${esc(e.institution || 'Bank')}</b>${e.needsReconnect ? '<span class="pill soft warn">Needs reconnect</span>' : ''}<span class="bk-sp"></span>${e.needsReconnect ? `<button class="btn sm" data-action="bk-reconnect" data-id="${esc(e.id)}">Reconnect</button>` : `<button class="btn sm" data-action="bk-item-sync" data-id="${esc(e.id)}" aria-label="Sync ${esc(e.institution || 'bank')}"${BANKUI.syncing || BANKUI.now || BANKUI.rowBusy ? ' disabled' : ''}${BANKUI.rowBusy === e.id ? ' aria-busy="true"' : ''}>${BANKUI.rowBusy === e.id ? '<span class="spin" aria-hidden="true"></span>Syncing…' : 'Sync'}</button>`}<button class="btn sm danger" data-action="bk-disc" data-id="${esc(e.id)}">Disconnect</button></div>
+    : enr.length ? orderBanks(enr, e => e.id).map(e => `<div class="bk-enr"><div class="bk-eh">${svcLogo(e.institution || 'Bank', 22)}<b>${esc(e.institution || 'Bank')}</b>${e.needsReconnect ? '<span class="pill soft warn">Needs reconnect</span>' : ''}<span class="bk-sp"></span>${e.needsReconnect ? `<button class="btn sm" data-action="bk-reconnect" data-id="${esc(e.id)}">Reconnect</button>` : `<button class="btn sm" data-action="bk-item-sync" data-id="${esc(e.id)}" aria-label="Sync ${esc(e.institution || 'bank')}"${BANKUI.syncing || BANKUI.now || BANKUI.rowBusy ? ' disabled' : ''}${BANKUI.rowBusy === e.id ? ' aria-busy="true"' : ''}>${BANKUI.rowBusy === e.id ? '<span class="spin" aria-hidden="true"></span>Syncing…' : 'Sync'}</button>`}<button class="btn sm danger" data-action="bk-disc" data-id="${esc(e.id)}">Disconnect</button></div>
       ${plaidLine(e.id)}<ul class="bk-acc">${(e.accounts || []).map(a => `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}</div><div class="sub">${esc([a.subtype || a.type, a.last_four ? '··' + a.last_four : ''].filter(Boolean).join(' · '))}</div></div>
         <label class="tgl"><input type="checkbox" data-action="bk-toggle" data-id="${esc(a.id)}" data-eid="${esc(e.id)}"${a.enabled ? ' checked' : ''} aria-label="Sync ${esc(a.name || 'account')}"><span aria-hidden="true"></span></label></li>`).join('') || '<li><div class="sub">No accounts found.</div></li>'}</ul></div>`).join('')
     : '<p class="bk-ok">No banks connected yet. Tap Connect a bank.</p>';
@@ -5740,6 +5862,10 @@ document.addEventListener('click', async e => {
     case 'sv-on': state.savings.on = true; commit('Savings on'); accountSheet(true); break;
     case 'sv-off': state.savings.on = false; commit('Savings hidden. Your entries are kept.'); accountSheet(true); break;
     case 'sv-del': state.savings.tx = state.savings.tx.filter(t => t.id !== a.dataset.id); commit('Removed'); accountSheet(true); break;
+    case 'logo-sheet': logoSheet(a.dataset.name); break;
+    case 'logo-up': LOGOUI.name = a.dataset.name; logoFile.click(); break;
+    case 'logo-rm': { delete state.logos[svcKey(a.dataset.name)]; if (a.dataset.sheet) closeSheet(); commit('Logo removed'); break; }
+    case 'svc-icons': state.settings.svcIcons = !svcOn(); commit(state.settings.svcIcons ? 'Service icons on' : 'Service icons off'); break;
     case 'sound': state.settings.sound = state.settings.sound === false; commit(state.settings.sound ? 'Sound on' : 'Sound off'); if (state.settings.sound) chime(); break;
     case 'occ': openOcc(a.dataset.key); break;
     case 'spent-list': heroListSheet('spent', a.dataset.r); break;

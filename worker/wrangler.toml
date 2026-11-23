@@ -5,6 +5,7 @@ compatibility_date = "2025-01-01"
 [vars]
 PLAID_ENV = "sandbox"                  # sandbox | production (CI overrides from the PLAID_ENV repo variable)
 ALLOWED_ORIGIN = "https://montzi.github.io"
+# EMAIL_LOGO_URL = "https://montzi.github.io/budtracks/icons/email-logo.png"   # optional; defaults to ALLOWED_ORIGIN + /budtracks/icons/email-logo.png
 # PLAID_REDIRECT_URI = "https://montzi.github.io/budtracks/"   # needed for OAuth banks in production (CI sets it)
 # Where Plaid sends Transactions/Item webhooks (public; requests are verified by their Plaid-Verification signature).
 PLAID_WEBHOOK_URL = "https://budtracks-worker.atsdsc27.workers.dev/plaid/webhook"

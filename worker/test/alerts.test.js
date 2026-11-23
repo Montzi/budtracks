@@ -370,3 +370,28 @@ test('email: recipient is trimmed and lowercased; Resend errors map to plain rea
     const all = logs.join('\n'); assert.ok(!all.includes(TO) && !all.includes(RKEY));
   });
 });
+
+test('every email starts with the BudTracks logo image from the app site; no address in the HTML', async () => {
+  const LOGO = 'https://montzi.github.io/budtracks/icons/email-logo.png';
+  const IMG = `<img src="${LOGO}" width="240" alt="BudTracks" style="display:block;margin:0 auto 16px">`;
+  const env = mkEnv(), key = await pair(env);
+  const net = mockNet({ accounts: [], txns: [] });
+  await withNet(net, async () => {
+    await call(env, 'GET', '/alerts/test', { key });
+    // Low-balance alert (runAlerts) and the morning recap.
+    const env2 = mkEnv(); await linkItem(env2);
+    const net2 = mockNet({ accounts: [acct('a1', 'depository', 'checking', '1234', 5)], txns: [] });
+    const orig = globalThis.fetch; globalThis.fetch = net2;
+    try { await runAlerts(env2, T(NOON)); await runAlerts(env2, T('2026-11-21T12:10:00Z')); } finally { globalThis.fetch = orig; }
+    const all = [...net.emails, ...net2.emails];
+    assert.ok(all.length >= 2, 'test email and at least one alert');
+    for (const m of all) {
+      assert.ok(m.html.includes(IMG), 'logo img in ' + m.subject);
+      assert.ok(m.html.indexOf(IMG) < m.html.indexOf('<h1'), 'logo comes first');
+      assert.ok(!m.html.includes(TO) && !m.text.includes('<img'), 'no address in html; plain text untouched');
+    }
+  });
+  const { emailLogoUrl } = await import('../src/index.js');
+  assert.equal(emailLogoUrl({ ALLOWED_ORIGIN: 'https://example.com/' }), 'https://example.com/budtracks/icons/email-logo.png');
+  assert.equal(emailLogoUrl({ EMAIL_LOGO_URL: 'https://x.test/l.png' }), 'https://x.test/l.png');
+});

@@ -916,12 +916,21 @@ const isTransfer = (t) => mapCategory(t.personal_finance_category) === 'transfer
 const txDate = (t) => t.authorized_date || t.date;
 const txDesc = (t) => t.merchant_name || t.name || 'Transaction';
 
+// The BudTracks logo at the top of every email: a PNG hosted with the app (icons/email-logo.png on GitHub Pages).
+// EMAIL_LOGO_URL (a var) wins; otherwise it follows ALLOWED_ORIGIN, which is the site that serves the app.
+const EMAIL_LOGO_PATH = '/budtracks/icons/email-logo.png';
+export function emailLogoUrl(env) {
+  const own = String(env?.EMAIL_LOGO_URL || '').trim();
+  if (/^https:\/\//.test(own)) return own;
+  const origin = String(env?.ALLOWED_ORIGIN || 'https://montzi.github.io').trim().replace(/\/+$/, '');
+  return (/^https:\/\//.test(origin) ? origin : 'https://montzi.github.io') + EMAIL_LOGO_PATH;
+}
 // Mobile-friendly inline-styled email shell.
-function emailHtml(title, inner) {
+function emailHtml(title, inner, env) {
   return `<!doctype html><html><body style="margin:0;padding:0;background:#f4f5f7;">`
     + `<div style="max-width:560px;margin:0 auto;padding:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2328;">`
     + `<div style="background:#ffffff;border-radius:12px;padding:20px;">`
-    + `<div style="font-size:13px;color:#6a737d;margin-bottom:4px;">BudTracks</div>`
+    + `<img src="${esc(emailLogoUrl(env))}" width="240" alt="BudTracks" style="display:block;margin:0 auto 16px">`
     + `<h1 style="font-size:20px;line-height:1.3;margin:0 0 12px 0;">${esc(title)}</h1>${inner}</div>`
     + `<div style="font-size:12px;color:#8b949e;text-align:center;margin-top:12px;">Sent by your BudTracks worker.</div></div></body></html>`;
 }
@@ -959,7 +968,7 @@ async function balanceAlert(env, inst, a, now) {
     const subject = level === 'overdrawn' ? `BudTracks: ${label} is overdrawn (${money(bal)})` : `BudTracks: ${label} is below $20 (${money(bal)})`;
     const avail = num(a.balances?.available), cur = num(a.balances?.current);
     const rows = [['Available', avail === null ? 'n/a' : money(avail)], ['Current', cur === null ? 'n/a' : money(cur)]];
-    const html = emailHtml(level === 'overdrawn' ? `${label} is overdrawn` : `${label} is below $20`, hRows(rows) + hNote(`Balance as of ${now.toISOString().slice(0, 16).replace('T', ' ')} UTC.`));
+    const html = emailHtml(level === 'overdrawn' ? `${label} is overdrawn` : `${label} is below $20`, hRows(rows) + hNote(`Balance as of ${now.toISOString().slice(0, 16).replace('T', ' ')} UTC.`), env);
     const text = `${subject}\n\nAvailable: ${rows[0][1]}\nCurrent: ${rows[1][1]}\n`;
     if (!(await sendEmail(env, { subject, html, text })).sent) return;       // retry next hour
   }
@@ -973,7 +982,7 @@ async function depositAlert(env, deposits) {
   const total = fresh.reduce((s, d) => s - d.t.amount, 0);
   const subject = fresh.length === 1 ? `BudTracks: deposit ${money(-fresh[0].t.amount)} to ${fresh[0].label}` : `BudTracks: ${fresh.length} deposits · ${money(total)}`;
   const rows = fresh.map((d) => [txDesc(d.t), money(-d.t.amount), `${d.label} · ${prettyDate(txDate(d.t))}`]);
-  const html = emailHtml(fresh.length === 1 ? `Deposit of ${money(-fresh[0].t.amount)}` : `${fresh.length} deposits, ${money(total)}`, hRows(rows));
+  const html = emailHtml(fresh.length === 1 ? `Deposit of ${money(-fresh[0].t.amount)}` : `${fresh.length} deposits, ${money(total)}`, hRows(rows), env);
   const text = `${subject}\n\n${rows.map(([a, b, c]) => `${a}  ${b}  (${c})`).join('\n')}\n`;
   if (!(await sendEmail(env, { subject, html, text })).sent) return;
   for (const d of fresh) await env.BT_KV.put('dep:' + d.t.transaction_id, '1', { expirationTtl: DEP_TTL });
@@ -984,7 +993,7 @@ async function reauthAlert(env, it) {
   if (await env.BT_KV.get(key)) return;
   const name = it.institution || 'a bank';
   const subject = `BudTracks: reconnect ${name}`;
-  const html = emailHtml(`Reconnect ${name}`, hNote(`${name} needs you to sign in again. Open BudTracks and reconnect the bank so balances and alerts stay current.`));
+  const html = emailHtml(`Reconnect ${name}`, hNote(`${name} needs you to sign in again. Open BudTracks and reconnect the bank so balances and alerts stay current.`), env);
   if ((await sendEmail(env, { subject, html, text: `${subject}\n\n${name} needs you to sign in again. Open BudTracks and reconnect it.\n` })).sent) {
     await env.BT_KV.put(key, '1', { expirationTtl: REAUTH_TTL });
   }
@@ -999,7 +1008,7 @@ async function loadSnapshot(env, now) {
   } catch { return null; }
 }
 
-function buildRecap(today, data, snap) {
+function buildRecap(today, data, snap, env) {
   const yesterday = addDays(today, -1), soon = addDays(today, 3);
   const deps = [], cards = [], spend = [], depIn = [], pending = [];
   for (const { it, accounts, txns } of data) {
@@ -1053,7 +1062,7 @@ function buildRecap(today, data, snap) {
   else h += hNote('No purchases.');
   if (depIn.length) { h += hSection('Deposits yesterday') + hRows(depIn.map((x) => [txDesc(x.t), money(-x.t.amount), x.label])); t.push('', 'Deposits yesterday:', ...depIn.map((x) => `  ${txDesc(x.t)} ${money(-x.t.amount)} (${x.label})`)); }
   if (pending.length) { h += hSection(`Pending · ${pending.length}`) + hRows(pending.map((x) => [txDesc(x.t), money(-x.t.amount), x.label])); t.push('', 'Pending:', ...pending.map((x) => `  ${txDesc(x.t)} ${money(-x.t.amount)} (${x.label})`)); }
-  return { subject, html: emailHtml(title, h), text: t.join('\n') + '\n' };
+  return { subject, html: emailHtml(title, h, env), text: t.join('\n') + '\n' };
 }
 
 // One hourly pass: balance alerts, new deposits, reconnect notices, and the 7am New York recap.
@@ -1089,7 +1098,7 @@ export async function runAlerts(env, now = new Date()) {
   }
   await depositAlert(env, deposits);
   if (recapDue) {
-    const recap = buildRecap(today, data, await loadSnapshot(env, now));
+    const recap = buildRecap(today, data, await loadSnapshot(env, now), env);
     if ((await sendEmail(env, recap)).sent) await env.BT_KV.put('recap:' + today, '1', { expirationTtl: RECAP_TTL });
   }
   return { items: items.length, recap: recapDue };
@@ -1132,7 +1141,7 @@ async function putSnapshot(env, req) {
 }
 
 async function alertsTest(env) {
-  const html = emailHtml('BudTracks alerts are on', hNote('You will get an email when a checking or savings balance drops below $20 or goes negative, when a deposit posts, and a recap every morning at 7am New York time.'));
+  const html = emailHtml('BudTracks alerts are on', hNote('You will get an email when a checking or savings balance drops below $20 or goes negative, when a deposit posts, and a recap every morning at 7am New York time.'), env);
   const r = await sendEmail(env, { subject: 'BudTracks alerts are on', html, text: 'BudTracks alerts are on.\n\nYou will get low-balance, overdraft and deposit alerts, plus a 7am recap.\n' });
   return r.sent ? { sent: true } : { sent: false, reason: r.reason };
 }
