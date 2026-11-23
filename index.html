@@ -472,6 +472,13 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .icon-now:hover { border-color: var(--accent); }
 .icon-inline { grid-column: span 2; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
 .icon-inline[hidden] { display: none; }
+.lg-now .slogo { margin: -4px 0; }
+.lg-acts { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.lg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; max-height: 236px; overflow-y: auto; overscroll-behavior: contain; }
+.lg-o { display: grid; justify-items: center; gap: 4px; padding: 8px 4px; border-radius: 10px; border: 1px solid transparent; background: none; color: var(--ink-2); font-size: 11px; line-height: 1.2; min-width: 0; }
+.lg-o span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lg-o[aria-pressed="true"], .lg-o:hover { border-color: var(--accent); color: var(--ink); }
+.lg-o[hidden] { display: none; }
 .icon-inline .search { background: var(--surface); margin-bottom: 8px; }
 .icon-grid.sm { grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 6px; max-height: 210px; overflow: auto; }
 .icon-grid.sm .ig { padding: 8px 2px 6px; font-size: 9.5px; background: var(--surface); }
@@ -2411,14 +2418,14 @@ const icRead = () => { try { return JSON.parse(localStorage.getItem(ICACHE) || '
 const icWrite = (k, u) => { try { const o = icRead(), now = Date.now(); Object.keys(o).forEach(x => { if (!o[x] || now - o[x].t > ITTL) delete o[x]; }); if (u == null) delete o[k]; else o[k] = { u, t: now }; localStorage.setItem(ICACHE, JSON.stringify(o)); } catch (e) {} };
 { const o = icRead(), now = Date.now(); Object.keys(o).forEach(k => { const e = o[k]; if (e && typeof e.u === 'string' && now - e.t < ITTL && (e.u === '' || /^https:\/\//.test(e.u))) SVCNET[k] = e.u || 'bad'; }); }
 function svcLogo(name, size) { const nm = String(name || '').trim(); return nm ? svcBadge(svcKey(nm), nm, size) : ''; }
-function svcBadge(key, nm, size) {
+function svcBadge(key, nm, size, noProbe) {
   const b = svcRow(key), d = b ? b[2] : '', own = state.logos && state.logos[key];
   const L = b ? b[5] : (nm.match(/[A-Za-z0-9]/) || ['?'])[0].toUpperCase(), hue = [...(key || nm)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
   let img = '';
   if (own) img = `<img class="ok" src="${esc(own)}" alt="" data-own="1">`;
   else if (d && svcOn() && SVCNET[key] !== 'bad') {
     if (SVCNET[key]) img = `<img class="ok" src="${esc(SVCNET[key])}" alt="" data-k="${key}" referrerpolicy="no-referrer">`;
-    else setTimeout(() => svcProbe(key), 0);
+    else if (!noProbe) setTimeout(() => svcProbe(key), 0);
   }
   const st = `--h:${hue};--s:${size || 22}px` + (b ? `;--bg:${b[3]};--fg:${b[4]}` : '') + (L.length > 1 ? ';--fk:.38' : '');
   return `<span class="slogo" style="${st}" data-l="${esc(L)}" data-svc="${esc(key)}" aria-hidden="true">${img}</span>`;
@@ -2448,11 +2455,18 @@ function ownLogoKey(nm) {
   if (k.length < 5 || svcRow(k)) return '';
   return Object.keys(L).find(c => c.length >= 5 && !svcRow(c) && (k.startsWith(c) || c.startsWith(k))) || '';
 }
+// A merchant's own key for a logo you picked: the whole name, so "PayPal to Jordan" never repaints every PayPal row.
+const mKey = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 32);
+const logoTitle = k => (state.logoNames && state.logoNames[k]) || (svcRow(k) ? svcRow(k)[6] : k);
+// The logo you picked for this merchant, while that logo still exists.
+const logoLive = k => !!(k && ((state.logos && state.logos[k]) || svcRow(k)));
+function pickedLogo(nm) { const v = state.logoFor && state.logoFor[mKey(nm)]; return v && logoLive(v.k) ? v.k : ''; }
 // A logo for a typed name (bill, spend, screenshot line), only when it is a known brand or has your upload; otherwise nothing.
-function nameLogo(name, size) { const nm = String(name || '').trim(); if (!nm) return ''; const k = svcKey(nm), own = ownLogoKey(nm); return svcRow(k) || own ? svcBadge(own || k, svcRow(k) ? svcRow(k)[6] : nm, size) : ''; }
+function nameLogo(name, size) { const nm = String(name || '').trim(); if (!nm) return ''; const pk = pickedLogo(nm); if (pk) return svcBadge(pk, logoTitle(pk), size); const k = svcKey(nm), own = ownLogoKey(nm); return svcRow(k) || own ? svcBadge(own || k, svcRow(k) ? svcRow(k)[6] : nm, size) : ''; }
 // Transaction rows: the merchant's logo, your own upload, or a neutral category icon.
 function merchLogo(t, size, knownOnly) {
-  const k = merchKey(t), nm = cleanMerchant(t), own = ownLogoKey(nm);
+  const k = merchKey(t), nm = cleanMerchant(t), own = ownLogoKey(nm), pk = pickedLogo(nm);
+  if (pk) return svcBadge(pk, logoTitle(pk), size);
   if (k) return svcBadge(k, svcRow(k)[6], size);
   if (own) return svcBadge(own, nm, size);
   if (knownOnly) return '';
@@ -2536,6 +2550,9 @@ function normalize(s) {
   // The names you typed for logos you added (key -> name), only while that logo exists.
   if (!o.logoNames || typeof o.logoNames !== 'object' || Array.isArray(o.logoNames)) o.logoNames = {};
   Object.keys(o.logoNames).forEach(k => { if (typeof o.logoNames[k] !== 'string' || !o.logos[k]) delete o.logoNames[k]; else o.logoNames[k] = o.logoNames[k].slice(0, 40); });
+  // Logos you picked for a merchant (merchant key -> logo key: your upload or a known service). Checked again when drawn.
+  if (!o.logoFor || typeof o.logoFor !== 'object' || Array.isArray(o.logoFor)) o.logoFor = {};
+  Object.keys(o.logoFor).forEach(k => { const v = o.logoFor[k]; if (!v || typeof v !== 'object' || typeof v.k !== 'string' || !v.k || v.k.length > 40 || k.length > 40) delete o.logoFor[k]; else o.logoFor[k] = { k: v.k, n: String(v.n || k).slice(0, 40) }; });
   // Repeating paychecks stop filling themselves in. From the current pay cycle on, each deposit asks for its amount.
   o.income.forEach(i => { if (i.freq !== 'once' && !i.askFrom) { i.askFrom = BT.periodRange(o, 'biweekly', 0, TODAY).start; i.perCycle = i.perCycle || {}; } });
   // v5: Paid via becomes a saved list; existing labels like "Bank **1234" become bank + last 4.
@@ -3341,6 +3358,7 @@ function logosCard() {
       <div><button type="button" class="btn" data-action="logo-add">${ICON.plus}Add a logo</button></div>
       <label class="svc-chk"><input type="checkbox" data-action="svc-icons" ${svcOn() ? 'checked' : ''}><span>Show service icons from their websites</span></label>
       <p class="note" style="margin:0">Each icon is loaded from the service's own site, so that site sees a request. Turn this off for privacy: letters show instead. A logo you upload always wins and stays in your backup.</p>
+      ${(() => { const pk = Object.entries(state.logoFor || {}).filter(([, v]) => logoLive(v.k)); return pk.length ? `<div class="subhead" style="border:0;padding-left:0">Picked for a merchant</div><ul class="svc-list">${pk.map(([m, v]) => `<li>${svcBadge(v.k, logoTitle(v.k), 24)}<span class="nm">${esc(v.n)}</span><button type="button" class="btn sm" data-action="logo-unpick" data-m="${esc(m)}">Reset</button></li>`).join('')}</ul><div class="subhead" style="border:0;padding-left:0">Services</div>` : ''; })()}
       <ul class="svc-list">${names.map(n => { const k = svcKey(n); return `<li>${svcLogo(n, 24)}<span class="nm">${esc(n)}</span>${state.logos[k] ? `<button type="button" class="btn sm" data-action="logo-rm" data-name="${esc(n)}">Remove</button>` : ''}<button type="button" class="btn sm" data-action="logo-up" data-name="${esc(n)}">Logo</button></li>`; }).join('')}</ul>
     </div></div></section>`;
 }
@@ -3526,6 +3544,57 @@ function addIconChooser(form) {
   form.querySelector('#iconq2').addEventListener('input', e => { const q = e.target.value.trim().toLowerCase(); box.querySelectorAll('.ig').forEach(b => b.hidden = !!q && !b.dataset.kw.includes(q)); });
   show();
 }
+// "Logo" beside "What was it": pick any logo you have or a known service, or upload a new one. Saved with the form and then
+// used for this merchant everywhere. The choice stays in the form until Save (a second sheet would lose your edits).
+const LGUI = { url: '' };
+function logoChoices() {
+  const out = [], seen = new Set(), add = k => { if (k && !seen.has(k)) { seen.add(k); out.push(k); } };
+  Object.keys(state.logos || {}).forEach(add); SVC.forEach(x => add(x[0]));
+  return out;
+}
+function addLogoField(form, merchant) {
+  const d = form && form.elements.desc; if (!d) return;
+  const lab = d.closest('label'), nm = String(merchant || d.value || '').trim();
+  form.dataset.lname = nm.slice(0, 40); LGUI.url = '';
+  const opt = k => `<button type="button" class="lg-o" data-action="lgf-pick" data-k="${esc(k)}" data-kw="${esc((logoTitle(k) + ' ' + k).toLowerCase())}">${svcBadge(k, logoTitle(k), 30, true)}<span>${esc(logoTitle(k))}</span></button>`;
+  lab.insertAdjacentHTML('afterend', `<div class="fld half lg-fld"><span>Logo</span><button type="button" class="icon-now lg-now" data-action="lgf-toggle" aria-expanded="false"><span class="lg-cur"></span><span>Change</span></button><input type="hidden" name="logo" value=""></div>
+    <div class="icon-inline lg-inline" hidden><label class="sr" for="lgq">Search logos</label><input id="lgq" class="search" type="search" placeholder="Search logos, like Shell or Netflix" autocomplete="off">
+      <div class="lg-acts"><label class="btn sm" for="lg-file">${ICON.plus}Upload new</label><input type="file" id="lg-file" class="sr-file" accept="image/*"><button type="button" class="btn sm" data-action="lgf-pick" data-k="-">Automatic</button></div>
+      <div class="lg-grid">${logoChoices().map(opt).join('')}</div></div>`);
+  if (!lab.classList.contains('half')) lab.classList.add('half');
+  form.querySelector('#lgq').addEventListener('input', e => { const q = e.target.value.trim().toLowerCase(); form.querySelectorAll('.lg-o').forEach(b => b.hidden = !!q && !b.dataset.kw.includes(q)); });
+  logoFieldShow(form);
+}
+// The badge on the Logo button: what you just picked, else what this merchant shows today.
+function logoFieldShow(form) {
+  const v = form.elements.logo.value, nm = form.dataset.lname || (form.elements.desc && form.elements.desc.value) || '', cur = form.querySelector('.lg-cur'); if (!cur) return;
+  const t = form.dataset.tx ? txnOf(form.dataset.tx) : null;
+  cur.innerHTML = v === '+' && LGUI.url ? `<span class="slogo" style="--s:26px"><img class="ok" src="${esc(LGUI.url)}" alt=""></span>`
+    : v && v !== '-' ? svcBadge(v, logoTitle(v), 26)
+    : (v === '-' ? '' : nameLogo(nm, 26)) || (t ? merchLogo(t, 26) : `<span class="slogo" style="--s:26px" data-l="${esc((nm.match(/[A-Za-z0-9]/) || ['?'])[0].toUpperCase())}"></span>`);
+  form.querySelectorAll('.lg-o').forEach(b => b.setAttribute('aria-pressed', b.dataset.k === v));
+}
+// Applies the form's logo choice to the merchant's name and to the typed "What was it" when it differs.
+function saveLogoChoice(form, desc) {
+  const el = form.elements.logo, v = el && el.value; if (!v) return;
+  const names = [form.dataset.lname, desc].map(x => String(x || '').trim()).filter(Boolean), keys = [...new Set(names.map(mKey).filter(Boolean))];
+  if (!keys.length) return;
+  let target = v;
+  if (v === '+') {
+    if (!LGUI.url) return;
+    const nm = names[0], sk = svcKey(nm); target = svcRow(sk) ? mKey(nm).slice(0, 24) : sk;
+    state.logos[target] = LGUI.url; if (!svcRow(target)) (state.logoNames || (state.logoNames = {}))[target] = nm.slice(0, 40);
+  }
+  const L = state.logoFor || (state.logoFor = {});
+  keys.forEach((k, i) => { if (target === '-') delete L[k]; else L[k] = { k: target, n: (names.find(n => mKey(n) === k) || names[0]).slice(0, 40) }; });
+  LGUI.url = '';
+}
+document.addEventListener('change', async e => {
+  if (e.target.id !== 'lg-file') return;
+  const f = e.target.files && e.target.files[0], form = e.target.closest('form'); e.target.value = ''; if (!f || !form) return;
+  try { LGUI.url = await logoFromFile(f); form.elements.logo.value = '+'; logoFieldShow(form); form.querySelector('.lg-inline').hidden = true; form.querySelector('.lg-now').setAttribute('aria-expanded', 'false'); $('#ferr').textContent = ''; }
+  catch (er) { $('#ferr').textContent = er && er.message ? er.message : 'Could not use that file.'; }
+});
 function saveIconChoice(form, cat) { const v = form.elements.icon && form.elements.icon.value; if (v && cat) state.icons[cat] = v; }
 
 // "Under" choices for a new category: none (its own group) or any group.
@@ -3866,6 +3935,7 @@ function openForm(type, id, extra) {
     }
   }
   addIconChooser($('#form')); addUnderField($('#form'));
+  if (type === 'extra') { const bt = txf ? txnOf(txf) : item.bank ? txnOf(item.bank) : null; addLogoField($('#form'), bt ? cleanMerchant(bt) : item.desc); }
   setTimeout(() => { const first = $('#form input[type="text"]'); if (first && isNew && window.matchMedia('(min-width:700px)').matches) first.focus(); }, 50);
 }
 function readForm(form, type) {
@@ -3926,6 +3996,7 @@ function planPreview() {
 function saveForm(form) {
   const type = form.dataset.type, id = form.dataset.id;
   const o = readForm(form, type); if (!o) return;
+  if (type === 'extra') saveLogoChoice(form, o.desc);
   if (form.dataset.tx) { if (o.recurring) toast('Added once. Repeating bills are set up on the Bills tab.'); closeSheet(); return txDo(form.dataset.tx, { kind: 'spend', spend: { category: o.category, desc: o.desc, amount: o.amount, date: o.date, via: o.via, note: o.note || 'Bank sync', from: o.from } }); }
   if (form.dataset.inbox) return applyEdited(form.dataset.inbox, o);
   if (form.dataset.history) return addFromHistory(form.dataset.history, o);
@@ -6268,7 +6339,8 @@ document.addEventListener('click', async e => {
     case 'postpone': postponeSheet(a.dataset.id); break;
     case 'undo-postpone': undoPostpone(a.dataset.id); break;
     case 'logo-up': LOGOUI.name = a.dataset.name; logoFile.click(); break;
-    case 'logo-rm': { const k = svcKey(a.dataset.name); delete state.logos[k]; if (state.logoNames) delete state.logoNames[k]; if (a.dataset.sheet) closeSheet(); commit('Logo removed'); break; }
+    case 'logo-unpick': if (state.logoFor) delete state.logoFor[a.dataset.m]; commit('Logo reset'); break;
+    case 'logo-rm': { const k = svcKey(a.dataset.name); delete state.logos[k]; Object.keys(state.logoFor || {}).forEach(m => { if (state.logoFor[m].k === k) delete state.logoFor[m]; }); if (state.logoNames) delete state.logoNames[k]; if (a.dataset.sheet) closeSheet(); commit('Logo removed'); break; }
     case 'logo-add': logoAddSheet(); break;
     case 'logo-sug': { const i = $('#la-name'); if (i) { i.value = a.dataset.name; i.focus(); } const el = $('#la-sug'); if (el) el.innerHTML = logoSuggestHTML(a.dataset.name); break; }
     case 'svc-icons': state.settings.svcIcons = !svcOn(); commit(state.settings.svcIcons ? 'Service icons on' : 'Service icons off'); break;
@@ -6288,6 +6360,8 @@ document.addEventListener('click', async e => {
       else selectSlice(i, true);
       break; }
     case 'cat-mode': catDetail(a.dataset.cat, a.dataset.mode, !!a.dataset.grp, a.dataset.par); break;
+    case 'lgf-toggle': { const box = a.closest('form').querySelector('.lg-inline'); box.hidden = !box.hidden; a.setAttribute('aria-expanded', !box.hidden); if (!box.hidden) box.scrollIntoView({ block: 'nearest' }); break; }
+    case 'lgf-pick': { const f = a.closest('form'); f.elements.logo.value = a.dataset.k; LGUI.url = ''; logoFieldShow(f); f.querySelector('.lg-inline').hidden = true; f.querySelector('.lg-now').setAttribute('aria-expanded', 'false'); break; }
     case 'icon-toggle': { const box = a.closest('form').querySelector('.icon-inline'); box.hidden = !box.hidden; a.setAttribute('aria-expanded', !box.hidden); break; }
     case 'icon-inline': { const f = a.closest('form'); f.elements.icon.value = a.dataset.icon; const btn = f.querySelector('.icon-now'); btn.firstElementChild.outerHTML = iconSVG(a.dataset.icon); f.querySelectorAll('.icon-inline .ig').forEach(b => b.setAttribute('aria-pressed', b === a)); f.querySelector('.icon-inline').hidden = true; btn.setAttribute('aria-expanded', 'false'); break; }
     case 'pause-sub': {
