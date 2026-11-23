@@ -133,8 +133,9 @@ for (const [w, h] of [[390, 844], [951, 669]]) for (const dark of [false, true])
     await step(`${w}${dark ? ' dark' : ''}: brand header logo centered on ${tab}, Saved in the corner`, async () => {
       await page.evaluate(t => { location.hash = t; }, tab); await page.waitForTimeout(350);
       const r = await rect(page, '#brandbar .wm'); assert.ok(r, 'logo visible');
-      assert.ok(Math.abs((r.l + r.r) / 2 - w / 2) <= 2, `center ${(r.l + r.r) / 2} vs ${w / 2}`);
-      const s = await rect(page, '#brandbar .sync'); assert.ok(s && s.r > w / 2 + 40 && s.b <= r.t + 40, 'Saved is in the top-right corner ' + JSON.stringify(s));
+      const bar = await rect(page, '#brandbar'), mid = (bar.l + bar.r) / 2;   // v19: in landscape the header is the same left-column box on every tab
+      assert.ok(Math.abs((r.l + r.r) / 2 - mid) <= 2, `center ${(r.l + r.r) / 2} vs ${mid}`);
+      const s = await rect(page, '#brandbar .sync'); assert.ok(s && s.r > mid + 40 && s.b <= r.t + 40, 'Saved is in the top-right corner ' + JSON.stringify(s));
       await noHScroll(page, tab);
       if (w === 390 && tab === 'transactions' && !dark) { await quiet(page); await page.screenshot({ path: `${SHOTS}/tabs-logo-390.png` }); }
     });

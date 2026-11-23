@@ -8,6 +8,8 @@ const require = createRequire(import.meta.url);
 let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
 const SHOTS = process.argv[2] || '/tmp';
 const BASE = process.env.BT_URL || 'http://localhost:8765/';
+// v19: the period switcher is a button + menu inside the header
+const pickView = async (page, v) => { await page.click('#periodBtn'); await page.click('#periodMenu [data-view="' + v + '"]'); };
 const API = 'https://worker.test';
 let failed = 0;
 const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', String(e.message).split('\n').slice(0, 14).join('\n    ')); } };
@@ -207,9 +209,9 @@ for (const [w, h] of SIZES) {
     await page.click('[data-action="prev"]'); assert.equal(await eb(), 'Past pay cycle');
     await page.click('[data-action="next"]'); await page.click('[data-action="next"]'); assert.equal(await eb(), 'Upcoming pay cycle');
     await page.click('[data-action="today"]'); assert.equal(await eb(), 'Pay cycle');
-    await page.click('[data-action="view"][data-view="weekly"]'); assert.equal(await eb(), 'Week');
-    await page.click('[data-action="view"][data-view="monthly"]'); assert.equal(await eb(), 'Month');
-    await page.click('[data-action="view"][data-view="biweekly"]'); assert.equal(await eb(), 'Pay cycle');
+    await pickView(page, 'weekly'); assert.equal(await eb(), 'Week');
+    await pickView(page, 'monthly'); assert.equal(await eb(), 'Month');
+    await pickView(page, 'biweekly'); assert.equal(await eb(), 'Pay cycle');
     assert.deepEqual(errs, []);
   });
   await ctx.close();
@@ -355,7 +357,7 @@ for (const [w, h] of SIZES) {
 {
   const { ctx, page, errs } = await newPage(390, 844, { dark: true, settings: { theme: 'light' } });
   const check = async (sels, min) => {
-    const bad = [];
+    const bad = []; await page.waitForTimeout(260);   // v19: let the tab fade-in finish (the contrast check multiplies opacity)
     for (const s of sels) { const r = await contrastOf(page, s, true); if (!r.length) bad.push(s + ': not found'); r.filter(x => x.ratio < min).forEach(x => bad.push(`${s} "${x.text}" ${x.ratio}`)); }
     assert.deepEqual(bad, []);
   };

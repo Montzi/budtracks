@@ -92,7 +92,7 @@ for (const [w, h] of SIZES) for (const scheme of ['dark', 'light']) {
   await step(`${tag}: other tabs: standalone rounded card, content below`, async () => {
     await go(page, 'plans');
     const g = await geo(page), r = await page.evaluate(() => getComputedStyle(document.querySelector('#brandbar')).borderBottomLeftRadius);
-    assert.equal(r, '22px'); assert.ok(g.bar.w >= Math.min(w - 40, 700) - 2 || w > 1000, 'full width ' + g.bar.w);
+    assert.equal(r, '22px'); const wide = w >= 900 || (w >= 740 && w > h); assert.ok(wide || g.bar.w >= Math.min(w - 40, 700) - 2, 'full width ' + g.bar.w);   // v19: landscape keeps the Overview column width on every tab
     const m = await page.evaluate(() => document.querySelector('#main').getBoundingClientRect().top); assert.ok(m >= g.bar.b + 8, 'content below header');
   });
   await step(`${tag}: tapping Bud opens the hat sheet from Plans; party glow follows a change`, async () => {

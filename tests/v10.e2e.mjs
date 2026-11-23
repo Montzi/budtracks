@@ -8,6 +8,8 @@ const require = createRequire(import.meta.url);
 let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
 const SHOTS = process.argv[2] || '/tmp';
 const BASE = process.env.BT_URL || 'http://localhost:8765/';
+// v19: the period switcher is a button + menu inside the header
+const pickView = async (page, v) => { await page.click('#periodBtn'); await page.click('#periodMenu [data-view="' + v + '"]'); };
 let failed = 0;
 const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', String(e.message).split('\n').slice(0, 14).join('\n    ')); } };
 
@@ -226,7 +228,7 @@ for (const [w, h] of [[390, 844], [951, 669]]) {
   });
   await step(`${w}: weekly view with a biweekly paycheck: weeks without pay get no point, deltas skip them`, async () => {
     await page.evaluate(() => { location.hash = '#overview'; }); await page.waitForSelector('.ov-bars');
-    await page.click('[data-action="view"][data-view="weekly"]'); await page.waitForSelector('.ov-bars .ib');
+    await pickView(page, 'weekly'); await page.waitForSelector('.ov-bars .ib');
     assert.match(await page.locator('.ov-bars h2').innerText(), /^Income and needs · 6 weeks$/);
     const n = await page.locator('.ov-bars .ib-pt').count(); assert.ok(n >= 2 && n <= 4, 'one point per week with a paycheck: ' + n);
     const ds = await page.locator('.ov-bars .ib-d').allTextContents();
@@ -235,9 +237,9 @@ for (const [w, h] of [[390, 844], [951, 669]]) {
     assert.ok(tips.some(t => /No paycheck this week/.test(t)));
     assert.equal(await page.locator('.ov-bars .ib-line').count(), n - 1, 'the line bridges weeks without pay');
     if (w === 390) await shot(page, '.ov-bars', 'income-chart-weekly-390.png');
-    await page.click('[data-action="view"][data-view="monthly"]'); await page.waitForSelector('.ov-bars .ib');
+    await pickView(page, 'monthly'); await page.waitForSelector('.ov-bars .ib');
     assert.match(await page.locator('.ov-bars h2').innerText(), /^Income and needs · 6 months$/);
-    await page.click('[data-action="view"][data-view="biweekly"]'); await noHScroll(page, w + ' views');
+    await pickView(page, 'biweekly'); await noHScroll(page, w + ' views');
   });
   await step(`${w}: no page errors`, async () => { assert.deepEqual(errs, []); });
   await ctx.close();

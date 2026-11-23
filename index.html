@@ -76,7 +76,6 @@ button { cursor: pointer; }
 h1, h2, h3 { text-wrap: balance; margin: 0; }
 
 .app { max-width: 1080px; margin: 0 auto; padding: 14px 16px 104px; display: grid; gap: 16px; }
-.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 4px; }
 .mark { font-family: var(--display); font-size: 30px; line-height: 1; letter-spacing: -0.01em; }
 .mark i { color: var(--brass); font-style: italic; }
 .sync { font-size: 12px; color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; }
@@ -361,8 +360,6 @@ button.lad:hover .v, button.lad:focus-visible .v { color: var(--brass-hi); }
 .add-big:hover { filter: brightness(1.08); }
 .card-h .meta { display: block; }
 
-.top { min-height: 0; }
-.top [hidden], .top[hidden] { display: none; }
 .hs-k { white-space: nowrap; }
 .ua-bar { display: block; width: 100%; margin: 12px 0 0; text-align: left; background: color-mix(in srgb, var(--brass-hi) 16%, transparent); border: 1px solid var(--brass-hi); color: var(--hero-ink); border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.4; }
 .ua-bar b { color: var(--brass-hi); }
@@ -550,12 +547,34 @@ button.slogo-btn:hover .slogo { outline: 2px solid var(--accent); outline-offset
 .sw-custom input { width: 38px; height: 38px; border: 0; padding: 0; background: none; border-radius: 50%; }
 /* One persistent brand header (Bud, laptop, wordmark, glow, Saved pill) above every tab. On Overview it is the top of the cycle card. */
 :root { --wmf: clamp(44px, 15vw, 68px); }
-.brandbar { position: relative; display: flex; justify-content: center; align-items: flex-end; background: var(--hero); color: var(--hero-ink); border: 1px solid var(--hero-border); border-radius: 22px; box-shadow: var(--shadow); padding: 32px 18px calc(var(--wmf) * .26); min-width: 0; }
-.brandbar .sync { position: absolute; top: 7px; right: 12px; z-index: 3; max-width: calc(100% - 24px); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; line-height: 14px; padding: 2px 9px 2px 8px; border-radius: 999px; border: 1px solid var(--hero-line); color: var(--hero-ink-2); }
-.app[data-tab="overview"] .brandbar { border-bottom: 0; border-radius: 22px 22px 0 0; box-shadow: none; margin-bottom: -16px; padding-bottom: calc(var(--wmf) * .32); }
+.brandbar { --hbar: #0f172e; position: relative; display: flex; justify-content: center; align-items: flex-end; background: var(--hbar); color: var(--hero-ink); border: 1px solid var(--hero-border); border-radius: 22px; box-shadow: var(--shadow); padding: 32px 18px calc(var(--wmf) * .32); min-width: 0; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .brandbar { --hbar: #e3e8f2; } }
+:root[data-theme="light"] .brandbar { --hbar: #e3e8f2; }
+.brandbar .sync { position: absolute; top: 7px; right: 12px; z-index: 3; max-width: calc(100% - 132px); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; line-height: 14px; padding: 2px 9px 2px 8px; border-radius: 999px; border: 1px solid var(--hero-line); color: var(--hero-ink-2); }
+.app[data-tab="overview"] .brandbar { background: var(--hero); border-bottom-color: var(--hero); border-radius: 22px 22px 0 0; box-shadow: none; margin-bottom: -16px; }
+/* Period button (top-left of the header) and its menu */
+.brandbar .period { position: absolute; top: 5px; left: 10px; z-index: 3; display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px 0 10px; border-radius: 999px; border: 1px solid var(--hero-line); background: transparent; color: var(--hero-ink-2); font-size: 12px; font-weight: 600; line-height: 1; }
+.brandbar .period::after { content: ""; position: absolute; inset: -9px -4px; }
+.brandbar .period svg { transition: transform .15s ease; }
+.brandbar .period[aria-expanded="true"] svg { transform: rotate(180deg); }
+.brandbar .period:hover, .brandbar .period[aria-expanded="true"] { color: var(--hero-ink); background: var(--hero-hover); }
+.pmenu { position: absolute; top: 36px; left: 8px; z-index: 40; min-width: 156px; padding: 4px; background: var(--surface); color: var(--ink); border: 1px solid var(--line-2); border-radius: 14px; box-shadow: 0 12px 32px -8px #0009, 0 2px 6px #0004; display: grid; gap: 2px; }
+.pmenu[hidden] { display: none; }
+.pmenu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 12px 0 28px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); font-size: 14px; font-weight: 500; text-align: left; position: relative; }
+.pmenu button:hover, .pmenu button:focus-visible { background: var(--surface-2); }
+.pmenu button[aria-checked="true"] { font-weight: 700; }
+.pmenu button[aria-checked="true"]::before { content: ""; position: absolute; left: 10px; top: 50%; width: 5px; height: 9px; margin-top: -6px; border: solid var(--accent); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+/* Tab content fades in on a tab change; the header never moves */
+@keyframes tabIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+#main.tabin { animation: tabIn .18s ease-out; }
+@media (prefers-reduced-motion: reduce) { #main.tabin { animation: none; } }
+/* iOS-style new-data badge on a tab icon */
+.tabs a { position: relative; }
+.tabs .badge { position: absolute; top: 0; left: calc(50% + 2px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #d3282b; color: #fff; font: 700 11px/18px var(--body); text-align: center; letter-spacing: 0; box-shadow: 0 0 0 2px var(--bg); pointer-events: none; }
+.tabs .badge[hidden] { display: none; }
 .app[data-tab="overview"] .hero { border-top: 0; border-radius: 0 0 22px 22px; padding-top: 6px; }
 @media (min-width: 900px), (orientation: landscape) and (min-width: 740px) {
-  .app[data-tab="overview"] .brandbar { width: calc((100% - 16px) * .43); }
+  .brandbar { width: calc((100% - 16px) * .43); }
 }
 
 /* Bud speech bubble: navy cloud with thought dots, same navy as the cycle card */
@@ -1127,22 +1146,22 @@ body.dragging-bank { cursor: grabbing; -webkit-user-select: none; user-select: n
 </head>
 <body>
 <div class="app">
-  <header class="top">
-    <div class="seg" id="viewSeg" role="group" aria-label="Budget period">
-      <button data-action="view" data-view="weekly" aria-pressed="false">Weekly</button>
-      <button data-action="view" data-view="biweekly" aria-pressed="true">Biweekly</button>
-      <button data-action="view" data-view="monthly" aria-pressed="false">Monthly</button>
+  <header id="brandbar" class="brandbar" aria-label="BudTracks">
+    <button type="button" class="period" id="periodBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="periodMenu" aria-label="Budget period"><span id="periodLbl">Bi-weekly</span><svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></button>
+    <div class="pmenu" id="periodMenu" role="menu" aria-label="Budget period" hidden>
+      <button type="button" role="menuitemradio" aria-checked="false" data-action="view" data-view="weekly">Weekly</button>
+      <button type="button" role="menuitemradio" aria-checked="true" data-action="view" data-view="biweekly">Bi-weekly</button>
+      <button type="button" role="menuitemradio" aria-checked="false" data-action="view" data-view="monthly">Monthly</button>
     </div>
-  </header>
-  <header id="brandbar" class="brandbar" aria-label="BudTracks"><span id="logoOut"></span><span class="sync" role="status">Loading…</span></header>
+    <span id="logoOut"></span><span class="sync" role="status">Loading…</span></header>
   <main id="main"></main>
 </div>
 <nav class="tabs" aria-label="Sections"><div class="tabs-in">
-  <a href="#overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l6 4"/></svg>Overview</a>
-  <a href="#transactions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Transactions</a>
-  <a href="#bills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Bills</a>
-  <a href="#plans"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.5 11h-11z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg>Plans</a>
-  <a href="#income"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>Income</a>
+  <a href="#overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l6 4"/></svg>Overview<span class="badge" aria-hidden="true" hidden></span></a>
+  <a href="#transactions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Transactions<span class="badge" aria-hidden="true" hidden></span></a>
+  <a href="#bills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Bills<span class="badge" aria-hidden="true" hidden></span></a>
+  <a href="#plans"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.5 11h-11z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg>Plans<span class="badge" aria-hidden="true" hidden></span></a>
+  <a href="#income"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>Income<span class="badge" aria-hidden="true" hidden></span></a>
 </div></nav>
 <div id="sheet" class="sheet-wrap" hidden><div class="backdrop" data-action="close"></div><div class="sheet" role="dialog" aria-modal="true"><div id="sheetBody"></div></div></div>
 <div id="tip" class="tip" aria-hidden="true"></div>
@@ -2449,6 +2468,10 @@ function normalize(s) {
     });
   }
   { const cut = BT.addDays(TODAY, -180); Object.keys(o.bank.txns).forEach(id => { if (!(o.bank.txns[id].date >= cut)) delete o.bank.txns[id]; }); }
+  // Tab badges: when each tab was last opened, and when each ledger line first arrived (`at`). Lines already here count as seen.
+  if (!o.settings.tabSeen || typeof o.settings.tabSeen !== 'object' || Array.isArray(o.settings.tabSeen)) o.settings.tabSeen = {};
+  { const n0 = new Date().toISOString(); ['overview', 'transactions', 'bills', 'plans', 'income'].forEach(k => { if (typeof o.settings.tabSeen[k] !== 'string' || isNaN(Date.parse(o.settings.tabSeen[k]))) o.settings.tabSeen[k] = n0; }); }
+  Object.values(o.bank.txns).forEach(t => { if (t && (typeof t.at !== 'string' || isNaN(Date.parse(t.at)))) t.at = '2000-01-01T00:00:00.000Z'; });
   // One-time repair: a split paycheck applied as separate deposits left only the last one in perCycle.
   if (!o.imports.includes('paysplit-fix-1')) {
     o.imports.push('paysplit-fix-1');
@@ -4731,7 +4754,7 @@ async function bankSync(o) {
     const { autoFrom, historyFrom } = state.bank;
     // Ledger: every transaction on or after historyFrom, pending replaced by posted, removed ones gone.
     const got = state.bank.gotAt, nowIso = new Date().toISOString();
-    allIn.forEach(t => { if (t.date >= historyFrom) { if (!state.bank.txns[t.id] && !got[t.id]) got[t.id] = nowIso; state.bank.txns[t.id] = t; } if (t.pendingOf && t.pendingOf !== t.id) delete state.bank.txns[t.pendingOf]; });
+    allIn.forEach(t => { if (t.date >= historyFrom) { const was = state.bank.txns[t.id], pend = t.pendingOf && t.pendingOf !== t.id ? state.bank.txns[t.pendingOf] : null; t.at = (was && was.at) || (pend && pend.at) || nowIso; if (!was && !got[t.id]) got[t.id] = nowIso; state.bank.txns[t.id] = t; } if (t.pendingOf && t.pendingOf !== t.id) delete state.bank.txns[t.pendingOf]; });
     removed.forEach(id => { delete state.bank.txns[id]; });
     { const cut = BT.addDays(TODAY, -180); Object.keys(state.bank.txns).forEach(id => { if (!(state.bank.txns[id].date >= cut)) delete state.bank.txns[id]; }); }
     { const old = Date.now() - 3 * 864e5; Object.keys(got).forEach(id => { if (!state.bank.txns[id] || !(new Date(got[id]).getTime() > old)) delete got[id]; }); }
@@ -4793,7 +4816,7 @@ async function bankSync(o) {
     sendSnapshot(true).catch(() => {});
   } catch (e) { purgeInbox(state); BANKUI.syncErr = e.message; if (!auto) toast(e.message); }
   BANKUI.syncing = false;
-  if (['income', 'transactions', 'overview', 'bills'].includes(currentTab())) render();
+  if (['income', 'transactions', 'overview', 'bills'].includes(currentTab())) render(); else paintBadges();
   if (!$('#sheet').hidden && BALUI.open) balanceSheet();
 }
 // "Sync now": ask the banks to refresh (when the plan allows it), sync right away, then once more shortly after (quietly)
@@ -5879,7 +5902,7 @@ document.addEventListener('click', async e => {
   if (a.tagName === 'BUTTON' || act !== 'close') e.preventDefault();
   switch (act) {
     case 'plans-view': state.settings.plansView = a.dataset.v === 'cards' ? 'cards' : 'plans'; commit(); break;
-    case 'view': state.settings.view = a.dataset.view; offset = 0; commit(); break;
+    case 'view': state.settings.view = a.dataset.view; offset = 0; closePeriod(true); commit(); break;
     case 'prev': offset--; render(); break;
     case 'next': offset++; render(); break;
     case 'today': offset = 0; render(); break;
@@ -6163,6 +6186,77 @@ function viewPlansTab() {
   const v = state.settings.plansView === 'cards' ? 'cards' : 'plans';
   return `<div class="stack"><div class="seg plans-seg" role="group" aria-label="Plans view"><button data-action="plans-view" data-v="plans" aria-pressed="${v === 'plans'}">Pay later</button><button data-action="plans-view" data-v="cards" aria-pressed="${v === 'cards'}">Credit cards</button></div>${v === 'cards' ? viewCards() : viewPlans()}</div>`;
 }
+/* ---------- Tab badges: new data since the tab was last opened ---------- */
+const TABNAME = { overview: 'Overview', transactions: 'Transactions', bills: 'Bills', plans: 'Plans', income: 'Income' };
+const newer = (at, since) => { const a = Date.parse(at), b = Date.parse(since); return !isNaN(a) && (isNaN(b) || a > b); };
+function tabCounts() {
+  const ts = (state.settings && state.settings.tabSeen) || {}, c = { transactions: 0, bills: 0, plans: 0, income: 0 };
+  const b = state.bank || {};
+  Object.values(b.txns || {}).forEach(t => { if (t && newer(t.at, ts.transactions)) c.transactions++; });
+  // Matched by the app on its own after a sync (a decision made by hand is not "new data")
+  Object.values(b.seen || {}).forEach(r => {
+    if (!r || r.src !== 'sync' || r.auto === false) return;
+    if (r.res === 'bill' && newer(r.at, ts.bills)) c.bills++;
+    else if (r.res === 'match' && newer(r.at, ts.plans)) c.plans++;
+    else if (r.res === 'income' && newer(r.at, ts.income)) c.income++;
+  });
+  // Likely completed: the bank line that suggests it arrived after the tab was last opened
+  likelyMap().forEach(e => {
+    const k = e.item && e.item.kind, tab = k === 'plan' ? 'plans' : k === 'bill' || k === 'card' ? 'bills' : '';
+    if (tab && e.txn && newer(e.txn.at, ts[tab])) c[tab]++;
+  });
+  return c;
+}
+let lastAppBadge = null;
+function paintBadges() {
+  let c; try { c = tabCounts(); } catch (e) { c = { transactions: 0, bills: 0, plans: 0, income: 0 }; }
+  document.querySelectorAll('.tabs a').forEach(a => {
+    const k = a.getAttribute('href').slice(1), n = c[k] || 0, el = a.querySelector('.badge'); if (!el) return;
+    el.hidden = !n; el.textContent = n ? (n > 99 ? '99+' : String(n)) : '';
+    if (n) a.setAttribute('aria-label', TABNAME[k] + ', ' + n + ' new'); else a.removeAttribute('aria-label');
+  });
+  // App icon badge where the browser supports it (no permission is requested; failures are ignored)
+  if (lastAppBadge !== c.transactions) {
+    lastAppBadge = c.transactions;
+    try { const p = c.transactions > 0 ? navigator.setAppBadge && navigator.setAppBadge(c.transactions) : navigator.clearAppBadge && navigator.clearAppBadge(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+  }
+}
+// Opening a tab clears its badge: last viewed = now. Saved straight away without another render.
+function markTabSeen(tab) {
+  const ts = state.settings.tabSeen || (state.settings.tabSeen = {});
+  if (tab === 'overview' || !ts[tab]) { if (!ts[tab]) ts[tab] = new Date().toISOString(); return; }
+  if (!tabCounts()[tab]) return;
+  ts[tab] = new Date().toISOString();
+  // Only the timestamp is patched into the stored copy (a render must not rewrite everything else).
+  try { const raw = JSON.parse(localStorage.getItem(LS)); if (raw && raw.settings) { raw.settings.tabSeen = Object.assign({}, raw.settings.tabSeen, ts); localStorage.setItem(LS, JSON.stringify(raw)); } } catch (e) {}
+  clearTimeout(timer); timer = setTimeout(flush, 600);
+}
+const VIEWLBL = { weekly: 'Weekly', biweekly: 'Bi-weekly', monthly: 'Monthly' };
+function closePeriod(focus) {
+  const m = $('#periodMenu'), b = $('#periodBtn'); if (m.hidden) return;
+  m.hidden = true; b.setAttribute('aria-expanded', 'false'); if (focus) b.focus();
+}
+function openPeriod() {
+  const m = $('#periodMenu'); m.hidden = false; $('#periodBtn').setAttribute('aria-expanded', 'true');
+  const it = m.querySelector('[aria-checked="true"]') || m.querySelector('button'); it.focus();
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('#periodBtn')) { $('#periodMenu').hidden ? openPeriod() : closePeriod(false); return; }
+  if (!e.target.closest('#periodMenu')) closePeriod(false);
+});
+document.addEventListener('keydown', e => {
+  const m = $('#periodMenu'), b = $('#periodBtn');
+  if (e.key === 'Escape' && !m.hidden) { e.stopPropagation(); closePeriod(true); return; }
+  if (e.target === b && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && m.hidden) { e.preventDefault(); openPeriod(); return; }
+  if (!m.hidden && m.contains(e.target)) {
+    const its = [...m.querySelectorAll('button')], i = its.indexOf(e.target);
+    if (e.key === 'ArrowDown') { e.preventDefault(); its[(i + 1) % its.length].focus(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); its[(i + its.length - 1) % its.length].focus(); }
+    else if (e.key === 'Home') { e.preventDefault(); its[0].focus(); }
+    else if (e.key === 'End') { e.preventDefault(); its[its.length - 1].focus(); }
+    else if (e.key === 'Tab') closePeriod(false);
+  }
+}, true);
 const TABS = { overview: viewOverview, transactions: viewTransactions, bills: viewBills, plans: viewPlansTab, income: viewIncome };
 function currentTab() { const h = location.hash.slice(1); return h === 'cards' ? 'plans' : TABS[h] ? h : 'overview'; }
 function render() {
@@ -6170,12 +6264,13 @@ function render() {
   applyTheme();
   if (location.hash === '#cards') { state.settings.plansView = 'cards'; try { history.replaceState(null, '', '#plans'); localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} }
   const tab = currentTab();
-  document.querySelectorAll('#viewSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === state.settings.view));
-  $('#viewSeg').hidden = tab !== 'overview';
-  document.querySelector('.top').hidden = tab !== 'overview';
+  document.querySelectorAll('#periodMenu [data-view]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.view === state.settings.view)));
+  $('#periodLbl').textContent = VIEWLBL[state.settings.view] || 'Bi-weekly';
   document.querySelector('.app').dataset.tab = tab;
   document.querySelectorAll('.tabs a').forEach(a => { if (a.getAttribute('href') === '#' + tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   $('#main').innerHTML = TABS[tab]();
+  if (lastTab !== null && lastTab !== tab) { const mn = $('#main'); mn.classList.remove('tabin'); void mn.offsetWidth; mn.classList.add('tabin'); }
+  lastTab = tab;
   if (tab === 'income') bankCardLoad();
   if (Date.now() < partyUntil) $('#brandbar').classList.add('party');
   // The brand header stays mounted: only its dynamic bits change (Saved pill, hat).
@@ -6186,8 +6281,12 @@ function render() {
   else if (bb.dataset.hat !== hk) { bb.dataset.hat = hk; const o = bb.querySelector('svg.hd'), t = document.createElement('div'); t.innerHTML = headSVG(hat()); o.replaceWith(t.firstElementChild); buildMarks(); }
   initCatScroll();
   watchFit();
+  markTabSeen(tab); paintBadges();
 }
-window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+let lastTab = null;
+window.addEventListener('hashchange', () => { closePeriod(false); render(); window.scrollTo(0, 0); requestAnimationFrame(() => budSay(TABNAME[currentTab()], 1600)); });
+// Tapping the tab you are already on has no hash change: Bud still says its name and the page returns to the top.
+document.addEventListener('click', e => { const a = e.target.closest('.tabs a'); if (a && a.getAttribute('href') === '#' + currentTab()) { window.scrollTo(0, 0); requestAnimationFrame(() => budSay(TABNAME[currentTab()], 1600)); } });
 render();
 const bankBoot = () => { bankOAuthResume(); bankAutoSync(); sendSnapshot().catch(() => {}); };
 connect().then(bankBoot, bankBoot);
