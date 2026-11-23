@@ -1286,7 +1286,7 @@ How to answer:
 - Lead with the answer. Use their real numbers (dollars with cents only when they matter, like $1,240 or $12.49) and real names of merchants, bills and categories.
 - Point out what matters: trends against earlier pay cycles or months, budgets running over, bills due before the next paycheck, pay plans and card balances, unusual or repeated charges, money left after bills.
 - When you give advice, make it specific and doable this week or this pay cycle, sized to their numbers. No generic tips.
-- Plain text only: no markdown, headings, bullet symbols or tables. An emoji now and then is fine.
+- Plain text only: no markdown, headings, bullet symbols or tables. No em dashes; use short sentences instead. An emoji now and then is fine.
 - The data has precomputed totals and comparisons; use them instead of adding up lines yourself. If something is not in the data, say you can't see it rather than guessing.
 - Be warm and honest, never preachy. Don't add disclaimers about not being a financial advisor.
 - Keep to money and this app. For anything else, steer back kindly in one bubble.
@@ -1325,7 +1325,7 @@ async function ask(env, req) {
   // One request per question. Earlier turns go in as quoted text, so no assistant turn (or its thinking) is replayed.
   // The budget data comes first with a cache breakpoint: follow-up questions read it from the cache.
   const past = history.length ? '<earlier_chat>\n' + history.map((h) => `Me: ${h.q}\nBud: ${h.a}`).join('\n\n') + '\n</earlier_chat>\n\n' : '';
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 2, timeout: 90_000, fetch: typeof env.ANTHROPIC_FETCH === 'function' ? env.ANTHROPIC_FETCH : undefined, logLevel: 'off' });
+  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 2, timeout: 90_000, fetch: typeof env.ANTHROPIC_FETCH === 'function' ? env.ANTHROPIC_FETCH : (u, i) => fetch(u, i), logLevel: 'off' });
   let msg;
   try {
     msg = await client.beta.messages.create({
@@ -1345,6 +1345,7 @@ async function ask(env, req) {
     if (e instanceof Anthropic.RateLimitError) { console.error('ask: rate limited'); throw new HttpError(429, 'Bud is busy, try again in a minute'); }
     if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) { console.error('ask: key rejected', e.status); throw new HttpError(503, "Bud's key is invalid"); }
     if (e instanceof Anthropic.APIConnectionError) { console.error('ask: connection failed', e.name); throw new HttpError(502, "Couldn't reach Bud, try again"); }
+    if (e instanceof Anthropic.BadRequestError) { console.error('ask: request rejected', e.status); throw new HttpError(502, "Bud's setup was rejected by the AI service. The server needs an update."); }
     if (e instanceof Anthropic.APIError) { console.error('ask: api error', e.status); throw new HttpError(502, 'Bud had a problem, try again'); }
     console.error('ask: failed', e?.name);
     throw new HttpError(502, 'Bud had a problem, try again');

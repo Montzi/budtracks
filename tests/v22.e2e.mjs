@@ -286,4 +286,17 @@ for (const [w, h, dark] of [[390, 844, true], [951, 669, false]]) {
   await step(`${tag}: no page errors`, async () => assert.deepEqual(errs, []));
   await ctx.close();
 }
+
+/* ---------- 4. Ask Bud on short landscape screens ---------- */
+for (const [w, h] of [[763, 390], [667, 375]]) {
+  const { ctx, page, errs } = await newPage(w, h, { hash: '#overview', noSync: true });
+  await step(`${w}x${h}: the chat keeps a usable message area (beside the logo, or over it)`, async () => {
+    await quiet(page); await page.locator('#brandbar svg.hd').dispatchEvent('click'); await page.waitForSelector('#budchat:not([hidden])'); await page.waitForTimeout(250);
+    const g = await page.evaluate(() => { const l = document.querySelector('.bc-log').getBoundingClientRect(), c = document.querySelector('.bc').getBoundingClientRect(); return { log: l.height, top: c.top, bottom: c.bottom, left: c.left, right: c.right }; });
+    assert.ok(g.log >= 140, 'log height ' + JSON.stringify(g));
+    assert.ok(g.top >= 0 && g.bottom <= h && g.left >= 0 && g.right <= w, 'on screen ' + JSON.stringify(g));
+    await noHScroll(page, w + ' chat'); assert.deepEqual(errs, []);
+  });
+  await ctx.close();
+}
 await b.close(); console.log(failed ? failed + " FAILED" : "all ok"); process.exit(failed ? 1 : 0);

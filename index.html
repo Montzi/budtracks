@@ -478,7 +478,6 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .bc-back { position: absolute; inset: 0; background: #0a0e1873; }
 .bc { position: absolute; top: var(--bc-top, 120px); bottom: calc(var(--bc-bottom, 0px) + 8px + env(safe-area-inset-bottom)); left: var(--bc-left, 0px); width: var(--bc-w, 100%); max-width: 100%;
   display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow), 0 18px 50px #0006; overflow: hidden; animation: bcIn .18s ease-out; }
-@media (max-width: 699px) { .bc { left: 8px; right: 8px; width: auto; } }
 @keyframes bcIn { from { opacity: 0; transform: translateY(-8px); } }
 @media (prefers-reduced-motion: reduce) { .bc { animation: none; } }
 .bc-h { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 12px; border-bottom: 1px solid var(--line); }
@@ -6710,14 +6709,20 @@ function chatPaint() {
   const nb = document.querySelector('.bc-new'); if (nb) nb.hidden = !CHAT.msgs.length;
 }
 // Sits right under the brand header (or the top of the screen when it is scrolled away) and above the keyboard.
+// Short landscape screens have no room under the logo: the chat sits beside it, or slides up over it.
 function chatPlace() {
   const w = $('#budchat'); if (!w || w.hidden) return;
-  const bb = $('#brandbar').getBoundingClientRect(), vv = window.visualViewport, vh = vv ? vv.height + vv.offsetTop : innerHeight;
-  const wide = innerWidth >= 700, left = wide ? Math.max(12, bb.left) : 0;
-  w.style.setProperty('--bc-top', Math.max(8, Math.round(bb.bottom + 8)) + 'px');
+  const bb = $('#brandbar').getBoundingClientRect(), vv = window.visualViewport, vh = vv ? vv.height + vv.offsetTop : innerHeight, W = innerWidth;
+  const MIN = Math.min(320, vh - 16), under = Math.max(8, Math.round(bb.bottom + 8));
+  let top = under, left = W >= 700 ? Math.max(12, Math.round(bb.left)) : 8, width = W >= 700 ? Math.min(560, W - left - 12) : W - 16;
+  if (vh - under < MIN) {
+    if (W - bb.right - 20 >= 320) { top = Math.max(8, Math.round(bb.top)); left = Math.round(bb.right + 8); width = Math.min(560, W - left - 12); }
+    else top = Math.max(8, Math.round(vh - MIN));
+  }
+  w.style.setProperty('--bc-top', top + 'px');
   w.style.setProperty('--bc-bottom', Math.max(0, Math.round(innerHeight - vh)) + 'px');
   w.style.setProperty('--bc-left', left + 'px');
-  w.style.setProperty('--bc-w', (wide ? Math.min(560, innerWidth - left - 12) : innerWidth) + 'px');
+  w.style.setProperty('--bc-w', width + 'px');
 }
 function budChatOpen() {
   const w = $('#budchat'); closePeriod(false); $('#bud').classList.remove('on');
