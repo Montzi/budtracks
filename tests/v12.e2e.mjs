@@ -100,7 +100,7 @@ const heroContrast = page => page.evaluate(() => {
   const over = (top, under) => { const a = top[3]; return [top[0] * a + under[0] * (1 - a), top[1] * a + under[1] * (1 - a), top[2] * a + under[2] * (1 - a), 1]; };
   const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
   const hero = document.querySelector('.ov > .hero');
-  const els = [hero, ...hero.querySelectorAll('*')].filter(e => e.getClientRects().length && !e.closest('.sr, svg') && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()));
+  const bar = document.querySelector('#brandbar'), els = [hero, ...hero.querySelectorAll('*'), bar, ...bar.querySelectorAll('*')].filter(e => e.getClientRects().length && !e.closest('.sr, svg') && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()));
   return els.map(el => {
     const chain = []; let op = 1;
     for (let e = el; e; e = e.parentElement) { const cs = getComputedStyle(e); chain.push(parse(cs.backgroundColor)); op *= +cs.opacity; }
@@ -124,13 +124,13 @@ for (const c of [{ tag: 'Light chosen (phone dark)', dark: true, settings: { the
     assert.notEqual(bg, NAVY); assert.equal(bg, 'rgb(255, 255, 255)');
     const st = await page.evaluate(() => { const cs = getComputedStyle(document.querySelector('.ov > .hero')); return { color: cs.color, border: cs.borderTopColor, shadow: cs.boxShadow }; });
     assert.equal(st.color, 'rgb(17, 23, 38)', 'dark ink'); assert.notEqual(st.shadow, 'none', 'card shadow');
-    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.hero .wm')).color), 'rgb(194, 83, 47)', 'logo in the darker coral');
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('#brandbar .wm')).color), 'rgb(194, 83, 47)', 'logo in the darker coral');
     const all = await heroContrast(page);
     assert.ok(all.length >= 15, 'scanned ' + all.length);
     const bad = all.filter(x => x.ratio < (x.logo ? 3 : 4.5));
     assert.deepEqual(bad, [], JSON.stringify(bad));
     // Dividers and the meter track are visible on the white card.
-    const vis = await page.evaluate(() => { const g = s => getComputedStyle(document.querySelector(s)); return [g('.hero-brand').borderBottomColor, g('.hero-foot').borderTopColor, g('.meter').backgroundColor, g('.meter i').backgroundColor, g('.navbtn').borderTopColor]; });
+    const vis = await page.evaluate(() => { const g = s => getComputedStyle(document.querySelector(s)); return [g('#brandbar').borderTopColor, g('.hero-foot').borderTopColor, g('.meter').backgroundColor, g('.meter i').backgroundColor, g('.navbtn').borderTopColor]; });
     vis.forEach(v => assert.notEqual(v, 'rgb(255, 255, 255)', 'visible: ' + vis));
     assert.deepEqual(errs, []);
   });

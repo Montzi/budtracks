@@ -1,4 +1,4 @@
-// v17: big due dates on plan cards, brand logos (icon probing, brand-colored letters) for services and merchants, wider tab logo with "Saved" clear of it.
+// v17: big due dates on plan cards, brand logos (icon probing, brand-colored letters) for services and merchants.
 // Run: node tests/v17.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
@@ -225,30 +225,7 @@ await step('setting off: letters only, no icon requests; own upload wins; settin
   await page.context().close();
 });
 
-/* 4. Tab logo */
-for (const [w, h] of [[390, 844], [669, 951], [951, 669]]) for (const dark of [false, true]) {
-  const { page } = await newPage(w, h, { hash: '#transactions', dark });
-  for (const tab of ['transactions', 'bills', 'plans', 'income']) await step(`${w}x${h}${dark ? ' dark' : ''}: ${tab} tab logo wide, "Saved" clear of the wordmark`, async () => {
-    await page.evaluate(t => { location.hash = t; }, tab); await page.waitForTimeout(500);
-    const g = await page.evaluate(() => { const q = s => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; }; return { wm: q('#brandOut .wm'), arms: q('#brandOut svg.arms'), hd: q('#brandOut svg.hd'), sync: q('#brandOut .sync') }; });
-    for (const k of ['wm', 'arms', 'hd', 'sync']) assert.ok(g[k], k);
-    assert.ok(!overlap(g.sync, g.wm) && !overlap(g.sync, g.arms) && !overlap(g.sync, g.hd), 'Saved overlaps the logo ' + JSON.stringify(g));
-    assert.ok(g.sync.t - g.arms.b >= 6 - .01 && g.sync.t - g.wm.b >= 0, 'gap below the stem: ' + (g.sync.t - g.arms.b));
-    const lw = g.wm.r - g.wm.l; if (w === 390) assert.ok(lw >= w * .6, 'logo width ' + lw); assert.ok(lw <= 362, 'max width ' + lw); if (w > 600) assert.ok(lw >= 300, 'large screens ~360: ' + lw);
-    assert.ok(Math.abs((g.wm.l + g.wm.r) / 2 - w / 2) <= 2, 'centered'); assert.ok(g.arms.l >= -.5 && g.arms.r <= w + .5, 'arms inside the screen');
-    await noHScroll(page, tab);
-    // Longest sync text still stays clear.
-    await page.evaluate(() => document.querySelectorAll('.sync').forEach(e => { e.textContent = 'Not synced. Saved in this browser'; }));
-    const s2 = await page.evaluate(() => { const r = document.querySelector('#brandOut .sync').getBoundingClientRect(), a = document.querySelector('#brandOut svg.arms').getBoundingClientRect(); return { top: r.top, ab: a.bottom, l: r.left, r: r.right }; });
-    assert.ok(s2.top - s2.ab >= 6 - .01 && s2.l >= 0 && s2.r <= w, 'long text ' + JSON.stringify(s2));
-    if (w === 390 && tab === 'transactions' && !dark) { await page.evaluate(() => document.querySelectorAll('.sync').forEach(e => { e.textContent = 'Saved'; })); await quiet(page); await page.screenshot({ path: `${SHOTS}/tablogo-v17-390.png`, clip: { x: 0, y: 0, width: 390, height: 240 } }); }
-  });
-  await step(`${w}x${h}${dark ? ' dark' : ''}: Overview hero logo unchanged`, async () => {
-    await page.evaluate(() => { location.hash = 'overview'; }); await page.waitForTimeout(400);
-    const fs = await page.locator('.hero .wm').evaluate(e => parseFloat(getComputedStyle(e).fontSize)); const exp = Math.min(68, Math.max(44, w * .15)); assert.ok(Math.abs(fs - exp) < 1, `hero font ${fs} vs ${exp}`);
-  });
-  await page.context().close();
-}
+/* 4. Tab logo: superseded in v18 by the shared brand header (tests/v18.e2e.mjs). */
 
 await b.close();
 console.log(failed ? `\n${failed} FAILED` : '\nall ok');

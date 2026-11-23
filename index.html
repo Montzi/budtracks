@@ -55,7 +55,7 @@
     --hero-neg: #b8322f; --hero-hover: #1117260a; --hero-fill: #f5f6f9; --hero-track: #e3e6ec; --hero-input: #ffffff;
     --hero-logo: #c2532f; --hero-glow-l: 48%; --hero-glow-sh: #0000; --hero-dim: .62; --hero-stamp: #5d6577; --hero-stamp-sh: 0 1px 0 #ffffff;
   }
-  :root:not([data-theme="dark"]) .hero { --brass-hi: #845c1a; }
+  :root:not([data-theme="dark"]) .hero, :root:not([data-theme="dark"]) .brandbar { --brass-hi: #845c1a; }
   :root:not([data-theme="dark"]) .hero .lad .v.dim small { color: inherit; }
 }
 :root[data-theme="light"] {
@@ -63,7 +63,7 @@
   --hero-neg: #b8322f; --hero-hover: #1117260a; --hero-fill: #f5f6f9; --hero-track: #e3e6ec; --hero-input: #ffffff;
   --hero-logo: #c2532f; --hero-glow-l: 48%; --hero-glow-sh: #0000; --hero-dim: .62; --hero-stamp: #5d6577; --hero-stamp-sh: 0 1px 0 #ffffff;
 }
-:root[data-theme="light"] .hero { --brass-hi: #845c1a; }
+:root[data-theme="light"] .hero, :root[data-theme="light"] .brandbar { --brass-hi: #845c1a; }
 :root[data-theme="light"] .hero .lad .v.dim small { color: inherit; }
 
 * { box-sizing: border-box; }
@@ -77,10 +77,6 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 
 .app { max-width: 1080px; margin: 0 auto; padding: 14px 16px 104px; display: grid; gap: 16px; }
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 4px; }
-.brand { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; flex: 1 1 100%; min-width: 0; }
-.brand .sync { font-size: 11.5px; margin-top: 8px; }
-/* Tab logo: about 70% of the content width (JS refines it in buildMarks), room under the T's stem so "Saved" never touches it. */
-#logoOut .wm { font-size: min(calc((100vw - 32px) * .175), 90px); padding-bottom: .34em; }
 .mark { font-family: var(--display); font-size: 30px; line-height: 1; letter-spacing: -0.01em; }
 .mark i { color: var(--brass); font-style: italic; }
 .sync { font-size: 12px; color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; }
@@ -99,7 +95,6 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 
 /* Cycle card */
 .hero { background: var(--hero); color: var(--hero-ink); border-radius: 22px; padding: 18px 18px 16px; position: relative; overflow: hidden; box-shadow: var(--shadow); border: 1px solid var(--hero-border); }
-.hero::before { content: ""; position: absolute; inset: 0 0 auto; height: 2px; background: linear-gradient(90deg, transparent, var(--brass-hi), transparent); opacity: .8; }
 .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .hero-top .lbl { text-align: center; }
 .eyebrow { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--brass-hi); font-weight: 600; }
@@ -366,12 +361,8 @@ button.lad:hover .v, button.lad:focus-visible .v { color: var(--brass-hi); }
 .add-big:hover { filter: brightness(1.08); }
 .card-h .meta { display: block; }
 
-.hero-brand { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--hero-line); }
-.hero-brand .mark { font-size: 24px; color: var(--hero-ink); }
-.hero-brand .mark i { color: var(--brass-hi); }
-.hero .sync { color: var(--hero-ink-2); font-size: 11.5px; }
 .top { min-height: 0; }
-.top [hidden] { display: none; }
+.top [hidden], .top[hidden] { display: none; }
 .hs-k { white-space: nowrap; }
 .ua-bar { display: block; width: 100%; margin: 12px 0 0; text-align: left; background: color-mix(in srgb, var(--brass-hi) 16%, transparent); border: 1px solid var(--brass-hi); color: var(--hero-ink); border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.4; }
 .ua-bar b { color: var(--brass-hi); }
@@ -536,20 +527,17 @@ button.slogo-btn:hover .slogo { outline: 2px solid var(--accent); outline-offset
 .logo-big { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
 .brandlock { display: inline-flex; align-items: center; gap: 2px; }
 .brandlock .logo { height: 72px; width: auto; margin: -18px 0 -16px 4px; }
-.hero-brand .brandlock .logo { height: 76px; }
-.brand .brandlock .logo { height: 70px; }
 
 /* BudTracks wordmark: coral, one color. The navy hero uses the light coral; the light hero uses the darker one (--hero-logo). */
 :root { --logo: #c2532f; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --logo: #f2a48a; } }
 :root[data-theme="dark"] { --logo: #f2a48a; }
 .wm { position: relative; display: inline-flex; align-items: flex-end; font: 400 32px/1 var(--display); letter-spacing: -.01em; padding-top: 1.5em; color: var(--logo); white-space: nowrap; }
-.hero .wm { --logo: var(--hero-logo); font-size: 30px; }
+.brandbar .wm { --logo: var(--hero-logo); font-size: var(--wmf); }
 .wm .r { font-style: italic; }
 .wm .stem { display: inline-block; width: .1em; height: .68em; margin: 0 0 .1em .1em; visibility: hidden; }
 .wm svg.arms { position: absolute; overflow: visible; color: var(--logo); }
 .wm svg.hd { position: absolute; width: 1.8em; height: 1.48em; transform: translateX(-50%); }
-.hero-brand { align-items: flex-end; }
 
 .wm svg.hd { cursor: pointer; }
 .wm svg.hd:focus-visible { outline: 2px solid var(--brass-hi); border-radius: 8px; }
@@ -560,15 +548,15 @@ button.slogo-btn:hover .slogo { outline: 2px solid var(--accent); outline-offset
 .sw-c[aria-pressed="true"] { outline: 3px solid var(--accent); outline-offset: 2px; }
 .sw-custom { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
 .sw-custom input { width: 38px; height: 38px; border: 0; padding: 0; background: none; border-radius: 50%; }
-/* Big logo: wordmark centered at the top of the cycle card, coin man sticks out above it. */
-.hero { --wmf: clamp(44px, 15vw, 68px); overflow: visible; margin-top: calc(var(--wmf) * 1.22); }
-.hero-brand { justify-content: center; position: relative; padding-bottom: 10px; }
-.hero .wm { font-size: var(--wmf); margin-top: calc(var(--wmf) * -1.2 - 18px); }
-.hero .hero-brand .sync { position: absolute; right: 0; bottom: -2px; font-size: 11px; }
-.hero::before { border-radius: 22px 22px 0 0; }
-@media (max-width: 420px) { .hero .hero-brand .sync { position: static; } .hero-brand { flex-direction: column; align-items: center; gap: 6px; } }
-.hero-brand { padding-bottom: calc(var(--wmf) * .32); }
-@media (max-width: 420px) { .hero-brand { gap: calc(var(--wmf) * .3); padding-bottom: 10px; } }
+/* One persistent brand header (Bud, laptop, wordmark, glow, Saved pill) above every tab. On Overview it is the top of the cycle card. */
+:root { --wmf: clamp(44px, 15vw, 68px); }
+.brandbar { position: relative; display: flex; justify-content: center; align-items: flex-end; background: var(--hero); color: var(--hero-ink); border: 1px solid var(--hero-border); border-radius: 22px; box-shadow: var(--shadow); padding: 32px 18px calc(var(--wmf) * .26); min-width: 0; }
+.brandbar .sync { position: absolute; top: 7px; right: 12px; z-index: 3; max-width: calc(100% - 24px); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; line-height: 14px; padding: 2px 9px 2px 8px; border-radius: 999px; border: 1px solid var(--hero-line); color: var(--hero-ink-2); }
+.app[data-tab="overview"] .brandbar { border-bottom: 0; border-radius: 22px 22px 0 0; box-shadow: none; margin-bottom: -16px; padding-bottom: calc(var(--wmf) * .32); }
+.app[data-tab="overview"] .hero { border-top: 0; border-radius: 0 0 22px 22px; padding-top: 6px; }
+@media (min-width: 900px), (orientation: landscape) and (min-width: 740px) {
+  .app[data-tab="overview"] .brandbar { width: calc((100% - 16px) * .43); }
+}
 
 /* Bud speech bubble: navy cloud with thought dots, same navy as the cycle card */
 .bud { position: fixed; z-index: 65; background: #15203a; color: #f5f1e7; border-radius: 26px; padding: 12px 18px; font: 600 13.5px/1.35 var(--body);
@@ -598,7 +586,7 @@ button.slogo-btn:hover .slogo { outline: 2px solid var(--accent); outline-offset
 @media (min-width: 900px), (orientation: landscape) and (min-width: 740px) {
   .ov { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); align-items: stretch; }
   .ov > * { order: 0 !important; }
-  .ov > .ov-donut { margin-top: calc(var(--wmf) * 1.22); display: flex; flex-direction: column; }
+  .ov > .ov-donut { display: flex; flex-direction: column; }
   .ov > .ov-bills, .ov > .ov-bars { align-self: start; }
   .ov-donut .card-b { flex: 1; display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; align-items: center; }
   .ov-donut .donut-wrap svg { width: 150px; height: 150px; }
@@ -614,21 +602,19 @@ button.slogo-btn:hover .slogo { outline: 2px solid var(--accent); outline-offset
 
 /* Top glow behind Bud: drifts through colors, rainbow burst after a change */
 @property --gh { syntax: '<number>'; inherits: false; initial-value: 40; }
-.hero::before { --gh: 40; height: 2px; background: linear-gradient(90deg, transparent, hsl(var(--gh) 75% var(--hero-glow-l)), transparent); opacity: .9; animation: glowDrift 14s linear infinite; }
+.brandbar::before { content: ""; position: absolute; inset: 0 0 auto; border-radius: 22px 22px 0 0; --gh: 40; height: 2px; background: linear-gradient(90deg, transparent, hsl(var(--gh) 75% var(--hero-glow-l)), transparent); opacity: .9; animation: glowDrift 14s linear infinite; }
 @keyframes glowDrift { to { --gh: 400; } }
 /* Rainbow layer fades in and out and dissolves toward the edges */
-.hero::after { content: ""; position: absolute; top: 0; left: 6%; right: 6%; height: 3px; pointer-events: none;
+.brandbar::after { content: ""; position: absolute; top: 0; left: 6%; right: 6%; height: 3px; pointer-events: none;
   background: linear-gradient(90deg, #ff4d4d, #ffa64d, #ffe14d, #4dff88, #4dc3ff, #8f6bff, #ff4dc4, #ff4d4d); background-size: 200% 100%;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent); mask-image: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
   filter: drop-shadow(0 0 5px var(--hero-glow-sh, #ffffff55)); opacity: 0; transition: opacity 1.6s ease; animation: rainbow .9s linear infinite; }
-.hero.party::after { opacity: 1; }
-.hero::before { -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); }
+.brandbar.party::after { opacity: 1; }
+.brandbar::before { -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); }
 @keyframes rainbow { to { background-position: 200% 0; } }
-.hero-foot { align-items: center; }
-.hero-foot .sync { margin-left: auto; color: var(--hero-ink-2); font-size: 11.5px; }
-@media (prefers-reduced-motion: reduce) { .hero::before, .hero::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .brandbar::before, .brandbar::after { animation: none; } }
 /* Keep the glow lines behind Bud and the laptop */
-.hero::before, .hero::after { z-index: 0; }
+.brandbar::before, .brandbar::after { z-index: 0; }
 .wm svg.hd { z-index: 2; }
 
 /* Maker's stamp under the logo */
@@ -1142,13 +1128,13 @@ body.dragging-bank { cursor: grabbing; -webkit-user-select: none; user-select: n
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand" id="brandOut"><span id="logoOut"></span><span class="sync" role="status">Loading…</span></div>
     <div class="seg" id="viewSeg" role="group" aria-label="Budget period">
       <button data-action="view" data-view="weekly" aria-pressed="false">Weekly</button>
       <button data-action="view" data-view="biweekly" aria-pressed="true">Biweekly</button>
       <button data-action="view" data-view="monthly" aria-pressed="false">Monthly</button>
     </div>
   </header>
+  <header id="brandbar" class="brandbar" aria-label="BudTracks"><span id="logoOut"></span><span class="sync" role="status">Loading…</span></header>
   <main id="main"></main>
 </div>
 <nav class="tabs" aria-label="Sections"><div class="tabs-in">
@@ -2552,8 +2538,8 @@ function setSync(text, s) { if (/^(Saved|Synced)/.test(text) && s === 'ok') text
 let partyUntil = 0, partyTimer = null;
 function party() {
   partyUntil = Date.now() + 10000;
-  document.querySelectorAll('.hero').forEach(h => h.classList.add('party'));
-  clearTimeout(partyTimer); partyTimer = setTimeout(() => document.querySelectorAll('.hero').forEach(h => h.classList.remove('party')), 10000);
+  document.querySelectorAll('.brandbar').forEach(h => h.classList.add('party'));
+  clearTimeout(partyTimer); partyTimer = setTimeout(() => document.querySelectorAll('.brandbar').forEach(h => h.classList.remove('party')), 10000);
 }
 function commit(msg) {
   try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {}
@@ -2825,7 +2811,6 @@ function viewOverview() {
 
   return `<div class="ov">
   <section class="hero" aria-label="Pay cycle summary">
-    <div class="hero-brand">${logo()}</div>
     ${greetHTML()}
     <div class="hero-top">
       <button class="navbtn" data-action="prev" aria-label="Previous ${VIEWNAME[view]}">${ICON.prev}</button>
@@ -2850,7 +2835,7 @@ function viewOverview() {
     </dl>
     ${(() => { const sv = svOn() ? BT.savedIn(state, r) : 0; return sv > 0 ? `<p class="hero-saved">Saved this ${{ weekly: 'week', biweekly: 'cycle', monthly: 'month' }[view]} <b>${hm(sv)}</b></p>` : ''; })()}
     ${payPrompt(r) || (pc && !pc.amount && !pc.askFrom ? `<button class="cta" data-action="edit" data-type="income" data-id="${pc.id}">Add your paycheck amount to see what is left over each ${VIEWNAME[view]}.</button>` : '')}
-    <div class="hero-foot"><span>Next ${VIEWNAME[view]} needs <b>${hm(ns.needed)}</b></span>${isNow ? '' : '<button class="linkbtn" data-action="today">Back to now</button>'}<span class="sync" data-s="${SYNC.s}" role="status">${esc(SYNC.t)}</span></div>
+    <div class="hero-foot"><span>Next ${VIEWNAME[view]} needs <b>${hm(ns.needed)}</b></span>${isNow ? '' : '<button class="linkbtn" data-action="today">Back to now</button>'}</div>
   </section>
     <section class="card ov-donut"><header class="card-h"><h2>${chartTitle}</h2><span class="meta">${fmt(chartTotal)}</span></header>
       ${view === 'monthly' ? '' : `<div class="ch-range"><div class="seg" role="group" aria-label="Chart period"><button type="button" data-action="chart-range" data-r="cycle" aria-pressed="${!chartMonth}">${view === 'weekly' ? 'Week' : 'Cycle'}</button><button type="button" data-action="chart-range" data-r="month" aria-pressed="${chartMonth}">Month</button></div></div>`}
@@ -6106,11 +6091,6 @@ function buildMarks() {
   document.querySelectorAll('.wm').forEach(m => {
     if (!m.offsetWidth) return;
     m.querySelectorAll('svg.arms').forEach(s => s.remove());
-    if (m.parentNode && m.parentNode.id === 'logoOut') {
-      m.style.fontSize = '';
-      const f0 = parseFloat(getComputedStyle(m).fontSize), app = document.querySelector('.app'), cw = (app ? app.clientWidth : innerWidth) - 32;
-      if (m.offsetWidth) m.style.fontSize = (f0 * Math.min(cw * .7, 360) / m.offsetWidth).toFixed(2) + 'px';
-    }
     const f = parseFloat(getComputedStyle(m).fontSize), s = m.querySelector('.stem'), hd = m.querySelector('.hd');
     const top = f * 1.42, gap = f * .17, W = m.offsetWidth + gap * 2, drop = f * .62, sw = f * .1;
     const cx = s.offsetLeft + s.offsetWidth / 2 + gap, base = s.offsetTop + s.offsetHeight - top, ext = f * .24;
@@ -6192,13 +6172,18 @@ function render() {
   const tab = currentTab();
   document.querySelectorAll('#viewSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === state.settings.view));
   $('#viewSeg').hidden = tab !== 'overview';
-  $('#brandOut').hidden = tab === 'overview';
+  document.querySelector('.top').hidden = tab !== 'overview';
+  document.querySelector('.app').dataset.tab = tab;
   document.querySelectorAll('.tabs a').forEach(a => { if (a.getAttribute('href') === '#' + tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   $('#main').innerHTML = TABS[tab]();
   if (tab === 'income') bankCardLoad();
-  if (Date.now() < partyUntil) document.querySelectorAll('.hero').forEach(h => h.classList.add('party'));
-  $('#logoOut').innerHTML = logo();
-  buildMarks();
+  if (Date.now() < partyUntil) $('#brandbar').classList.add('party');
+  // The brand header stays mounted: only its dynamic bits change (Saved pill, hat).
+  const bb = $('#brandbar'), sy = bb.querySelector('.sync'), hk = JSON.stringify(hat());
+  if (sy.textContent !== SYNC.t) sy.textContent = SYNC.t;
+  sy.dataset.s = SYNC.s;
+  if (!bb.querySelector('.wm')) { $('#logoOut').innerHTML = logo(); bb.dataset.hat = hk; buildMarks(); }
+  else if (bb.dataset.hat !== hk) { bb.dataset.hat = hk; const o = bb.querySelector('svg.hd'), t = document.createElement('div'); t.innerHTML = headSVG(hat()); o.replaceWith(t.firstElementChild); buildMarks(); }
   initCatScroll();
   watchFit();
 }

@@ -130,18 +130,18 @@ for (const [w, h] of [[390, 844], [669, 951], [951, 669]]) for (const dark of [f
 for (const [w, h] of [[390, 844], [951, 669]]) for (const dark of [false, true]) {
   const { page } = await newPage(w, h, { hash: '#transactions', dark });
   for (const tab of ['transactions', 'bills', 'plans', 'income']) {
-    await step(`${w}${dark ? ' dark' : ''}: logo centered on ${tab}`, async () => {
+    await step(`${w}${dark ? ' dark' : ''}: brand header logo centered on ${tab}, Saved in the corner`, async () => {
       await page.evaluate(t => { location.hash = t; }, tab); await page.waitForTimeout(350);
-      const r = await rect(page, '#brandOut .wm'); assert.ok(r, 'logo visible');
+      const r = await rect(page, '#brandbar .wm'); assert.ok(r, 'logo visible');
       assert.ok(Math.abs((r.l + r.r) / 2 - w / 2) <= 2, `center ${(r.l + r.r) / 2} vs ${w / 2}`);
-      const s = await rect(page, '#brandOut .sync'); assert.ok(s && Math.abs((s.l + s.r) / 2 - w / 2) <= 2 && s.t >= r.b - 12, 'Saved is centered under the logo ' + JSON.stringify(s));
+      const s = await rect(page, '#brandbar .sync'); assert.ok(s && s.r > w / 2 + 40 && s.b <= r.t + 40, 'Saved is in the top-right corner ' + JSON.stringify(s));
       await noHScroll(page, tab);
       if (w === 390 && tab === 'transactions' && !dark) { await quiet(page); await page.screenshot({ path: `${SHOTS}/tabs-logo-390.png` }); }
     });
   }
-  await step(`${w}${dark ? ' dark' : ''}: Overview logo stays in the hero`, async () => {
+  await step(`${w}${dark ? ' dark' : ''}: Overview shows the same header above the hero`, async () => {
     await page.evaluate(() => { location.hash = 'overview'; }); await page.waitForTimeout(300);
-    assert.ok(!(await page.locator('#brandOut').isVisible()) && (await page.locator('.hero .hero-brand .wm').count()) === 1);
+    assert.ok((await page.locator('#brandbar').isVisible()) && (await page.locator('.wm').count()) === 1 && (await page.locator('.hero .wm').count()) === 0);
   });
   await page.context().close();
 }
