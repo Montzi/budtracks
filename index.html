@@ -473,6 +473,8 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .icon-inline { grid-column: span 2; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
 .icon-inline[hidden] { display: none; }
 .lg-now .slogo { margin: -4px 0; }
+.bk-sum { list-style: none; margin: 0 0 12px; padding: 12px 14px; display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); font-size: 14px; color: var(--ink-2); }
+.bk-sum b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .lg-acts { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
 .lg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; max-height: 236px; overflow-y: auto; overscroll-behavior: contain; }
 .lg-o { display: grid; justify-items: center; gap: 4px; padding: 8px 4px; border-radius: 10px; border: 1px solid transparent; background: none; color: var(--ink-2); font-size: 11px; line-height: 1.2; min-width: 0; }
@@ -3327,10 +3329,12 @@ function viewIncome() {
   ${bankCard()}
   ${logosCard()}
   <section class="card appear"><header class="card-h"><div><h2>Appearance</h2><span class="meta">Auto follows your phone</span></div>${themeSeg()}</header></section>
-  <section class="card"><header class="card-h"><h2>Your data</h2></header>
+  <section class="card" id="yourdata"><header class="card-h"><div><h2>Your data</h2>${state.settings.lastBackup ? `<span class="meta">Last backup file ${md(state.settings.lastBackup)}</span>` : ''}</div></header>
     <div class="card-b" style="display:grid;gap:12px">
-      <p class="note" style="margin:0">Copy a backup before big changes. It also moves your data into the future web app.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-action="copy-backup">Copy backup</button><button class="btn" data-action="restore">Restore from backup</button><button class="btn danger" data-action="reset">Reset to starting data</button></div>
+      <p class="note" style="margin:0">A backup file holds everything: your items, history, notes, the logos you uploaded and the ones you picked for merchants. Save it to Files or iCloud Drive, then open it on a new phone with Restore from file. Logos loaded from websites come back by themselves.</p>
+      ${bankKey() ? `<label class="fld chk" style="margin:0"><input type="checkbox" id="bk-key" checked><span>Include the bank connection, so a new phone syncs without pairing again. Keep this file private.</span></label>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-action="bk-file">Save backup file</button><button class="btn" data-action="bk-open">Restore from file</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" data-action="copy-backup">Copy as text</button><button class="btn sm" data-action="restore">Paste text backup</button><button class="btn sm danger" data-action="reset">Reset to starting data</button></div>
       <label class="fld chk" style="margin-top:4px"><input type="checkbox" data-action="sound" ${state.settings.sound === false ? '' : 'checked'}><span>Play a sound when a payment is checked off</span></label>
       <div><button class="btn" data-action="bank-import">Import bank CSV</button></div>
     </div>
@@ -4605,6 +4609,58 @@ function backupSheet(mode) {
     <div class="form-err" id="ferr" role="alert"></div>
     <div class="actions" style="margin-top:12px"><div class="r"><button class="btn" data-action="close">Close</button>${mode === 'copy' ? '<button class="btn primary" data-action="do-copy">Copy</button>' : '<button class="btn primary" data-action="do-restore">Restore</button>'}</div></div>`);
 }
+
+// Backup file: {app, kind, v, at, data: state, bank?: {key, api}}. The bank key goes in only when you leave the box checked,
+// because the bank service pairs once and a new phone cannot pair again without it.
+async function saveBackupFile() {
+  const box = $('#bk-key'), env = { app: 'BudTracks', kind: 'backup', v: 2, at: new Date().toISOString(), data: state };
+  if (bankKey() && (!box || box.checked)) env.bank = { key: bankKey(), api: bankApi() };
+  const name = 'budtracks-backup-' + TODAY + '.json', text = JSON.stringify(env), blob = new Blob([text], { type: 'application/json' });
+  const done = () => { state.settings.lastBackup = TODAY; commit('Backup saved'); };
+  let file = null; try { file = new File([blob], name, { type: 'application/json' }); } catch (e) {}
+  // Phones: the share sheet offers Save to Files, iCloud Drive and AirDrop. Elsewhere: a normal download.
+  if (file && navigator.canShare && matchMedia('(pointer: coarse)').matches && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: 'BudTracks backup' }); done(); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000); done();
+}
+// Reads a backup file or pasted text: the new file, or the older plain copy of the data.
+function readBackup(text) {
+  let j; try { j = JSON.parse(String(text || '').trim()); } catch (e) { return null; }
+  const env = j && j.app === 'BudTracks' && j.data && typeof j.data === 'object' ? j : null, data = env ? env.data : j;
+  if (!data || typeof data !== 'object' || !Array.isArray(data.bills)) return null;
+  const bank = env && env.bank && typeof env.bank.key === 'string' && /^[A-Za-z0-9_-]{8,200}$/.test(env.bank.key) ? { key: env.bank.key, api: /^https:\/\/[^\s"<>]+$/.test(env.bank.api || '') ? env.bank.api : '' } : null;
+  return { data, bank, at: env ? env.at : '' };
+}
+let BKPEND = null;
+function restoreAsk(b, src) {
+  BKPEND = b; const d = b.data, n = (k) => Array.isArray(d[k]) ? d[k].length : 0, lg = Object.keys(d.logos || {}).length;
+  const when = b.at && !isNaN(new Date(b.at)) ? lng(BT.iso(new Date(b.at))) : '';
+  openSheet(`<div class="sheet-h"><div><h3>Restore this backup?</h3><p class="lede">${when ? 'Saved ' + esc(when) + '. ' : ''}It replaces everything on this phone.</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    <ul class="bk-sum"><li><b>${n('bills')}</b> bills</li><li><b>${n('spends')}</b> spending entries</li><li><b>${n('plans')}</b> pay plans</li><li><b>${lg}</b> uploaded ${lg === 1 ? 'logo' : 'logos'}</li><li><b>${Object.keys((d.bank && d.bank.txns) || {}).length}</b> bank transactions</li>
+      <li>${b.bank ? 'Bank connection included' : src === 'file' ? 'No bank connection in this file' : 'Text backups have no bank connection'}</li></ul>
+    <div class="form-err" id="ferr" role="alert"></div>
+    <div class="actions"><div class="r"><button class="btn" data-action="close">Cancel</button><button class="btn primary" data-action="bk-restore">Restore</button></div></div>`);
+}
+function restoreNow() {
+  const b = BKPEND; if (!b) return;
+  let s; try { s = normalize(clone(b.data)); } catch (e) { s = null; }
+  if (!s) { $('#ferr').textContent = 'That backup could not be read.'; return; }
+  if (b.bank) { try { localStorage.setItem(KEYLS, b.bank.key); } catch (e) {} if (b.bank.api && s.bank) s.bank.api = b.bank.api; }
+  state = s; BKPEND = null; closeSheet(); commit('Backup restored');
+  if (bankReady()) setTimeout(() => { try { bankAutoSync(); } catch (e) {} }, 300);
+}
+const bkFile = document.createElement('input');
+bkFile.type = 'file'; bkFile.accept = '.json,application/json,text/plain'; bkFile.id = 'bkfile'; bkFile.hidden = true; document.body.appendChild(bkFile);
+bkFile.addEventListener('change', async () => {
+  const f = bkFile.files && bkFile.files[0]; bkFile.value = ''; if (!f) return;
+  if (f.size > 15 * 1024 * 1024) { toast('That file is too large to be a BudTracks backup.'); return; }
+  const b = readBackup(await f.text());
+  if (!b) { toast('That file is not a BudTracks backup.'); return; }
+  restoreAsk(b, 'file');
+});
 
 /* ---------- Tooltip ---------- */
 const tip = () => $('#tip');
@@ -6471,7 +6527,10 @@ document.addEventListener('click', async e => {
     }
     case 'pay-cancel': HEROUI.hand = false; render(); break;
     case 'do-copy': try { await navigator.clipboard.writeText($('#bk').value); toast('Backup copied'); } catch (err) { $('#bk').select(); $('#ferr').textContent = 'Copy was blocked. The text is selected, so copy it by hand.'; } break;
-    case 'do-restore': try { const s = normalize(JSON.parse($('#bk').value)); if (!Array.isArray(s.bills)) throw 0; state = s; closeSheet(); commit('Backup restored'); } catch (err) { $('#ferr').textContent = 'That text is not a BudTrack backup. Paste the full backup and try again.'; } break;
+    case 'do-restore': { const b = readBackup($('#bk').value); if (!b) { $('#ferr').textContent = 'That text is not a BudTracks backup. Paste the full backup and try again.'; break; } restoreAsk(b, 'text'); break; }
+    case 'bk-file': saveBackupFile(); break;
+    case 'bk-open': bkFile.click(); break;
+    case 'bk-restore': restoreNow(); break;
     case 'reset': if (!a.classList.contains('arm')) { a.classList.add('arm'); a.textContent = 'Tap again to reset'; } else { state = normalize(clone(SEED)); offset = 0; commit('Starting data restored'); } break;
   }
 });

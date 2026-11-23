@@ -141,4 +141,59 @@ const LOGO_TXNS = () => [T('sr1', TODAY, 'SHOPRITE 123', 41.2), T('sr2', addD(TO
   await step('390: no page errors', async () => assert.deepEqual(errs, []));
   await ctx.close();
 }
+
+/* ---------- 2. Backup file for a new phone ---------- */
+{
+  const { ctx, page, errs } = await newPage(951, 669, { hash: '#income', txns: LOGO_TXNS() });
+  let file;
+  await step('951: Save backup file downloads one JSON file with the data, uploaded logos, picks and (box checked) the bank key', async () => {
+    await page.evaluate(png => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.logos.duranlaundromat = 'data:image/png;base64,' + png; s.logoNames.duranlaundromat = 'Duran Laundromat'; s.logoFor = { shoprite123: { k: 'shell', n: 'Shoprite 123' } }; localStorage.setItem('budtrack.v1', JSON.stringify(s)); }, PNG.toString('base64'));
+    await page.reload({ waitUntil: 'load' }); await page.waitForTimeout(300);
+    assert.equal(await page.locator('#bk-key').isChecked(), true);
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-action="bk-file"]')]);
+    assert.match(dl.suggestedFilename(), /^budtracks-backup-\d{4}-\d{2}-\d{2}\.json$/);
+    file = SHOTS + '/' + dl.suggestedFilename(); await dl.saveAs(file);
+    const j = JSON.parse(await (await import('node:fs/promises')).readFile(file, 'utf8'));
+    assert.equal(j.app, 'BudTracks'); assert.equal(j.v, 2);
+    assert.equal(j.bank.key, 'secret-device-key-123'); assert.equal(j.bank.api, API);
+    assert.ok(j.data.logos.duranlaundromat); assert.deepEqual(j.data.logoFor.shoprite123, { k: 'shell', n: 'Shoprite 123' });
+    assert.ok(Object.keys(j.data.bank.txns).length >= 4);
+    assert.match(await txt(page, '#yourdata .meta'), /Last backup file/);
+  });
+  await step('951: unchecking the box leaves the bank key out', async () => {
+    await page.uncheck('#bk-key');
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-action="bk-file"]')]);
+    const j = JSON.parse(await (await import('node:fs/promises')).readFile(await dl.path(), 'utf8'));
+    assert.equal(j.bank, undefined);
+  });
+  await step('951: no page errors', async () => assert.deepEqual(errs, []));
+  await ctx.close();
+  // A new phone: empty data, no pairing key.
+  const ctx2 = await b.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', deviceScaleFactor: 1 });
+  const p2 = await ctx2.newPage(); p2.setDefaultTimeout(6000); const errs2 = []; p2.on('pageerror', e => errs2.push(e.message));
+  await p2.route(u => !/localhost/.test(u.host), route => route.abort());
+  await p2.goto(BASE + '#income', { waitUntil: 'load' });
+  await step('390 new phone: Restore from file shows what is in the file, then brings back data, logos, picks and the bank connection', async () => {
+    assert.equal(await p2.evaluate(() => localStorage.getItem('budtrack.bankkey')), null);
+    await p2.setInputFiles('#bkfile', file);
+    await p2.waitForSelector('.bk-sum');
+    const sum = await txt(p2, '.bk-sum');
+    assert.match(sum, /1 uploaded logo/); assert.match(sum, /Bank connection included/); assert.match(sum, /\b4 bank transactions/);
+    await p2.screenshot({ path: SHOTS + '/v22-restore-390.png' });
+    await p2.click('[data-action="bk-restore"]');
+    await p2.waitForFunction(() => localStorage.getItem('budtrack.bankkey') === 'secret-device-key-123');
+    const s = await getState(p2);
+    assert.ok(s.logos.duranlaundromat); assert.equal(s.logoFor.shoprite123.k, 'shell'); assert.equal(s.bank.api, API);
+  });
+  await step('390 new phone: a pasted old-style text backup still restores (no bank connection)', async () => {
+    await p2.click('[data-action="restore"]');
+    const st = await getState(p2); st.bills = st.bills.slice(0, 1);
+    await p2.fill('#bk', JSON.stringify(st)); await p2.click('[data-action="do-restore"]');
+    assert.match(await txt(p2, '.bk-sum'), /Text backups have no bank connection/);
+    await p2.click('[data-action="bk-restore"]');
+    await p2.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bills.length === 1);
+    assert.deepEqual(errs2, []);
+  });
+  await ctx2.close();
+}
 await b.close(); console.log(failed ? failed + " FAILED" : "all ok"); process.exit(failed ? 1 : 0);
