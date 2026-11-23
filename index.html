@@ -863,21 +863,21 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 .tabs a { min-width: 0; white-space: nowrap; letter-spacing: -.01em; }
 .tx-filters { padding: 0 8px 6px; display: grid; gap: 10px; }
 .tx-filters { grid-template-columns: minmax(0, 1fr); }
-/* Filter chips stay on one line; if a very narrow screen can't fit them, the row scrolls by itself (no page scroll). */
-.tx-chips { margin: 0; gap: 2px; flex-wrap: nowrap; overflow-x: auto; min-width: 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-.tx-chips::-webkit-scrollbar { display: none; }
-.tx-chips .chip { padding: 6px 5px; font-size: 13px; letter-spacing: -.02em; flex: none; white-space: nowrap; }
-.tx-chips .chip-sync { display: inline-flex; align-items: center; gap: 3px; padding: 6px 5px; border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); color: var(--accent); background: transparent; }
-.tx-chips .chip-sync svg { width: 12px; height: 12px; flex: none; }
-.tx-chips .chip-sync .spin { width: 11px; height: 11px; border-width: 2px; border-color: currentColor; border-right-color: transparent; }
-.tx-chips .chip-sync:disabled { opacity: .75; }
+/* Filter chips: five equal columns filling the row, same height, centered text; the Review count is a small badge inside the chip. */
+.tx-chips { margin: 0; gap: 6px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.tx-chips .chip { box-sizing: border-box; height: 36px; padding: 0 2px; font-size: 13px; line-height: 34px; letter-spacing: -.02em; text-align: center; white-space: nowrap; min-width: 0; overflow: hidden; }
+.tx-chips .cbadge { display: inline-block; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 99px; background: var(--accent); color: var(--accent-ink); font-size: 10.5px; font-weight: 700; line-height: 16px; letter-spacing: 0; vertical-align: 1px; margin-left: 1px; }
+.tx-chips .chip[aria-pressed="true"] .cbadge { background: var(--bg); color: var(--ink); }
 .tx-card .card-h > div:first-child { min-width: 0; }
 .tx-card .card-h .meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tx-sum { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 16px 10px; min-width: 0; }
-.tx-sum-b { display: flex; align-items: baseline; gap: 8px; min-width: 0; border: 0; background: transparent; padding: 2px 0; color: var(--ink); text-align: left; font: inherit; }
-.tx-sum-b span { font-size: 13px; color: var(--ink-3); white-space: nowrap; }
-.tx-sum-b b { font-family: var(--mono); font-size: 17px; font-weight: 600; white-space: nowrap; }
-.tx-sum-b::after { content: "›"; color: var(--ink-3); opacity: .8; }
+.tx-sum { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 16px 12px; min-width: 0; }
+.tx-sum-b { display: grid; justify-items: start; gap: 1px; min-width: 0; border: 0; background: transparent; padding: 2px 0; color: var(--ink); text-align: left; font: inherit; }
+.tx-sum-b span { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+.tx-sum-b b { font-family: var(--mono); font-size: 24px; line-height: 1.15; font-weight: 600; white-space: nowrap; }
+.tx-sum-b b::after { content: "›"; color: var(--ink-3); opacity: .8; margin-left: 6px; font-family: inherit; }
+.tx-hb .icon-btn { width: 40px; height: 40px; border-radius: 12px; flex: none; color: var(--ink); }
+.tx-hb .icon-btn svg { width: 20px; height: 20px; }
+.tx-hb .icon-btn.tx-sync { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); }
 .tx-sum .seg { flex: none; }
 .tx-sum .seg button { padding: 5px 11px; font-size: 12.5px; }
 .tx-find { display: flex; gap: 8px; min-width: 0; }
@@ -1039,10 +1039,7 @@ body.dragging-bank { cursor: grabbing; -webkit-user-select: none; user-select: n
 .ch-range { padding: 0 16px 8px; }
 .ch-range .seg button { padding: 5px 12px; font-size: 12.5px; }
 /* Add from screenshot */
-.tx-hb { display: flex; gap: 6px; flex: none; align-items: center; }
-.shot-btn { display: inline-flex; align-items: center; gap: 5px; }
-.shot-btn svg { width: 16px; height: 16px; flex: none; }
-@media (max-width: 360px) { .shot-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
+.tx-hb { display: flex; gap: 8px; flex: none; align-items: center; }
 .shot-link { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 14px; }
 .shot-link svg { width: 16px; height: 16px; }
 .shot-zone { position: relative; border: 2px dashed var(--line-2); border-radius: 16px; background: var(--surface-2); min-height: 168px; padding: 14px; display: grid; align-content: center; gap: 12px; }
@@ -1057,8 +1054,11 @@ body.dragging-bank { cursor: grabbing; -webkit-user-select: none; user-select: n
 .shot-thumbs li { position: relative; aspect-ratio: 9 / 16; border-radius: 10px; overflow: hidden; border: 1px solid var(--line-2); background: var(--surface); }
 .shot-thumbs img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .shot-thumbs .icon-btn { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; min-width: 0; padding: 0; border-radius: 50%; background: color-mix(in srgb, var(--surface) 88%, transparent); }
-.shot-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0 4px; }
-.shot-pick .btn.disabled { opacity: .5; pointer-events: none; }
+.shot-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 4px; }
+.shot-pick .btn { display: grid; justify-items: center; align-content: center; gap: 6px; min-height: 76px; padding: 10px 4px; text-align: center; font-size: 13.5px; line-height: 1.2; cursor: pointer; }
+.shot-pick .btn svg { width: 22px; height: 22px; color: var(--brass); }
+.shot-pick .btn.disabled, .shot-pick .btn:disabled { opacity: .5; pointer-events: none; }
+.shot-count { margin: 6px 0 0; text-align: center; }
 .sr-file { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); }
 .shot-busy { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); margin: 8px 0; }
 .shot-priv { margin-top: 6px; }
@@ -2195,6 +2195,9 @@ const ICON = {
   refresh: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 3v3.2h-3.2"/><path d="M13.2 6.2A5.4 5.4 0 1 0 13.4 9"/></svg>',
   grip: '<svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor"><circle cx="4.5" cy="4" r="1.5"/><circle cx="9.5" cy="4" r="1.5"/><circle cx="4.5" cy="9" r="1.5"/><circle cx="9.5" cy="9" r="1.5"/><circle cx="4.5" cy="14" r="1.5"/><circle cx="9.5" cy="14" r="1.5"/></svg>',
   up: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10l4.5-4.5 4.5 4.5"/></svg>',
+  camera: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7a1.8 1.8 0 0 1 1.8-1.8h1.6l1.1-1.7h3.9l1.1 1.7h1.6A1.8 1.8 0 0 1 17.4 7v7.2a1.8 1.8 0 0 1-1.8 1.8H4.3a1.8 1.8 0 0 1-1.8-1.8z"/><circle cx="10" cy="10.6" r="2.9"/></svg>',
+  clip: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="3.5" width="11" height="14" rx="2"/><path d="M7.5 3.5v-.4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v.4"/><path d="M7.5 9h5M7.5 12h3.5"/></svg>',
+  photos: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="2.2"/><circle cx="7" cy="8" r="1.4"/><path d="M3 14.5l4.2-4 3.3 3 2.2-2 4.3 4"/></svg>',
   shot: '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="1.8" width="10" height="16.4" rx="2.2"/><path d="M8 4.4h4"/><path d="M7.4 9h5.2M7.4 11.6h5.2M7.4 14.2h3.2"/></svg>',
   down: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6l4.5 4.5L12.5 6"/></svg>'
 };
@@ -4951,13 +4954,14 @@ function openScan() { SCANUI.imgs.forEach(x => { try { URL.revokeObjectURL(x.url
 function scanSheet() {
   SCANUI.open = 'pick';
   const n = SCANUI.imgs.length, ready = bankReady();
-  bankSheet(`<div class="sheet-h"><div><h3>Add from screenshot</h3><p class="lede">Screenshots of your bank app become spending you can add now. When the bank's own copy arrives, it links to it instead of counting twice.</p></div>${closeBtn}</div>
+  bankSheet(`<div class="sheet-h"><div><h3>Add from photo or screenshot</h3><p class="lede">A screenshot of your bank app, or a photo of a receipt, becomes spending you can add now. When the bank's own copy arrives, it links to it instead of counting twice.</p></div>${closeBtn}</div>
     <div class="shot-zone${n ? ' has' : ''}" id="shotzone">
       <div class="shot-paste" id="shotpaste" contenteditable="true" inputmode="none" role="textbox" aria-label="Paste screenshots here" spellcheck="false" tabindex="0"></div>
-      <div class="shot-in" aria-hidden="true">${ICON.shot}<b>Paste or choose screenshots</b><span>Tap here, then Paste · or drop them here · up to ${SHOT_MAX}</span></div>
+      <div class="shot-in" aria-hidden="true">${ICON.shot}<b>Drop screenshots here</b><span id="shothint">Or use a button below · up to ${SHOT_MAX}</span></div>
       ${n ? `<ul class="shot-thumbs">${SCANUI.imgs.map((x, i) => `<li><img src="${x.url}" alt="Screenshot ${i + 1}"><button type="button" class="icon-btn" data-action="shot-rm" data-i="${i}" aria-label="Remove screenshot ${i + 1}"${SCANUI.busy ? ' disabled' : ''}>${ICON.close}</button></li>`).join('')}</ul>` : ''}
     </div>
-    <div class="shot-pick"><label class="btn${SCANUI.busy || n >= SHOT_MAX ? ' disabled' : ''}" for="shotfile">Choose from Photos</label><input type="file" id="shotfile" class="sr-file" accept="image/*" multiple${SCANUI.busy || n >= SHOT_MAX ? ' disabled' : ''}><span class="note">${n ? n + ' of ' + SHOT_MAX + ' added' : 'JPEG, PNG or WebP'}</span></div>
+    <div class="shot-pick"><button type="button" class="btn" data-action="shot-paste"${SCANUI.busy || n >= SHOT_MAX ? ' disabled' : ''}>${ICON.clip}<span>Paste</span></button><label class="btn${SCANUI.busy || n >= SHOT_MAX ? ' disabled' : ''}" for="shotcam">${ICON.camera}<span>Take photo</span></label><input type="file" id="shotcam" class="sr-file" accept="image/*" capture="environment"${SCANUI.busy || n >= SHOT_MAX ? ' disabled' : ''}><label class="btn${SCANUI.busy || n >= SHOT_MAX ? ' disabled' : ''}" for="shotfile">${ICON.photos}<span>Choose from Photos</span></label><input type="file" id="shotfile" class="sr-file" accept="image/*" multiple${SCANUI.busy || n >= SHOT_MAX ? ' disabled' : ''}></div>
+    <p class="note shot-count">${n ? n + ' of ' + SHOT_MAX + ' added' : 'JPEG, PNG or WebP'}</p>
     ${ready ? '' : '<p class="form-err">Connect the bank service first (Income → Bank connections). Screenshots are read there.</p>'}
     <div class="form-err" id="shoterr" role="alert">${esc(SCANUI.err)}</div>
     ${SCANUI.busy ? '<p class="shot-busy" role="status"><span class="spin" aria-hidden="true"></span>Reading screenshot…</p>' : ''}
@@ -4972,6 +4976,24 @@ function addShotFiles(list) {
   SCANUI.err = files.length > room ? 'Up to ' + SHOT_MAX + ' screenshots at a time.' : '';
   scanSheet(); return true;
 }
+// One-tap Paste: reads the clipboard's images (iOS shows its own small "Paste" confirmation). Where that isn't supported or finds
+// no picture, the paste box is focused instead so a press-and-hold Paste works.
+async function shotPasteBtn() {
+  if (SCANUI.busy || SCANUI.imgs.length >= SHOT_MAX) return;
+  const files = [];
+  try {
+    if (navigator.clipboard && navigator.clipboard.read) {
+      for (const it of await navigator.clipboard.read()) {
+        const t = (it.types || []).find(x => /^image\//.test(x)); if (!t) continue;
+        const b = await it.getType(t); files.push(new File([b], 'pasted.' + (t.split('/')[1] || 'png'), { type: t }));
+      }
+    }
+  } catch (e) { /* denied or unsupported: fall back below */ }
+  if (files.length && SCANUI.open === 'pick' && addShotFiles(files)) return;
+  if (SCANUI.open !== 'pick') return;
+  const h = $('#shothint'); if (h) h.textContent = 'Tap and hold, then Paste';
+  const box = $('#shotpaste'); if (box) box.focus();
+}
 const scanOpen = () => SCANUI.open === 'pick' && !$('#sheet').hidden && !!$('#shotzone');
 // Paste anywhere while the sheet is open (one listener, so a paste in the box is handled once).
 document.addEventListener('paste', e => {
@@ -4984,7 +5006,7 @@ document.addEventListener('paste', e => {
   if (!addShotFiles(files)) { SCANUI.err = 'No picture found in what you pasted. Copy the screenshot first (tap it, Share, Copy), then paste here.'; const el = $('#shoterr'); if (el) el.textContent = SCANUI.err; }
 });
 document.addEventListener('input', e => { if (e.target.id === 'shotpaste') e.target.innerHTML = ''; });
-document.addEventListener('change', e => { if (e.target.id === 'shotfile') { addShotFiles(e.target.files); e.target.value = ''; } });
+document.addEventListener('change', e => { if (e.target.id === 'shotfile' || e.target.id === 'shotcam') { addShotFiles(e.target.files); e.target.value = ''; } });
 ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { if (!scanOpen()) return; e.preventDefault(); const z = $('#shotzone'); if (z) z.classList.add('drag'); }));
 document.addEventListener('dragleave', e => { const z = $('#shotzone'); if (z && !z.contains(e.relatedTarget)) z.classList.remove('drag'); });
 document.addEventListener('drop', e => { if (!scanOpen()) return; e.preventDefault(); if (!SCANUI.busy && e.dataTransfer) addShotFiles(e.dataTransfer.files); });
@@ -5026,7 +5048,7 @@ async function scanRead() {
   SCANUI.imgs.forEach(x => { try { URL.revokeObjectURL(x.url); } catch (e) {} });
   SCANUI.imgs = []; SCANUI.busy = false;
   if (SCANUI.open !== 'pick') return;   // closed meanwhile
-  SCANUI.res = { bank: r && typeof r.bank === 'string' ? r.bank : '' };
+  SCANUI.res = { bank: r && typeof r.bank === 'string' ? r.bank : '', source: r && r.source === 'receipt' ? 'receipt' : '' };
   SCANUI.rows = shotRows(Array.isArray(r && r.transactions) ? r.transactions : []);
   scanReview();
 }
@@ -5040,7 +5062,7 @@ function shotRows(list) {
     const g = BT.guessCategory(state, { desc: merchant, rawDesc: merchant }), category = cats.includes(g.category) ? g.category : cats.includes('Other') ? 'Other' : cats[0];
     const dupe = out ? BT.shotDupe(state, { merchant, amount: BT.round2(t.amount), date }) : '';
     return { i, raw: merchant, merchant: shotName(merchant), amount: BT.round2(t.amount), out, date, guessDate: !t.date, pending: !!t.pending, kind: t.kind || 'other',
-      hint: t.account_hint || '', guess: category, category, note: '', dupe, on: out && SHOT_ON.includes(t.kind || 'other') && !dupe };
+      hint: t.account_hint || '', guess: category, category, note: typeof t.items_summary === 'string' ? t.items_summary.trim().slice(0, 120) : '', dupe, on: out && SHOT_ON.includes(t.kind || 'other') && !dupe };
   });
 }
 // "DD *DOORDASH" -> "Doordash", "SQ *EL MESON R" -> "El Meson R": readable, like a bank line's merchant.
@@ -5051,7 +5073,7 @@ function shotName(m) {
 }
 function scanReview() {
   SCANUI.open = 'review';
-  const rows = SCANUI.rows, bank = SCANUI.res && SCANUI.res.bank, n = rows.filter(x => x.on).length;
+  const rows = SCANUI.rows, bank = SCANUI.res && SCANUI.res.bank, rc = !!(SCANUI.res && SCANUI.res.source === 'receipt'), n = rows.filter(x => x.on).length;
   const row = x => `<div class="shot-row${x.on ? '' : ' off'}" data-i="${x.i}">
     <input type="checkbox" class="shot-on" data-shot="on" data-i="${x.i}" aria-label="Add ${esc(x.merchant)} ${fmt(x.amount)}"${x.on ? ' checked' : ''}>
     <div class="shot-f">
@@ -5059,7 +5081,7 @@ function scanReview() {
       <div class="shot-r2"><input type="date" data-shot="date" data-i="${x.i}" value="${esc(x.date)}" aria-label="Date">${x.guessDate ? '<span class="pill soft warn">date?</span>' : ''}${x.pending ? '<span class="pill soft">Pending</span>' : ''}${!x.out ? '<span class="pill soft">Money in</span>' : ''}${SHOT_KIND[x.kind] && (x.out || x.kind !== 'deposit') ? `<span class="pill soft">${SHOT_KIND[x.kind]}</span>` : ''}${x.dupe ? '<span class="pill soft warn">Already in BudTracks</span>' : ''}</div>
       <div class="shot-r3"><select data-shot="category" data-i="${x.i}" aria-label="Category for ${esc(x.merchant)}">${catOptsHTML(x.category)}</select><input type="text" data-shot="note" data-i="${x.i}" value="${esc(x.note)}" maxlength="120" placeholder="Note (optional)" aria-label="Note" autocomplete="off"></div>
     </div></div>`;
-  bankSheet(`<div class="sheet-h"><div><h3>${rows.length ? 'Review ' + plural(rows.length, 'transaction') : 'No transactions found'}</h3><p class="lede">${bank ? 'From ' + esc(bank) + ' · ' : ''}${rows.length ? 'Checked ones are added as spending.' : 'Nothing on these screenshots looked like a transaction.'}</p></div>${closeBtn}</div>
+  bankSheet(`<div class="sheet-h"><div><h3>${rows.length ? (rc ? 'Receipt' : 'Review ' + plural(rows.length, 'transaction')) : 'No transactions found'}</h3><p class="lede">${rc ? 'Paid total from your receipt · ' : bank ? 'From ' + esc(bank) + ' · ' : ''}${rows.length ? 'Checked ones are added as spending.' : 'Nothing on these screenshots looked like a transaction.'}</p></div>${closeBtn}</div>
     ${rows.length ? `<div class="shot-list">${rows.map(row).join('')}</div>` : ''}
     <p class="note">Transfers, deposits, refunds and anything already in BudTracks start unchecked.</p>
     <div class="actions"><button type="button" class="btn" data-action="shot-back">Back</button><div class="r"><button type="button" class="btn" data-action="shot-cancel">Cancel</button><button type="button" class="btn primary" id="shotadd" data-action="shot-add"${n ? '' : ' disabled'}>Add ${n}</button></div></div>`);
@@ -5366,10 +5388,10 @@ function viewTransactions() {
   const cnt = f => Object.values(state.bank.txns).filter(t => txStatus(t).f === f).length;
   const banks = [...new Set(Object.values(state.bank.txns).map(txBankKey))].sort((a, b) => bankRank(a) - bankRank(b) || a.localeCompare(b));
   const n = cnt('review'), ready = state.bank.inbox.filter(bulkOk).length;
-  const F = [['all', 'All'], ['review', 'Review' + (n ? ' · ' + n : '')], ['added', 'Added'], ['matched', 'Matched'], ['ignored', 'Skipped']];
-  return `<div class="stack"><section class="card tx-card"><header class="card-h"><div><h2>Transactions</h2><span class="meta">${bankReady() && state.bank.lastSync ? 'Updated ' + esc(updatedAgo(state.bank.lastSync)) : 'From your connected banks'}</span></div>${bankReady() ? `<div class="tx-hb"><button type="button" class="btn sm shot-btn" data-action="shot-open" aria-label="Add from screenshot">${ICON.shot}<span>Screenshot</span></button></div>` : ''}</header>
+  const F = [['all', 'All'], ['review', 'Review'], ['added', 'Added'], ['matched', 'Matched'], ['ignored', 'Skipped']];
+  return `<div class="stack"><section class="card tx-card"><header class="card-h"><div><h2>Transactions</h2><span class="meta">${bankReady() && state.bank.lastSync ? 'Updated ' + esc(updatedAgo(state.bank.lastSync)) : 'From your connected banks'}</span></div><div class="tx-hb">${bankReady() ? `<button type="button" class="icon-btn" data-action="shot-open" aria-label="Add from photo or screenshot">${ICON.camera}</button>` : ''}<button type="button" class="icon-btn" data-action="add" data-type="extra" aria-label="Add spending">${ICON.plus}</button>${bankReady() ? `<button type="button" class="icon-btn tx-sync${syncBusy() ? ' spinning' : ''}" data-action="bk-sync" aria-label="Sync"${syncBusy() || BANKUI.rowBusy ? ' disabled' : ''}${syncBusy() ? ' aria-busy="true"' : ''}>${ICON.refresh}</button>` : ''}</div></header>
     ${txSummaryHTML()}
-    <div class="tx-filters"><div class="chips tx-chips" role="group" aria-label="Show">${F.map(([v, l]) => `<button class="chip" data-action="tx-filter" data-f="${v}" aria-pressed="${TXUI.filter === v}">${esc(l)}</button>`).join('')}${bankReady() ? syncBtnHTML(ICON.refresh + '<span>Sync</span>', 'class="chip chip-sync" data-action="bk-sync" aria-label="Sync now"') : ''}</div>
+    <div class="tx-filters"><div class="chips tx-chips" role="group" aria-label="Show">${F.map(([v, l]) => `<button class="chip" data-action="tx-filter" data-f="${v}" aria-pressed="${TXUI.filter === v}">${esc(l)}${v === 'review' && n ? ` <span class="cbadge" aria-label="${n} to review">${n}</span>` : ''}</button>`).join('')}</div>
       <div class="tx-find"><input id="txq" type="search" placeholder="Search merchant" value="${esc(TXUI.q)}" aria-label="Search transactions" autocomplete="off">${banks.length > 1 ? `<select id="txbank" aria-label="Bank filter"><option value="">All banks</option>${banks.map(b => `<option value="${esc(b)}"${TXUI.bank === b ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>` : ''}</div>
       ${TXUI.filter === 'review' && n ? `<div class="bx-top"><button class="btn sm" data-action="ix-open">Review one by one</button><button class="btn primary sm" data-action="ix-all" data-tx="1"${ready ? '' : ' disabled'}>Accept all (${ready})</button></div>` : ''}</div>
     ${TXUI.filter === 'all' && !TXUI.q && !TXUI.bank ? shotWaitHTML() : ''}<div id="txlist" class="tx-list">${txListHTML()}</div></section></div>`;
@@ -5808,6 +5830,7 @@ document.addEventListener('click', async e => {
     case 'shot-link': case 'shot-no': shotAct(act, a); break;
     case 'shot-open': openScan(); break;
     case 'shot-pick': { const f = $('#shotfile'); if (f) f.click(); break; }
+    case 'shot-paste': shotPasteBtn(); break;
     case 'shot-rm': SCANUI.imgs.splice(+a.dataset.i, 1); scanSheet(); break;
     case 'shot-read': scanRead(); break;
     case 'shot-back': scanSheet(); break;

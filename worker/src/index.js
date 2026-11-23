@@ -854,7 +854,18 @@ const TXN_PAGES = 5;                           // /transactions/get pages of 100
 // Obvious transfers and card payments, excluded from "spent".
 const TRANSFER = /\b(transfer|xfer|payment thank you|autopay|auto pay|credit card payment|card payment|online payment|epay|to savings|from savings|to checking|from checking)\b/i;
 
-const emailConfigured = (env) => !!(env.RESEND_API_KEY && env.ALERT_EMAIL);
+const emailConfigured = (env) => !!(env.RESEND_API_KEY && String(env.ALERT_EMAIL || '').trim());
+// Resend's error JSON can echo the recipient, so addresses are stripped and the text capped before it is ever returned.
+const EMAIL_RE = /[^\s<>"',;()]+@[^\s<>"',;()]+/g;
+export function resendReason(status, bodyText) {
+  let j = null;
+  try { j = JSON.parse(bodyText); } catch { /* not JSON */ }
+  const name = typeof j?.name === 'string' ? j.name : '', msg = typeof j?.message === 'string' ? j.message : '';
+  if (name === 'validation_error' && /testing emails to your own email address/i.test(msg)) return 'Resend only sends to the email you signed up with. Make ALERT_EMAIL exactly match your Resend login, or verify a domain in Resend.';
+  if (name === 'restricted_api_key' || name === 'invalid_api_key' || status === 401) return "The Resend key can't send emails. Create a key with Sending access.";
+  const clean = msg.replace(EMAIL_RE, 'your address').replace(/\s+/g, ' ').trim().slice(0, 160);
+  return clean || `email provider returned ${status}`;
+}
 async function sendEmail(env, { subject, html, text }) {
   if (!emailConfigured(env)) { console.log('alerts: email not configured, skipping send'); return { sent: false, reason: 'email not configured' }; }
   let res;
@@ -864,7 +875,7 @@ async function sendEmail(env, { subject, html, text }) {
       res = await fetch(RESEND_URL, {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + env.RESEND_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: ALERT_FROM, to: [env.ALERT_EMAIL], subject, html, text }),
+        body: JSON.stringify({ from: ALERT_FROM, to: [String(env.ALERT_EMAIL).trim().toLowerCase()], subject, html, text }),
       });
     } catch (e) {
       console.error('alerts: email request failed', e?.name);
@@ -874,8 +885,13 @@ async function sendEmail(env, { subject, html, text }) {
     const wait = Math.min(2, Math.max(0, Number(res.headers.get('retry-after') ?? 1) || 0));
     await new Promise((r) => setTimeout(r, wait * 1000));
   }
-  // Resend error bodies can echo the recipient, so only the status is reported.
-  if (!res.ok) { console.error('alerts: email provider status', res.status); return { sent: false, reason: `email provider returned ${res.status}` }; }
+  // Only the status is logged; the reason shown to the user has any address stripped.
+  if (!res.ok) {
+    console.error('alerts: email provider status', res.status);
+    let body = '';
+    try { body = await res.text(); } catch { /* ignore */ }
+    return { sent: false, reason: resendReason(res.status, body) };
+  }
   return { sent: true };
 }
 
@@ -1130,6 +1146,7 @@ const SCAN_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 // Types, enums and nullables only (structured outputs); amounts, dates and lengths are cleaned up in code afterwards.
 const ScanSchema = z.object({
   bank: z.string().nullable(),
+  source: z.enum(['bank_app', 'receipt', 'other']),
   transactions: z.array(z.object({
     merchant: z.string(),
     amount: z.number(),
@@ -1139,9 +1156,13 @@ const ScanSchema = z.object({
     kind: z.enum(['purchase', 'transfer', 'deposit', 'refund', 'fee', 'payment', 'other']),
     running_balance: z.number().nullable(),
     account_hint: z.string().nullable(),
+    items_summary: z.string().nullable(),
   })),
 });
-const SCAN_SYSTEM = `You extract bank and card transactions from screenshots of banking apps.
+const SCAN_SYSTEM = `You extract bank and card transactions from screenshots of banking apps, and purchases from photos of paper receipts.
+- Set "source" to "bank_app" for a screenshot of a banking or card app, "receipt" for a photo of a paper (or emailed) store receipt, else "other".
+- RECEIPT: return exactly ONE transaction. merchant = the store name; amount = the final total actually paid (after tax and tip; never a subtotal or a line item); direction "out"; date from the receipt as YYYY-MM-DD, or null; pending false; kind "purchase"; running_balance null; account_hint null. items_summary = a short note such as "Groceries · 12 items", else null.
+- BANK APP: items_summary is null.
 - Return every transaction row that is visible, in the order shown. Set "bank" to the bank or app name when it is visible, else null.
 - merchant: the name as shown, without trailing reference numbers or ids.
 - amount: the transaction amount as a positive number. Never use the running balance shown beside or below a row; put that in running_balance (null when not shown).
@@ -1179,10 +1200,12 @@ export function cleanScan(out, today) {
     if (!t || !Number.isFinite(t.amount) || !clip(t.merchant, 80)) continue;
     const date = isYmd(t.date) && t.date <= addDaysUTC(today, 1) ? t.date : null;
     rows.push({ merchant: clip(t.merchant, 80), amount: cents(t.amount), direction: t.direction === 'in' ? 'in' : 'out', date, pending: t.pending === true,
-      kind: t.kind || 'other', running_balance: Number.isFinite(t.running_balance) ? t.running_balance : null, account_hint: clip(t.account_hint, 60) || null });
+      kind: t.kind || 'other', running_balance: Number.isFinite(t.running_balance) ? t.running_balance : null, account_hint: clip(t.account_hint, 60) || null,
+      items_summary: clip(t.items_summary, 80) || null });
     if (rows.length >= 100) break;
   }
-  return { bank: clip(out?.bank, 60) || null, transactions: rows };
+  const source = ['bank_app', 'receipt', 'other'].includes(out?.source) ? out.source : 'other';
+  return { bank: clip(out?.bank, 60) || null, source, transactions: source === 'receipt' ? rows.slice(0, 1) : rows };
 }
 const addDaysUTC = (ymd, n) => { const d = new Date(ymd + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 

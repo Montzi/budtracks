@@ -28,7 +28,7 @@ function mockNet(bank) {
     const R = (s, b) => new Response(JSON.stringify(b), { status: s });
     if (u.origin === 'https://api.resend.com') {
       if (fn.throttle > 0) { fn.throttle--; fn.throttled = (fn.throttled || 0) + 1; return new Response('{}', { status: 429, headers: { 'retry-after': '0' } }); }
-      if (fn.resendStatus) return R(fn.resendStatus, { message: 'rejected for ' + body.to?.[0] });
+      if (fn.resendStatus) return R(fn.resendStatus, fn.resendBody || { message: 'rejected for ' + body.to?.[0] });
       emails.push({ ...body, auth: init.headers.Authorization });
       return R(200, { id: 'em_' + emails.length });
     }
@@ -350,5 +350,23 @@ test('GET /alerts/test: auth, sends test email, reports reason when not configur
     assert.deepEqual(await (await call(env2, 'GET', '/alerts/test', { key: k2 })).json(), { sent: false, reason: 'email not configured' });
     assert.equal(net.calls.length, before);
     assert.ok(!logs.join('\n').includes(TO) && !logs.join('\n').includes(RKEY));
+  });
+});
+
+test('email: recipient is trimmed and lowercased; Resend errors map to plain reasons without addresses', async () => {
+  const env = mkEnv({ ALERT_EMAIL: '  ' + TO.toUpperCase() + ' ' }), key = await pair(env);
+  const net = mockNet({ accounts: [], txns: [] });
+  await withNet(net, async (logs) => {
+    assert.deepEqual(await (await call(env, 'GET', '/alerts/test', { key })).json(), { sent: true });
+    assert.deepEqual(net.emails[0].to, [TO]);
+    const reason = async (status, body) => { net.resendStatus = status; net.resendBody = body; const f = await (await call(env, 'GET', '/alerts/test', { key })).json(); assert.equal(f.sent, false); return f.reason; };
+    const own = await reason(403, { name: 'validation_error', statusCode: 403, message: 'You can only send testing emails to your own email address (' + TO + '). To send emails to other recipients, please verify a domain.' });
+    assert.match(own, /^Resend only sends to the email you signed up with\./); assert.ok(!own.includes(TO));
+    assert.match(await reason(403, { name: 'restricted_api_key', statusCode: 403, message: 'This API key is restricted to only send emails' }), /Sending access/);
+    assert.match(await reason(401, { name: 'invalid_api_key', message: 'API key is invalid' }), /Sending access/);
+    const gen = await reason(422, { name: 'missing_required_field', message: 'Missing `to` field for ' + TO + ' ' + 'x'.repeat(300) });
+    assert.ok(!gen.includes(TO) && gen.includes('your address') && gen.length <= 160);
+    assert.equal(await reason(500, 'not json'), 'email provider returned 500');
+    const all = logs.join('\n'); assert.ok(!all.includes(TO) && !all.includes(RKEY));
   });
 });

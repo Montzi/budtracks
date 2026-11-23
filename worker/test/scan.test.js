@@ -13,10 +13,10 @@ const DAY = new Date().toISOString().slice(0, 10);
 // Messages API reply shaped like the real one.
 const reply = (text, over = {}) => ({ id: 'msg_01Test', type: 'message', role: 'assistant', model: 'claude-haiku-5-5', content: text == null ? [] : [{ type: 'text', text }],
   stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1834, output_tokens: 412, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, ...over });
-const OUT = { bank: 'Capital One', transactions: [
-  { merchant: 'DD *DOORDASH', amount: 16.2, direction: 'out', date: '2026-11-21', pending: true, kind: 'purchase', running_balance: null, account_hint: null },
-  { merchant: 'PAYPAL to Ana', amount: -7.99, direction: 'out', date: '2026-11-18', pending: false, kind: 'transfer', running_balance: 512.3, account_hint: '360 Checking ...1284' },
-  { merchant: 'STAT DELIVERY', amount: 612.5, direction: 'in', date: 'Nov 17', pending: false, kind: 'deposit', running_balance: null, account_hint: null },
+const OUT = { bank: 'Capital One', source: 'bank_app', transactions: [
+  { merchant: 'DD *DOORDASH', amount: 16.2, direction: 'out', date: '2026-11-21', pending: true, kind: 'purchase', running_balance: null, account_hint: null, items_summary: null },
+  { merchant: 'PAYPAL to Ana', amount: -7.99, direction: 'out', date: '2026-11-18', pending: false, kind: 'transfer', running_balance: 512.3, account_hint: '360 Checking ...1284', items_summary: null },
+  { merchant: 'STAT DELIVERY', amount: 612.5, direction: 'in', date: 'Nov 17', pending: false, kind: 'deposit', running_balance: null, account_hint: null, items_summary: null },
 ] };
 function fakeApi(make) {
   const calls = [];
@@ -181,4 +181,20 @@ test('cleanScan: positive cents, real dates only, capped strings', () => {
   ] }, '2026-11-22');
   assert.equal(o.bank, 'Chase');
   assert.deepEqual(o.transactions.map((t) => [t.merchant, t.amount, t.date]), [['UBER * EATS', 35.35, '2026-11-20'], ['Future', 3, null]]);
+});
+
+test('scan: a receipt photo returns one purchase with source and items_summary; prompt covers receipts', async () => {
+  const RECEIPT = { bank: null, source: 'receipt', transactions: [
+    { merchant: 'Trader Joe\'s', amount: 48.37, direction: 'out', date: '2026-11-20', pending: false, kind: 'purchase', running_balance: null, account_hint: null, items_summary: 'Groceries · 12 items' },
+    { merchant: 'Extra', amount: 1, direction: 'out', date: null, pending: false, kind: 'purchase', running_balance: null, account_hint: null, items_summary: null }] };
+  const api = fakeApi(() => ({ status: 200, json: reply(JSON.stringify(RECEIPT)) }));
+  const { env, key } = await paired({ ANTHROPIC_FETCH: api });
+  const r = await call(env, ok(), { key }), j = await r.json();
+  assert.equal(r.status, 200, JSON.stringify(j));
+  assert.equal(j.source, 'receipt'); assert.equal(j.transactions.length, 1);
+  assert.deepEqual([j.transactions[0].amount, j.transactions[0].date, j.transactions[0].items_summary], [48.37, '2026-11-20', 'Groceries · 12 items']);
+  const b = api.calls[0].body, props = b.output_config.format.schema.properties;
+  assert.ok(props.source && props.transactions.items.properties.items_summary);
+  assert.match(b.system, /receipt/i); assert.match(b.system, /final total/);
+  assert.equal(cleanScan({ transactions: [] }, DAY).source, 'other');
 });

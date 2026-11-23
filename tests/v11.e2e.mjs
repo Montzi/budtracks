@@ -295,12 +295,11 @@ for (const [w, h] of SIZES) {
     mock.txns = SPLIT.concat(NEW3); mock.syncDelay = 1200;
     const n = calls.length;
     await page.click('.tx-card [data-action="bk-sync"]');
-    await page.waitForSelector('.tx-card [data-action="bk-sync"][disabled] .spin', { timeout: 400 });
-    assert.match(await page.locator('.tx-card [data-action="bk-sync"]').innerText(), /Syncing…/);
+    await page.waitForSelector('.tx-card [data-action="bk-sync"][disabled][aria-busy="true"].spinning', { timeout: 400 });
     await page.waitForFunction(() => /3 new transactions/.test(document.querySelector('#toast').textContent), null, { timeout: 5000 });
     assert.ok(calls.slice(n).some(c => c.p === '/sync'), 'synced');
     await page.waitForSelector('.tx-card [data-action="bk-sync"]:not([disabled])');
-    assert.equal((await page.locator('.tx-card [data-action="bk-sync"]').innerText()).trim(), 'Sync');
+    assert.equal(await page.getAttribute('.tx-card [data-action="bk-sync"]', 'aria-label'), 'Sync');
     assert.match(await page.locator('.tx-card .meta').innerText(), /Updated just now/);
     await quiet(page);
     await page.screenshot({ path: SHOTS + '/tx-light-390.png' });
@@ -309,7 +308,7 @@ for (const [w, h] of SIZES) {
     mock.syncDelay = 300;
     await page.evaluate(() => document.querySelector('#toast').classList.remove('on'));
     await page.click('.tx-card [data-action="bk-sync"]');
-    await page.waitForSelector('.tx-card [data-action="bk-sync"] .spin', { timeout: 400 });
+    await page.waitForSelector('.tx-card [data-action="bk-sync"].spinning', { timeout: 400 });
     await page.waitForFunction(() => /No new transactions/.test(document.querySelector('#toast').textContent));
   });
   await step('a failing sync shows the error and clears the spinner', async () => {
@@ -317,7 +316,7 @@ for (const [w, h] of SIZES) {
     await page.click('.tx-card [data-action="bk-sync"]');
     await page.waitForFunction(() => document.querySelector('#toast').classList.contains('on') && /down|could not|error/i.test(document.querySelector('#toast').textContent));
     await page.waitForSelector('.tx-card [data-action="bk-sync"]:not([disabled])');
-    assert.equal(await page.locator('.tx-card [data-action="bk-sync"] .spin').count(), 0);
+    assert.equal(await page.locator('.tx-card [data-action="bk-sync"].spinning').count(), 0);
     mock.fail = false; mock.syncDelay = 0;
     assert.deepEqual(errs, []);
   });

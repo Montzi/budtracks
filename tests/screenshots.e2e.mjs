@@ -119,20 +119,42 @@ const jpegSize = (page, data) => page.evaluate(d => new Promise(ok => { const i 
   const before = await spentSoFar(page);
   await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx-card');
 
-  await step('Transactions header: "Screenshot" button in the header, Sync chip in the filter row, fits at 390', async () => {
-    const btn = page.locator('.tx-card .card-h [data-action="shot-open"]');
-    assert.equal(await btn.count(), 1);
-    assert.match(await btn.innerText(), /Screenshot/);
-    assert.equal(await page.locator('.tx-card .tx-chips [data-action="bk-sync"]').count(), 1);
-    const [hb, card] = await Promise.all([page.locator('.tx-hb').boundingBox(), page.locator('.tx-card').boundingBox()]);
+  await step('Transactions header: camera, + and sync icon buttons (no Screenshot text, no Sync chip), fit at 390', async () => {
+    const hdr = page.locator('.tx-card .card-h .tx-hb > button');
+    assert.deepEqual(await hdr.evaluateAll(bs => bs.map(b => b.dataset.action)), ['shot-open', 'add', 'bk-sync']);
+    assert.deepEqual(await hdr.evaluateAll(bs => bs.map(b => b.getAttribute('aria-label'))), ['Add from photo or screenshot', 'Add spending', 'Sync']);
+    assert.doesNotMatch(await page.locator('.tx-card .card-h').innerText(), /Screenshot/i);
+    assert.equal(await page.locator('.tx-chips [data-action="bk-sync"]').count(), 0);
+    const bx = await hdr.evaluateAll(bs => bs.map(b => { const r = b.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }));
+    bx.forEach(([, , w, h]) => assert.ok(w >= 40 && h >= 40 && Math.abs(w - h) < 1, 'tap target ' + w + 'x' + h));
+    assert.ok(bx[0][0] + bx[0][2] <= bx[1][0] && bx[1][0] + bx[1][2] <= bx[2][0], 'buttons do not overlap');
+    const [hb, card, h2] = await Promise.all([page.locator('.tx-hb').boundingBox(), page.locator('.tx-card').boundingBox(), page.locator('.tx-card .card-h h2').boundingBox()]);
     assert.ok(hb.x + hb.width <= card.x + card.width + 0.5, 'header buttons inside the card');
+    assert.ok(h2.x + h2.width <= hb.x, 'title clear of the buttons');
     await noHScroll(page, 'transactions 390');
+  });
+  await step('+ opens the one-time spending form', async () => {
+    await page.click('.tx-card .card-h [data-action="add"]'); await page.waitForSelector('#sheet:not([hidden]) form');
+    assert.match(await page.locator('#sheet').innerText(), /one-time spending/i);
+    await page.keyboard.press('Escape'); await page.evaluate(() => { const s = document.querySelector('#sheet'); if (!s.hidden) document.querySelector('#sheet [data-action="close"]').click(); });
+    await page.waitForFunction(() => document.querySelector('#sheet').hidden);
+  });
+  await step('Chips: five equal widths and identical tops; spent row on one line with the switch', async () => {
+    const m = await page.$$eval('.tx-chips > button', bs => bs.map(b => { const r = b.getBoundingClientRect(); return [r.width, r.top, r.height]; }));
+    assert.equal(m.length, 5);
+    m.forEach(x => { assert.ok(Math.abs(x[0] - m[0][0]) <= 1, 'equal width ' + m.map(y => y[0])); assert.equal(Math.round(x[1]), Math.round(m[0][1])); assert.ok(Math.abs(x[2] - m[0][2]) <= 1); });
+    const row = await page.$eval('.tx-chips', el => { const r = el.getBoundingClientRect(), p = el.parentElement.getBoundingClientRect(); return [r.width, p.width, el.scrollWidth <= el.clientWidth + 1]; });
+    assert.ok(row[0] > row[1] - 24 && row[2], 'fills the width, no inner scroll');
+    const [sb, seg] = await Promise.all([page.locator('.tx-sum-b').boundingBox(), page.locator('.tx-sum .seg').boundingBox()]);
+    assert.ok(sb.x + sb.width <= seg.x, 'amount and switch do not collide');
   });
 
   await step('Scan sheet: paste a PNG (synthetic paste event) and pick one from Photos (file input)', async () => {
     await page.click('.tx-card [data-action="shot-open"]');
     await page.waitForSelector('#shotzone');
-    assert.match(await page.locator('#shotzone').innerText(), /Paste or choose screenshots/);
+    assert.deepEqual((await page.locator('.shot-pick .btn').allInnerTexts()).map(t => t.trim()), ['Paste', 'Take photo', 'Choose from Photos']);
+    assert.equal(await page.getAttribute('#shotcam', 'capture'), 'environment');
+    assert.equal(await page.getAttribute('#shotcam', 'accept'), 'image/*');
     assert.equal(await page.getAttribute('#shotpaste', 'contenteditable'), 'true');
     assert.equal(await page.getAttribute('#shotfile', 'accept'), 'image/*');
     assert.notEqual(await page.getAttribute('#shotfile', 'multiple'), null);
@@ -373,6 +395,72 @@ for (const [w, h] of [[951, 669], [390, 844]]) {
     else await page.screenshot({ path: SHOTS + '/scan-review-390-light.png' });
   });
   await step(`no page errors (light ${w})`, async () => assert.deepEqual(errs, []));
+  await ctx.close();
+}
+
+/* ---------- 3. v15: one-tap Paste, Take photo, receipts ---------- */
+{
+  const { ctx, page, errs, mock, calls } = await newPage(390, 844, { dark: false, hash: '#transactions' });
+  // Stubs navigator.clipboard.read: a PNG ClipboardItem, nothing, or a thrown NotAllowedError.
+  const stubClip = (mode) => page.evaluate(async (mode) => {
+    const c = document.createElement('canvas'); c.width = 300; c.height = 500; c.getContext('2d').fillRect(0, 0, 300, 500);
+    const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { read: async () => {
+      if (mode === 'throw') throw new DOMException('denied', 'NotAllowedError');
+      if (mode === 'empty') return [{ types: ['text/plain'], getType: async () => new Blob(['hi'], { type: 'text/plain' }) }];
+      return [{ types: ['image/png'], getType: async () => blob }];
+    } } });
+  }, mode);
+  const openScanSheet = async () => { await page.click('.tx-card [data-action="shot-open"]'); await page.waitForSelector('#shotzone'); };
+  await step('camera button opens the scan sheet; Take photo input uses the rear camera', async () => {
+    await openScanSheet();
+    assert.equal(await page.getAttribute('#shotcam', 'capture'), 'environment');
+    assert.equal(await page.locator('#shotcam').getAttribute('multiple'), null);
+    assert.match(await page.locator('#sheet h3').first().innerText(), /photo or screenshot/i);
+    await page.setInputFiles('#shotcam', { name: 'IMG_1.jpg', mimeType: 'image/jpeg', buffer: await pngBuffer(page, 400, 600) });
+    await page.waitForSelector('.shot-thumbs li');
+    assert.equal(await page.locator('.shot-thumbs li').count(), 1);
+    await page.click('[data-action="shot-cancel"]'); await page.waitForFunction(() => document.querySelector('#sheet').hidden);
+  });
+  await step('Paste button: one tap reads clipboard.read() and adds a thumbnail', async () => {
+    await stubClip('png'); await openScanSheet();
+    await page.click('[data-action="shot-paste"]'); await page.waitForSelector('.shot-thumbs li');
+    assert.equal(await page.locator('.shot-thumbs li').count(), 1);
+    assert.ok(await page.locator('[data-action="shot-read"]').isEnabled());
+    await sheetNoHScroll(page, 'paste 390');
+    await page.click('[data-action="shot-cancel"]'); await page.waitForFunction(() => document.querySelector('#sheet').hidden);
+  });
+  for (const mode of ['throw', 'empty']) await step(`Paste button falls back to the paste box with a hint when clipboard.read ${mode === 'throw' ? 'throws' : 'has no image'}`, async () => {
+    await stubClip(mode); await openScanSheet();
+    await page.click('[data-action="shot-paste"]');
+    await page.waitForFunction(() => /tap and hold, then paste/i.test(document.querySelector('#shothint').textContent));
+    assert.equal(await page.evaluate(() => document.activeElement && document.activeElement.id), 'shotpaste');
+    assert.equal(await page.locator('.shot-thumbs li').count(), 0);
+    await page.click('[data-action="shot-cancel"]', { force: true }); await page.waitForFunction(() => document.querySelector('#sheet').hidden);
+  });
+  await step('Paste button without navigator.clipboard.read also falls back', async () => {
+    await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {} })); await openScanSheet();
+    await page.click('[data-action="shot-paste"]');
+    await page.waitForFunction(() => /tap and hold/i.test(document.querySelector('#shothint').textContent));
+    await page.screenshot({ path: SHOTS + '/scan-v15-390.png' });
+    await page.click('[data-action="shot-cancel"]', { force: true }); await page.waitForFunction(() => document.querySelector('#sheet').hidden);
+  });
+  await step('Receipt result: header says Receipt, one row with the paid total, note prefilled from items_summary, then added', async () => {
+    mock.scan = { bank: null, source: 'receipt', usage: { input_tokens: 1, output_tokens: 1 }, transactions: [
+      { merchant: "TRADER JOE'S #123", amount: 48.37, direction: 'out', date: TODAY, pending: false, kind: 'purchase', running_balance: null, account_hint: null, items_summary: 'Groceries · 12 items' }] };
+    await stubClip('png'); await openScanSheet();
+    await page.click('[data-action="shot-paste"]'); await page.waitForSelector('.shot-thumbs li');
+    await page.click('[data-action="shot-read"]'); await page.waitForSelector('.shot-row');
+    assert.match(await page.locator('#sheet h3').first().innerText(), /receipt/i);
+    assert.equal(await page.locator('.shot-row').count(), 1);
+    assert.equal(await page.inputValue('.shot-row input[data-shot="note"]'), 'Groceries · 12 items');
+    assert.match(await page.locator('.shot-row .amt').innerText(), /48\.37/);
+    await sheetNoHScroll(page, 'receipt 390');
+    await page.click('#shotadd'); await waitToast(page, /Added 1 transaction/);
+    const sp = (await getState(page)).spends.filter(x => x.shot);
+    assert.deepEqual(sp.map(x => [x.amount, x.note]), [[48.37, 'Groceries · 12 items']]);
+  });
+  await step('no page errors (v15 scan)', async () => assert.deepEqual(errs, []));
   await ctx.close();
 }
 

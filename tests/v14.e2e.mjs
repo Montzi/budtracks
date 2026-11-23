@@ -82,39 +82,35 @@ for (const [w, h, dark] of [[390, 844, true], [390, 844, false], [669, 951, true
   await page.waitForTimeout(300);
   await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx-card');
 
-  await step(`Sync chip sits after Skipped in the chip row, not selected, one line (${tag})`, async () => {
+  await step(`Header icons (camera, +, sync) and five equal filter chips, one line (${tag})`, async () => {
     const labels = (await page.locator('.tx-chips > button').allInnerTexts()).map(t => t.trim().toLowerCase());
-    assert.deepEqual(labels.map(l => l.replace(/ · \d+/, '')), ['all', 'review', 'added', 'matched', 'skipped', 'sync']);
-    assert.equal(await page.locator('.tx-card .card-h [data-action="bk-sync"]').count(), 0, 'no button in the header');
-    assert.equal(await page.locator('.tx-chips .chip-sync').getAttribute('aria-pressed'), null, 'never selected');
-    const tops = await page.$$eval('.tx-chips > button', bs => bs.map(x => Math.round(x.getBoundingClientRect().top)));
-    assert.ok(tops.every(t => t === tops[0]), 'one line ' + tops);
-    const ch = await page.$$eval('.tx-chips > button:not(.chip-sync)', bs => bs[0].getBoundingClientRect().height), sh = await page.locator('.tx-chips .chip-sync').evaluate(x => x.getBoundingClientRect().height);
-    assert.ok(Math.abs(ch - sh) <= 1.5, 'same chip height ' + ch + ' vs ' + sh);
+    assert.deepEqual(labels.map(l => l.replace(/ \d+$/, '')), ['all', 'review', 'added', 'matched', 'skipped']);
+    assert.equal(await page.locator('.tx-chips [data-action="bk-sync"], .tx-chips .chip-sync').count(), 0, 'no Sync chip');
+    const hdr = page.locator('.tx-card .card-h .tx-hb > button');
+    assert.deepEqual(await hdr.evaluateAll(bs => bs.map(b => b.dataset.action)), ['shot-open', 'add', 'bk-sync']);
+    const hb = await hdr.evaluateAll(bs => bs.map(b => { const r = b.getBoundingClientRect(); return [r.x, r.width, r.height]; }));
+    hb.forEach(x => assert.ok(x[1] >= 40 && x[2] >= 40, 'tap target ' + x));
+    assert.ok(hb[0][0] + hb[0][1] <= hb[1][0] && hb[1][0] + hb[1][1] <= hb[2][0], 'no overlap');
+    const cs = await page.$$eval('.tx-chips > button', bs => bs.map(x => { const r = x.getBoundingClientRect(); return [Math.round(r.top), r.width, r.height]; }));
+    assert.ok(cs.every(c => c[0] === cs[0][0] && Math.abs(c[1] - cs[0][1]) <= 1 && Math.abs(c[2] - cs[0][2]) <= 1), 'equal chips ' + JSON.stringify(cs));
     const fits = await page.$eval('.tx-chips', el => el.scrollWidth <= el.clientWidth + 1);
-    if (w >= 390) assert.ok(fits, 'chips fit without internal scroll at ' + tag);
+    assert.ok(fits, 'chips fit without internal scroll at ' + tag);
     await noHScroll(page, 'transactions ' + tag);
-    // header: title + subline + Screenshot only
     assert.match((await page.locator('.tx-card .card-h .meta').innerText()), /^Updated (5 min ago|just now|6 min ago)$/i);
     const mh = await page.locator('.tx-card .card-h .meta').evaluate(el => [el.getBoundingClientRect().height, parseFloat(getComputedStyle(el).lineHeight) || 20]);
     assert.ok(mh[0] <= mh[1] * 1.6, 'subline on one line');
-    assert.equal(await page.locator('.tx-card .card-h [data-action="shot-open"]').count(), 1);
   });
 
-  if (w === 390) await step(`Sync chip: spinner + "Syncing…" in the chip, disabled, then toast (${tag})`, async () => {
+  if (w === 390) await step(`Sync icon: spins and is disabled while syncing, then toast (${tag})`, async () => {
     mock.syncDelay = 1200; mock.txns = [T('rev', TODAY, 'Corner Cafe', 12.34), T('new1', TODAY, 'Bakery', 4.5)];
-    await page.click('.tx-chips [data-action="bk-sync"]');
-    await page.waitForSelector('.tx-chips [data-action="bk-sync"][disabled] .spin', { timeout: 500 });
-    assert.match(await page.locator('.tx-chips [data-action="bk-sync"]').innerText(), /Syncing…/);
+    await page.click('.tx-card .card-h [data-action="bk-sync"]');
+    await page.waitForSelector('.tx-card .card-h [data-action="bk-sync"][disabled].spinning', { timeout: 500 });
     await noHScroll(page, 'syncing ' + tag);
-    const inner = await page.$eval('.tx-chips', el => el.scrollWidth <= el.clientWidth + 1 || 'scrolls internally');
-    assert.ok(inner === true || inner === 'scrolls internally');
     await page.waitForFunction(() => /new transaction/i.test(document.querySelector('#toast').textContent), null, { timeout: 6000 });
-    await page.waitForSelector('.tx-chips [data-action="bk-sync"]:not([disabled])');
-    assert.equal((await page.locator('.tx-chips [data-action="bk-sync"]').innerText()).trim().toLowerCase(), 'sync');
+    await page.waitForSelector('.tx-card .card-h [data-action="bk-sync"]:not([disabled])');
     assert.match(await page.locator('.tx-card .meta').innerText(), /Updated just now/i);
     mock.syncDelay = 0;
-    if (dark) { await quiet(page); await page.screenshot({ path: SHOTS + '/tx-header-390.png' }); } else { await quiet(page); await page.screenshot({ path: SHOTS + '/tx-header-light-390.png' }); }
+    if (dark) { await quiet(page); await page.screenshot({ path: SHOTS + '/tx-header-v15-390.png' }); } else { await quiet(page); await page.screenshot({ path: SHOTS + '/tx-header-v15-light-390.png' }); }
   });
 
   await step(`Spent summary equals hero Spent so far (cycle) and the month total (Month); switch persists; list total matches (${tag})`, async () => {
@@ -163,7 +159,7 @@ for (const [w, h, dark] of [[390, 844, true], [390, 844, false], [669, 951, true
   await step(`Note stays after the bank copy links (Transactions row, Overview, Spent list) (${tag})`, async () => {
     mock.txns = [T('rev', TODAY, 'Corner Cafe', 12.34), T('dd', TODAY, 'DoorDash', 16.2, { rawDesc: 'DD *DOORDASH 855-973-1040 CA' })];
     await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx-card');
-    await page.click('.tx-chips [data-action="bk-sync"]');
+    await page.click('.tx-card [data-action="bk-sync"]');
     await page.waitForFunction(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); return !!(s.bank.seen['pl:dd'] && s.bank.seen['pl:dd'].src === 'shot'); }, null, { timeout: 8000 });
     await page.waitForTimeout(300);
     const s = await getState(page);
