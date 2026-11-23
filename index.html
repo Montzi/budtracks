@@ -1897,7 +1897,8 @@ const BT = (() => {
   // Money in near a payday that does not come from the employer is a transfer or refund, never part of the paycheck.
   // "PAYPAL to <your own name>" moves your own money (a PayPal top-up), it is not a purchase or a Pay-in-4 plan.
   function ownNameTransfer(st, txn) {
-    const me = tokens(st && st.displayName); if (!me.length || !txn || !(txn.amount > 0)) return false;
+    // The greeting sheet saves the name under settings; older states may have it at the top level.
+    const me = tokens(st && ((st.settings && st.settings.displayName) || st.displayName)); if (!me.length || !txn || !(txn.amount > 0)) return false;
     const d = [txn.desc, txn.rawDesc].filter(Boolean).join(' ');
     if (!/paypal|venmo|cash\s*app/i.test(d) || !/\bto\b/i.test(d)) return false;
     const toks = tokens(d);
