@@ -151,7 +151,7 @@ for (const [w, h] of SIZES) for (const scheme of process.env.BT_ONE ? ['dark'] :
     await setView(page, 'weekly'); await setView(page, 'biweekly');
     assert.ok(await page.evaluate(() => document.querySelector('#brandbar').__tag === 'same' && document.querySelector('#brandbar svg.hd').__tag === 'same' && document.querySelector('#periodBtn').__tag === 'same'), 'remounted');
     assert.deepEqual(await page.evaluate(() => document.getAnimations().filter(a => a.animationName === 'glowDrift').map(a => a.startTime)), await page.evaluate(() => window.__anim));
-    await go(page, 'income'); await page.locator('#brandbar svg.hd').dispatchEvent('click'); await page.waitForSelector('#sheet:not([hidden]) .hat-sw'); await page.keyboard.press('Escape');
+    await go(page, 'income'); await page.locator('#brandbar svg.hd').dispatchEvent('click'); await page.waitForSelector('#budchat:not([hidden])'); await page.click('.bc-h [data-action="style"]'); await page.waitForSelector('#sheet:not([hidden]) .hat-sw'); await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
   });
   if (w === 390 || w === 951) await step(`${tag}: screenshots`, async () => {
     await page.evaluate(() => document.querySelectorAll('.sync').forEach(e => { e.textContent = 'Saved'; }));

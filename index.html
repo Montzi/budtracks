@@ -473,6 +473,38 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .icon-inline { grid-column: span 2; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
 .icon-inline[hidden] { display: none; }
 .lg-now .slogo { margin: -4px 0; }
+/* Ask Bud: a chat window under the logo */
+.bc-wrap { position: fixed; inset: 0; z-index: 38; }
+.bc-back { position: absolute; inset: 0; background: #0a0e1873; }
+.bc { position: absolute; top: var(--bc-top, 120px); bottom: calc(var(--bc-bottom, 0px) + 8px + env(safe-area-inset-bottom)); left: var(--bc-left, 0px); width: var(--bc-w, 100%); max-width: 100%;
+  display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow), 0 18px 50px #0006; overflow: hidden; animation: bcIn .18s ease-out; }
+@media (max-width: 699px) { .bc { left: 8px; right: 8px; width: auto; } }
+@keyframes bcIn { from { opacity: 0; transform: translateY(-8px); } }
+@media (prefers-reduced-motion: reduce) { .bc { animation: none; } }
+.bc-h { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 12px; border-bottom: 1px solid var(--line); }
+.bc-sp { flex: 1; }
+.bc-new[hidden] { display: none; }
+.bc-log { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 14px 12px 6px; display: flex; flex-direction: column; gap: 8px; }
+.bc-m { display: flex; align-items: flex-end; gap: 8px; max-width: 88%; }
+.bc-m p { margin: 0; padding: 9px 13px; border-radius: 18px; font-size: 15px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bc-m.bot p { background: var(--surface-2); color: var(--ink); border-bottom-left-radius: 6px; }
+.bc-m.bot.err p { color: var(--ink-2); }
+.bc-m.me { align-self: flex-end; }
+.bc-m.me p { background: var(--accent); color: var(--accent-ink, #0b1222); border-bottom-right-radius: 6px; }
+.bc-m.bot + .bc-m.bot .bc-av { visibility: hidden; }
+.bc-av { flex: none; width: 36px; height: 32px; display: grid; place-items: center; }
+.bc-av svg { width: 36px; height: auto; }
+.bc-m.typing p { display: flex; gap: 4px; padding: 13px 14px; }
+.bc-m.typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-2); animation: bcDot 1s infinite ease-in-out; }
+.bc-m.typing i:nth-child(2) { animation-delay: .15s; } .bc-m.typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes bcDot { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+.bc-sug { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 38px; }
+.bc-in { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
+.bc-in input { flex: 1; min-width: 0; height: 44px; border-radius: 22px; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink); padding: 0 16px; font-size: 16px; }
+.bc-in input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+.bc-send { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink, #0b1222); display: grid; place-items: center; }
+body.bc-on { overflow: hidden; }
+.settings-anchor { scroll-margin-top: 12px; }
 .bk-sum { list-style: none; margin: 0 0 12px; padding: 12px 14px; display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); font-size: 14px; color: var(--ink-2); }
 .bk-sum b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .lg-acts { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
@@ -1215,6 +1247,12 @@ body.dragging-bank { cursor: grabbing; -webkit-user-select: none; user-select: n
   <a href="#income"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>Income<span class="badge" aria-hidden="true" hidden></span></a>
 </div></nav>
 <div id="sheet" class="sheet-wrap" hidden><div class="backdrop" data-action="close"></div><div class="sheet" role="dialog" aria-modal="true"><div id="sheetBody"></div></div></div>
+<div id="budchat" class="bc-wrap" hidden><div class="bc-back" data-action="bc-close"></div><section class="bc" role="dialog" aria-modal="true" aria-labelledby="bc-title">
+  <header class="bc-h"><h2 id="bc-title" class="sr">Ask Bud</h2><button type="button" class="btn sm" data-action="style">Style</button><button type="button" class="btn sm" data-action="settings">Settings</button><span class="bc-sp"></span><button type="button" class="btn sm bc-new" data-action="bc-new" hidden>New chat</button><button type="button" class="icon-btn" data-action="bc-close" aria-label="Close">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
+  <div class="bc-log" id="bclog" aria-live="polite"></div>
+  <form class="bc-in" id="bcform" autocomplete="off"><label class="sr" for="bcq">Ask Bud</label><input id="bcq" type="text" placeholder="Ask Bud about your money" maxlength="600" enterkeyhint="send"><button type="submit" class="bc-send" aria-label="Send"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5"/></svg></button></form>
+</section></div>
 <div id="tip" class="tip" aria-hidden="true"></div>
 <div id="bud" class="bud" role="status" aria-live="polite"></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -2338,7 +2376,7 @@ function hatSVG(h) {
     <path d="M6 40 q44 -14 88 0 q-8 12 -44 12 q-36 0 -44 -12z" fill="${brim}" stroke="${line}" stroke-width="3" stroke-linejoin="round"/>`;
 }
 function headSVG(h, cls) {
-  return `<svg class="${cls || 'hd'}" viewBox="4 -12 102 84" ${cls ? 'aria-hidden="true"' : 'role="button" tabindex="0" data-action="hat" aria-label="Change the hat"'}>
+  return `<svg class="${cls || 'hd'}" viewBox="4 -12 102 84" ${cls ? 'aria-hidden="true"' : 'role="button" tabindex="0" data-action="bud" aria-label="Ask Bud"'}>
 <g transform="translate(31 0) scale(.48)"><circle cx="50" cy="56" r="44" fill="#d8b26a"/><circle cx="50" cy="56" r="37" fill="none" stroke="#b8893b" stroke-width="4"/>
 ${hatSVG(h)}
 <path d="M16 50 h28 a3 3 0 0 1 3 3 v4 a11 11 0 0 1 -11 11 h-7 a11 11 0 0 1 -11 -11 v-4 a3 3 0 0 1 3 -3z M56 50 h28 a3 3 0 0 1 3 3 v4 a11 11 0 0 1 -11 11 h-7 a11 11 0 0 1 -11 -11 v-4 a3 3 0 0 1 3 -3z" fill="#111726"/>
@@ -2349,9 +2387,9 @@ const hat = () => Object.assign({ color: '#16181d', dir: 'front' }, (typeof stat
 const logo = () => `<span class="wm" role="img" aria-label="BudTracks"><span class="b">Bud</span><span class="stem"></span><span class="r">racks</span>${headSVG(hat())}</span>`;
 function hatSheet() {
   const h = hat();
-  openSheet(`<div class="sheet-h"><div><h3>Hat</h3><p class="lede">Pick a color and which way it faces.</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+  openSheet(`<div class="sheet-h"><div><h3>Style</h3><p class="lede">Bud's hat and how the app looks.</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
     <div class="hat-prev" id="hatprev">${headSVG(h, 'hp')}</div>
-    <div class="subhead" style="border:0;padding-left:0">Color</div>
+    <div class="subhead" style="border:0;padding-left:0">Hat color</div>
     <div class="hat-sw">${HAT_COLORS.map(([n, c]) => `<button class="sw-c" data-action="hat-color" data-c="${c}" aria-pressed="${h.color === c}" aria-label="${n}" title="${n}" style="--c:${c}"></button>`).join('')}
       <label class="sw-custom" title="Custom color"><input type="color" id="hatcustom" value="${h.color}" aria-label="Custom color"><span>Custom</span></label></div>
     <div class="subhead" style="border:0;padding-left:0;margin-top:10px">Facing</div>
@@ -3324,6 +3362,7 @@ function viewIncome() {
     ${svOn() ? `<p class="inc-sv meta">Savings ${hid() ? MASK : fmt(svBal())}</p>` : ''}
     <p class="note">Each pay cycle starts on a paycheck date and runs until the day before the next one. A bill belongs to the most recent deposit before its due date, so <b>Up next</b> always shows what this paycheck has to cover.</p>
   </div>
+  <div id="settings" class="settings-anchor"></div>
   ${catManager()}
   ${viaManager()}
   ${bankCard()}
@@ -6457,7 +6496,12 @@ document.addEventListener('click', async e => {
     case 'restore-item': { const item = findItem(a.dataset.type, a.dataset.id); if (item) delete item.endDate; commit('Restored ' + (item.name || item.merchant)); break; }
     case 'allocate': allocSheet(a.dataset.id); break;
     case 'pick-icon': iconSheet(a.dataset.cat); break;
-    case 'hat': hatSheet(); break;
+    case 'hat': case 'style': hatSheet(); break;
+    case 'bud': budChatOpen(); break;
+    case 'bc-close': budChatClose(); break;
+    case 'bc-new': CHAT.msgs = []; chatSave(); chatPaint(); $('#bcq').focus(); break;
+    case 'bc-ask': budAsk(a.dataset.q); break;
+    case 'settings': goSettings(); break;
     case 'hat-color': setHat({ color: a.dataset.c }); break;
     case 'hat-dir': setHat({ dir: a.dataset.d }); break;
     case 'via-edit': openViaEdit(a.closest('form')); break;
@@ -6536,11 +6580,13 @@ document.addEventListener('click', async e => {
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !$('#sheet').hidden) closeSheet();
+  else if (e.key === 'Escape' && !$('#budchat').hidden) budChatClose();
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role="button"][data-action]')) { e.preventDefault(); e.target.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
 });
 document.addEventListener('submit', e => {
   e.preventDefault();
   if (e.target.id === 'form') saveForm(e.target);
+  if (e.target.id === 'bcform') budAsk();
   if (e.target.id === 'occform') saveOcc(e.target);
   if (e.target.id === 'postform') savePostpone(e.target);
   if (e.target.id === 'bankplan') saveBankPlan(e.target);
@@ -6643,6 +6689,111 @@ document.addEventListener('mouseout', e => {
   if (h && !(e.relatedTarget && h.contains(e.relatedTarget))) { budHover = false; clearTimeout(budTimer); budTimer = setTimeout(() => $('#bud').classList.remove('on'), 250); }
 });
 window.addEventListener('scroll', () => { if (!budHover) $('#bud').classList.remove('on'); }, { passive: true });
+
+/* ---------- Ask Bud ---------- */
+// Tap Bud: a chat window under the logo. Questions go to the BudTracks server (/ask) with a compact summary built here
+// (totals, trends, upcoming, recent lines), never the raw data. The chat lives only in this browser (not in backups).
+const CHATLS = 'budtrack.chat';
+const CHAT = { msgs: (() => { try { const v = JSON.parse(localStorage.getItem(CHATLS) || '[]'); return Array.isArray(v) ? v.filter(m => m && (m.r === 'me' || m.r === 'bud') && typeof m.t === 'string').slice(-60) : []; } catch (e) { return []; } })(), busy: false };
+function chatSave() { CHAT.msgs = CHAT.msgs.slice(-60); try { localStorage.setItem(CHATLS, JSON.stringify(CHAT.msgs)); } catch (e) {} }
+const BC_SUGGEST = ['How am I doing this pay cycle?', 'What changed from last cycle?', 'Where can I cut back?', "What's due before payday?"];
+function chatPaint() {
+  const log = $('#bclog'); if (!log) return;
+  const name = String(state.settings.displayName || '').trim().split(/\s+/)[0];
+  const av = `<span class="bc-av" aria-hidden="true">${headSVG(hat(), 'mini')}</span>`;
+  const row = m => m.r === 'me' ? `<div class="bc-m me"><p>${esc(m.t)}</p></div>` : `<div class="bc-m bot${m.err ? ' err' : ''}">${av}<p>${esc(m.t)}</p></div>`;
+  let html = `<div class="bc-m bot">${av}<p>Hi${name ? ' ' + esc(name) : ''}! I'm Bud. Ask me anything about your money: trends, what's due, where it's going.</p></div>`;
+  if (!CHAT.msgs.length) html += `<div class="bc-sug">${BC_SUGGEST.map(q => `<button type="button" class="chip" data-action="bc-ask" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>`;
+  html += CHAT.msgs.map(row).join('');
+  if (CHAT.busy) html += `<div class="bc-m bot typing">${av}<p aria-label="Bud is thinking"><i></i><i></i><i></i></p></div>`;
+  log.innerHTML = html; log.scrollTop = log.scrollHeight;
+  const nb = document.querySelector('.bc-new'); if (nb) nb.hidden = !CHAT.msgs.length;
+}
+// Sits right under the brand header (or the top of the screen when it is scrolled away) and above the keyboard.
+function chatPlace() {
+  const w = $('#budchat'); if (!w || w.hidden) return;
+  const bb = $('#brandbar').getBoundingClientRect(), vv = window.visualViewport, vh = vv ? vv.height + vv.offsetTop : innerHeight;
+  const wide = innerWidth >= 700, left = wide ? Math.max(12, bb.left) : 0;
+  w.style.setProperty('--bc-top', Math.max(8, Math.round(bb.bottom + 8)) + 'px');
+  w.style.setProperty('--bc-bottom', Math.max(0, Math.round(innerHeight - vh)) + 'px');
+  w.style.setProperty('--bc-left', left + 'px');
+  w.style.setProperty('--bc-w', (wide ? Math.min(560, innerWidth - left - 12) : innerWidth) + 'px');
+}
+function budChatOpen() {
+  const w = $('#budchat'); closePeriod(false); $('#bud').classList.remove('on');
+  w.hidden = false; document.body.classList.add('bc-on'); chatPlace(); chatPaint();
+  if (matchMedia('(pointer: fine)').matches) setTimeout(() => $('#bcq').focus(), 30);
+}
+function budChatClose() { $('#budchat').hidden = true; document.body.classList.remove('bc-on'); }
+window.addEventListener('resize', chatPlace);
+if (window.visualViewport) { visualViewport.addEventListener('resize', chatPlace); visualViewport.addEventListener('scroll', chatPlace); }
+function goSettings() {
+  budChatClose(); if (!$('#sheet').hidden) closeSheet();
+  if (currentTab() !== 'income') location.hash = '#income';
+  setTimeout(() => { const el = $('#settings'); if (el) el.scrollIntoView({ block: 'start' }); }, 120);
+}
+// Earlier questions and answers, newest last, for follow-ups ("and last month?").
+function chatHistory() {
+  const out = []; let q = null, a = [];
+  CHAT.msgs.forEach(m => { if (m.err) return; if (m.r === 'me') { if (q && a.length) out.push({ q, a: a.join('\n\n') }); q = m.t; a = []; } else if (q) a.push(m.t); });
+  if (q && a.length) out.push({ q, a: a.join('\n\n') });
+  return out.slice(-6);
+}
+async function budAsk(text) {
+  const inp = $('#bcq'), q = String(text != null ? text : inp.value).trim().slice(0, 600); if (!q || CHAT.busy) return;
+  const history = chatHistory();
+  inp.value = ''; CHAT.msgs.push({ r: 'me', t: q, at: new Date().toISOString() }); chatSave();
+  const say = (t, err) => { CHAT.msgs.push({ r: 'bud', t, at: new Date().toISOString(), err: err ? 1 : undefined }); chatSave(); };
+  if (!bankReady()) { say('I talk through the BudTracks server, and this phone is not paired with it yet. Pair it on the Income tab under Bank connections, then ask me again.', 1); chatPaint(); return; }
+  CHAT.busy = true; chatPaint();
+  try {
+    const r = await bankFetch('/ask', { method: 'POST', body: { q, history, ctx: aiContext(), today: TODAY }, timeout: 100000 });
+    CHAT.busy = false;
+    const bs = Array.isArray(r.bubbles) ? r.bubbles.filter(x => typeof x === 'string' && x.trim()).slice(0, 6) : [];
+    if (!bs.length) { say('Hmm, I lost my train of thought. Try asking again?', 1); chatPaint(); return; }
+    // One bubble at a time, like texting.
+    for (let i = 0; i < bs.length; i++) { if (i) { CHAT.busy = true; chatPaint(); await new Promise(ok => setTimeout(ok, 420)); CHAT.busy = false; } say(bs[i].slice(0, 1200)); chatPaint(); }
+  } catch (e) {
+    CHAT.busy = false;
+    say(e.status === 429 ? (/daily limit/.test(e.message) ? "That's all the thinking I can do today. Ask me again tomorrow!" : 'I am a bit busy right now. Try again in a minute.')
+      : e.status === 503 ? "I'm not switched on yet: the server needs its Anthropic key." : e.status === 404 ? 'The server is out of date. It updates itself shortly, then ask me again.'
+      : e.offline ? "I can't reach the server. Check your connection and try again." : e.message || 'Something went wrong. Try again?', 1);
+    chatPaint();
+  }
+}
+// The summary Bud reads. Precomputed so Bud describes numbers instead of adding them up. Positive amounts are money out.
+function aiContext() {
+  const view = state.settings.view, unit = VIEWNAME[view], r = BT.periodRange(state, view, 0, TODAY), h = heroNums(r), s = h.s, R = BT.round2;
+  const byCat = items => { const o = {}; items.forEach(x => { if (!(x.amount > 0)) return; const g = chartGroup(x), l = chartLeaf(x), k = g === l ? g : g + ' > ' + l; o[k] = R((o[k] || 0) + x.amount); }); return Object.fromEntries(Object.entries(o).sort((a, b) => b[1] - a[1])); };
+  const period = rr => { const ss = BT.summary(state, rr, TODAY); return { start: rr.start, end: rr.end, income: R(ss.income), planned_and_spent: R(ss.items.reduce((a, x) => a + (x.amount > 0 ? x.amount : 0), 0)), paid_so_far: R(ss.paid), by_category: byCat(ss.items) }; };
+  const cycles = []; for (let i = -5; i <= 0; i++) { const rr = BT.periodRange(state, view, i, TODAY); if (rr.end > state.since || i === 0) cycles.push(period(rr)); }
+  const months = []; for (let i = -2; i <= 0; i++) { const rr = BT.periodRange(state, 'monthly', i, TODAY); if (rr.end > state.since || i === 0) months.push(Object.assign(period(rr), { month: MON[BT.parse(rr.start).getMonth()] + ' ' + BT.parse(rr.start).getFullYear() })); }
+  const seenK = new Set(), soon = BT.addDays(TODAY, 21);
+  const upcoming = BT.summary(state, { start: TODAY, end: soon, view }, TODAY).items.concat(s.items)
+    .filter(x => x.kind !== 'spend' && x.kind !== 'unalloc' && !x.paid && x.date >= BT.addDays(TODAY, -7) && x.date <= soon && !seenK.has(x.key) && seenK.add(x.key))
+    .sort((a, b) => a.date.localeCompare(b.date)).slice(0, 40).map(x => ({ name: x.name, kind: x.kind === 'bill' && isSubBill(x) ? 'subscription' : x.kind, due: x.date, amount: R(x.amount), overdue: x.date < TODAY || undefined }));
+  const subs = live(state.bills).filter(b => isSubBill(b) && b.active !== false);
+  const plans = state.plans.map(p => { const st = BT.planStatus(state, p, TODAY); return st && st.left > 0 ? { merchant: p.merchant, provider: p.provider, payment: R(p.amount), left: st.left, owed: R(st.owed), next: st.next ? st.next.date : null } : null; }).filter(Boolean);
+  const cards = state.cards.map(c => ({ name: c.name, balance: R(c.balance || 0), limit: c.limit || null, minimum: c.minPayment || null, due_day: c.day || null }));
+  const accounts = bankAccts().map(([it, a]) => ({ bank: it.institution, name: a.name, type: isSvAcct(a) ? 'savings' : a.type, balance: balOf(a) })).filter(a => a.balance !== null);
+  const catOf = t => { try { const rr = state.bank.seen[t.id], x = rr && rr.spendId && state.spends.find(z => z.id === rr.spendId); return t.amount < 0 ? 'Money in' : (x && x.category) || (rr && rr.res && rr.res !== 'spend' ? rr.what || rr.res : '') || BT.guessCategory(state, t).category || ''; } catch (e) { return ''; } };
+  const from = BT.addDays(TODAY, -75), txl = Object.values(state.bank.txns || {}).filter(t => t && t.date >= from && !t.pendingOf).sort((a, b) => b.date.localeCompare(a.date));
+  const tx = txl.slice(0, 220).map(t => ({ d: t.date, m: cleanMerchant(t), a: R(t.amount), c: catOf(t) || undefined, acct: (acctObj(t) || {}).institution || undefined, pending: t.status === 'pending' || undefined }));
+  const mer = {}; txl.filter(t => t.amount > 0 && t.date >= BT.addDays(TODAY, -30)).forEach(t => { const m = cleanMerchant(t); (mer[m] = mer[m] || { name: m, total: 0, count: 0 }).total = R(mer[m].total + t.amount); mer[m].count++; });
+  const name = String(state.settings.displayName || '').trim().split(/\s+/)[0] || undefined;
+  return {
+    name, today: TODAY, budget_period: unit, tracking_since: state.since,
+    this_period: { start: r.start, end: r.end, income: R(s.income), spent_so_far: h.spentAll, still_due: R(s.due), left_after_everything: h.remain, to_review_lines: (state.bank.inbox || []).length, spent_on_lines_to_review: R(h.unrev) },
+    income: state.income.map(i => ({ name: i.name, how_often: FREQ[i.freq] || i.freq, usual_amount: R(i.amount || 0) })),
+    periods_oldest_first: cycles, months_oldest_first: months,
+    budgets_this_period: s.items.filter(x => x.kind === 'spend' && x.on).map(x => ({ name: x.name, spent: R(x.spent || 0), budget: R(x.budget || x.amount) })),
+    upcoming_unpaid: upcoming,
+    subscriptions: { count: subs.length, monthly_total: R(subs.reduce((a, b) => a + b.amount, 0)), list: subs.map(b => ({ name: b.name, amount: R(b.amount), day: b.day })) },
+    pay_plans: plans, credit_cards: cards, bank_accounts: accounts, savings: svOn() ? R(svBal()) : undefined,
+    top_merchants_30_days: Object.values(mer).sort((a, b) => b.total - a.total).slice(0, 15),
+    transactions_75_days: tx
+  };
+}
 
 /* ---------- Render ---------- */
 function viewPlansTab() {

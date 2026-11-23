@@ -178,7 +178,8 @@ for (const [w, h, dark] of [[390, 844, true], [390, 844, false], [669, 951, true
   await step(`Appearance control in the hat sheet: Auto/Light/Dark switches data-theme and persists (${tag})`, async () => {
     await page.goto(BASE + '#overview'); await page.waitForSelector('.hs-tap dd');
     await page.evaluate(() => { const b = document.querySelector('#bud'); if (b) b.style.display = 'none'; });
-    await page.locator('.wm svg.hd').first().dispatchEvent('click');
+    await page.locator('.wm svg.hd').first().dispatchEvent('click'); await page.waitForSelector('#budchat:not([hidden])');
+    await page.click('.bc-h [data-action="style"]');
     await page.waitForSelector('#sheet .theme-seg');
     assert.deepEqual((await page.locator('#sheet .theme-seg button').allInnerTexts()).map(t => t.trim()), ['Auto', 'Light', 'Dark']);
     await page.click('#sheet .theme-seg [data-t="dark"]');
@@ -193,7 +194,8 @@ for (const [w, h, dark] of [[390, 844, true], [390, 844, false], [669, 951, true
     if (w === 390 && dark) { await quiet(page); await page.screenshot({ path: SHOTS + '/hat-theme-390.png' }); }
     await page.reload({ waitUntil: 'load' });
     assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light', 'persists after reload');
-    await page.locator('.wm svg.hd').first().dispatchEvent('click');
+    await page.locator('.wm svg.hd').first().dispatchEvent('click'); await page.waitForSelector('#budchat:not([hidden])');
+    await page.click('.bc-h [data-action="style"]');
     await page.waitForSelector('#sheet .theme-seg');
     assert.equal(await page.locator('#sheet .theme-seg [data-t="light"]').getAttribute('aria-pressed'), 'true');
     await page.click('#sheet .theme-seg [data-t="auto"]');

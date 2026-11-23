@@ -59,6 +59,7 @@ async function newPage(w, h, o) {
     if (p === '/sync') return json({ txns: mock.txns, removed: mock.removed || [], errors: [], syncToken: 'tok', syncedAt: new Date().toISOString() });
     if (p === '/status') return json({ items: [], refresh: { supported: false, reason: 'no' }, balance: { supported: false, reason: 'no' }, env: 'production', at: new Date().toISOString() });
     if (p === '/snapshot') return json({ ok: true });
+    if (p === '/ask') { mock.asks = mock.asks || []; mock.asks.push(JSON.parse(req.postData() || '{}')); if (mock.askDelay) await new Promise(ok => setTimeout(ok, mock.askDelay)); return mock.askErr ? json({ error: mock.askErr[1] }, mock.askErr[0]) : json(mock.ask || { bubbles: ['You have $412 left this cycle after bills.', 'Groceries are $40 higher than last cycle, mostly Shoprite.', 'Rent is due in 6 days.'] }); }
     return json({ error: 'nope' }, 404);
   });
   await page.goto(BASE, { waitUntil: 'load' });
@@ -195,5 +196,94 @@ const LOGO_TXNS = () => [T('sr1', TODAY, 'SHOPRITE 123', 41.2), T('sr2', addD(TO
     assert.deepEqual(errs2, []);
   });
   await ctx2.close();
+}
+
+/* ---------- 3. Ask Bud ---------- */
+for (const [w, h, dark] of [[390, 844, true], [951, 669, false]]) {
+  const tag = `${w}x${h} ${dark ? 'dark' : 'light'}`;
+  const { ctx, page, errs, mock } = await newPage(w, h, { dark, hash: '#overview', txns: LOGO_TXNS() });
+  await step(`${tag}: tapping Bud opens the chat under the logo with Style, Settings, a greeting and suggestions`, async () => {
+    await quiet(page);
+    await page.locator('#brandbar svg.hd').dispatchEvent('click');
+    await page.waitForSelector('#budchat:not([hidden]) .bc');
+    const g = await page.evaluate(() => { const bb = document.querySelector('#brandbar').getBoundingClientRect(), bc = document.querySelector('.bc').getBoundingClientRect(); return { top: bc.top, bbBottom: bb.bottom, left: bc.left, right: bc.right, bottom: bc.bottom, vw: innerWidth, vh: innerHeight }; });
+    assert.ok(g.top >= g.bbBottom && g.top - g.bbBottom < 20, 'under the logo ' + JSON.stringify(g));
+    assert.ok(g.right <= g.vw && g.left >= 0 && g.bottom <= g.vh, 'inside the screen ' + JSON.stringify(g));
+    assert.equal(await page.locator('.bc-h [data-action="style"]').innerText(), 'Style');
+    assert.equal(await page.locator('.bc-h [data-action="settings"]').innerText(), 'Settings');
+    assert.match(await txt(page, '.bc-m.bot'), /I'm Bud/);
+    assert.equal(await page.locator('.bc-sug .chip').count(), 4);
+    await noHScroll(page, tag + ' chat');
+    await page.waitForTimeout(300); await page.screenshot({ path: SHOTS + `/v22-chat-open-${w}.png` });
+  });
+  await step(`${tag}: a suggestion asks Bud: the request carries the summary (no raw data), the answer arrives as bubbles`, async () => {
+    await page.click('.bc-sug .chip >> nth=0');
+    await page.waitForFunction(() => document.querySelectorAll('.bc-m.bot:not(.typing)').length >= 4, null, { timeout: 8000 });
+    const a = mock.asks[0];
+    assert.equal(a.q, 'How am I doing this pay cycle?'); assert.deepEqual(a.history, []); assert.equal(a.today, TODAY);
+    for (const k of ['this_period', 'periods_oldest_first', 'months_oldest_first', 'upcoming_unpaid', 'transactions_75_days', 'top_merchants_30_days', 'budgets_this_period']) assert.ok(k in a.ctx, k);
+    assert.ok(a.ctx.transactions_75_days.some(t => t.m === 'Shoprite 123' && t.a === 41.2));
+    const raw = JSON.stringify(a);
+    assert.ok(raw.length < 120 * 1024, 'size ' + raw.length);
+    assert.ok(!/secret-device-key|data:image|logos|"marks"/.test(raw), 'no key, logos or raw state');
+    const bubbles = await page.locator('.bc-m.bot:not(.typing) p').allInnerTexts();
+    assert.deepEqual(bubbles.slice(1), ['You have $412 left this cycle after bills.', 'Groceries are $40 higher than last cycle, mostly Shoprite.', 'Rent is due in 6 days.']);
+    assert.equal(await page.locator('.bc-sug').count(), 0);
+    await page.screenshot({ path: SHOTS + `/v22-chat-answer-${w}.png` });
+  });
+  await step(`${tag}: a typed follow-up sends the earlier question and answer as history`, async () => {
+    mock.ask = { bubbles: ['Last cycle you had $380 left, so you are $32 ahead.'] };
+    await page.fill('#bcq', 'And compared to last cycle?'); await page.press('#bcq', 'Enter');
+    await page.waitForFunction(() => [...document.querySelectorAll('.bc-m.bot p')].some(p => /\$32 ahead/.test(p.textContent)));
+    const a = mock.asks[1];
+    assert.equal(a.history.length, 1); assert.equal(a.history[0].q, 'How am I doing this pay cycle?'); assert.match(a.history[0].a, /\$412 left[\s\S]*Rent is due/);
+    assert.equal(await page.inputValue('#bcq'), '');
+  });
+  if (w !== 390) { await step(`${tag}: no page errors`, async () => assert.deepEqual(errs, [])); await ctx.close(); continue; }
+  await step(`${tag}: while Bud thinks, a typing bubble shows; the daily limit gets a friendly answer`, async () => {
+    mock.askErr = [429, 'daily limit']; mock.askDelay = 600;
+    await page.fill('#bcq', 'One more?'); await page.press('#bcq', 'Enter');
+    await page.waitForSelector('.bc-m.typing');
+    await page.waitForSelector('.bc-m.bot.err');
+    assert.match(await txt(page, '.bc-m.bot.err'), /Ask me again tomorrow/);
+    mock.askErr = null; mock.askDelay = 0;
+  });
+  await step(`${tag}: Style opens the hat and appearance sheet on top of the chat`, async () => {
+    await page.click('.bc-h [data-action="style"]');
+    await page.waitForSelector('#sheet:not([hidden]) .hat-sw');
+    assert.match(await txt(page, '#sheet h3'), /^Style$/);
+    assert.ok(await page.locator('#sheet .theme-seg, #sheet [data-action="theme"]').count() > 0, 'appearance in Style');
+    await page.click('#sheet [data-action="hat-color"] >> nth=2');
+    await page.keyboard.press('Escape'); await page.waitForSelector('#sheet', { state: 'hidden' });
+    assert.equal(await page.locator('#budchat').isHidden(), false);
+  });
+  await step(`${tag}: the chat is kept after a reload; New chat clears it`, async () => {
+    await page.reload({ waitUntil: 'load' }); await quiet(page);
+    await page.locator('#brandbar svg.hd').dispatchEvent('click'); await page.waitForSelector('#budchat:not([hidden])');
+    assert.ok((await page.locator('.bc-m.me').count()) >= 2);
+    await page.click('[data-action="bc-new"]');
+    assert.equal(await page.locator('.bc-m.me').count(), 0); assert.equal(await page.locator('.bc-sug .chip').count(), 4);
+  });
+  await step(`${tag}: Settings goes to the Income tab, scrolled to the settings below the income part`, async () => {
+    await page.click('.bc-h [data-action="settings"]');
+    await page.waitForFunction(() => location.hash === '#income');
+    await page.waitForTimeout(400);
+    assert.equal(await page.locator('#budchat').isHidden(), true);
+    const top = await page.evaluate(() => document.querySelector('#settings').getBoundingClientRect().top);
+    assert.ok(top >= -2 && top < 60, 'settings at the top: ' + top);
+    assert.ok(await page.evaluate(() => scrollY > 50));
+  });
+  await step(`${tag}: without the pairing key Bud explains how to connect, and nothing is sent`, async () => {
+    await page.evaluate(() => localStorage.removeItem('budtrack.bankkey'));
+    await page.reload({ waitUntil: 'load' }); await quiet(page);
+    const n = mock.asks.length;
+    await page.locator('#brandbar svg.hd').dispatchEvent('click');
+    await page.fill('#bcq', 'Hi'); await page.press('#bcq', 'Enter');
+    await page.waitForSelector('.bc-m.bot.err');
+    assert.match(await txt(page, '.bc-m.bot.err'), /not paired/);
+    assert.equal(mock.asks.length, n);
+  });
+  await step(`${tag}: no page errors`, async () => assert.deepEqual(errs, []));
+  await ctx.close();
 }
 await b.close(); console.log(failed ? failed + " FAILED" : "all ok"); process.exit(failed ? 1 : 0);

@@ -97,10 +97,11 @@ for (const [w, h] of SIZES) for (const scheme of ['dark', 'light']) {
   });
   await step(`${tag}: tapping Bud opens the hat sheet from Plans; party glow follows a change`, async () => {
     await go(page, 'plans');
-    await page.locator('#brandbar svg.hd').dispatchEvent('click'); await page.waitForSelector('#sheet:not([hidden]) .hat-sw');
+    await page.locator('#brandbar svg.hd').dispatchEvent('click'); await page.waitForSelector('#budchat:not([hidden])');
+    await page.click('.bc-h [data-action="style"]'); await page.waitForSelector('#sheet:not([hidden]) .hat-sw');
     await page.click('#sheet [data-action="hat-color"][data-c="#d03b3b"]'); await page.waitForTimeout(150);
     assert.ok(await page.evaluate(() => (document.querySelector('#brandbar svg.hd').innerHTML.includes('#d03b3b') && document.querySelector('#brandbar').__x !== 1)), 'hat updated in the header');
-    await page.keyboard.press('Escape'); await page.waitForTimeout(150);
+    await page.keyboard.press('Escape'); await page.waitForTimeout(150); await page.keyboard.press('Escape'); await page.waitForTimeout(100);
     assert.equal(await page.locator('#brandbar .wm').count(), 1);
     const g = await geo(page); assert.ok(g.arms && g.hd);
     await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.settings.hat = { color: '#16181d', dir: 'front' }; localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
