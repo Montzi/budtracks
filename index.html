@@ -687,6 +687,29 @@ button.slogo-btn:hover .slogo { outline: 2px solid var(--accent); outline-offset
 .hs-hit{position:absolute;inset:-4px 0;border:0;background:transparent;border-radius:8px;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
 .hs-hit:hover,.hs-hit:active{background:var(--hero-hover)}
 .hs-hit:focus-visible{outline:2px solid var(--brass-hi);outline-offset:0}
+.plus-btn{width:32px;height:32px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;padding:0;flex:none;cursor:pointer}
+.plus-btn:hover{filter:brightness(1.08)}
+.plan-sum{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:baseline;width:100%;text-align:left;padding:14px 16px;cursor:pointer;color:var(--ink);font:inherit}
+.plan-sum:hover{background:var(--surface-2)}
+.ps-k{grid-column:1;font-size:12.5px;color:var(--ink-3)}
+.ps-v{grid-column:1;font-family:var(--display);font-size:30px;line-height:1.1;font-variant-numeric:tabular-nums}
+.ps-s{grid-column:1;font-size:12.5px;color:var(--ink-2);overflow-wrap:anywhere}
+.ps-go{grid-column:2;grid-row:1 / span 3;align-self:center;font-style:normal;font-size:22px;color:var(--ink-3)}
+.pcs-list{list-style:none;margin:0;padding:0}
+.pcs-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.pcs-row:first-child{border-top:0}
+.pcs-row .nm{font-weight:600;overflow-wrap:anywhere}
+.pcs-row .sub{font-size:12px;color:var(--ink-3)}
+.pcs-row .amt{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:14px}
+.pcs-ck{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line-2);display:grid;place-items:center;color:var(--accent-ink)}
+.pcs-ck.on{background:var(--good);border-color:var(--good)}
+.pcs-ck svg{width:12px;height:12px}
+.pc-acts{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-left:auto}
+.pp-form>*{grid-column:1 / -1}
+.pp-guide{margin:0}
+.pp-warn:empty{display:none}
+.pp-w{margin:0 0 6px;padding:8px 10px;border-radius:9px;font-size:12.5px;background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--ink);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent)}
+.pp-next{margin-top:4px}
 .hl-total{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 14px;margin:12px 0 4px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);font-size:13px;color:var(--ink-2)}
 .hl-total b{font-family:var(--mono);font-size:20px;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
 .hl-list .rows{padding:0}
@@ -1248,6 +1271,52 @@ const BT = (() => {
       owed: round2(unpaid.reduce((a, x) => a + x.amount, 0)),
       total: round2(Array.from({ length: p.total }, (_, i) => planAmt(p, i + 1)).reduce((a, b) => a + b, 0))
     };
+  }
+
+  // Postpone a plan payment. Every payment's date is written out in plan.dates (index = payment number - 1), so later moves are plain edits.
+  // shift: this payment takes the new date and each later unpaid payment lands one interval after the one before it. Otherwise only this one moves.
+  const planGap = (p, from, k) => p.freq === 'monthly' ? addMonths(from, k) : addDays(from, k * (p.freq === 'biweekly' ? 14 : 7));
+  const planDates = p => Array.from({ length: p.total }, (_, i) => planDate(p, i + 1 - p.paid));
+  // Why a payment cannot be moved ('' when it can): paid, linked to a bank line, or not part of the schedule.
+  function postponeBlock(st, p, n, today) {
+    const s = planSchedule(st, p, today).find(x => x.n === n);
+    if (!s) return 'This payment is already done.';
+    if (s.paid || (st.occ && st.occ[s.key] && st.occ[s.key].txn)) return 'This payment is already paid.';
+    return '';
+  }
+  function postponeDates(st, p, n, to, shift, today) {
+    const dates = planDates(p), from = dates[n - 1], sched = planSchedule(st, p, today);
+    dates[n - 1] = to;
+    if (shift) sched.filter(x => x.n > n && !x.paid).forEach(x => { dates[x.n - 1] = planGap(p, to, x.n - n); });
+    return { dates, from };
+  }
+  function postponePlan(st, p, n, to, shift, today) {
+    const why = postponeBlock(st, p, n, today);
+    if (why) return { ok: false, error: why };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(to || '')) return { ok: false, error: 'Pick a date.' };
+    const cur = planDates(p)[n - 1];
+    if (to <= cur) return { ok: false, error: 'Pick a date after ' + cur + '.' };
+    const r = postponeDates(st, p, n, to, shift, today);
+    const rec = { n, from: r.from, to, at: today, shift: !!shift, prev: planDates(p), hadDates: !!p.dates };
+    p.dates = r.dates;
+    (p.postponed || (p.postponed = [])).push(rec);
+    return { ok: true, rec };
+  }
+  // Puts the dates back as they were before the last postpone.
+  function undoPostpone(p) {
+    const rec = p.postponed && p.postponed.pop();
+    if (!rec) return false;
+    p.dates = rec.prev.slice();
+    if (!p.postponed.length) { delete p.postponed; if (rec.hadDates === false) delete p.dates; }
+    return true;
+  }
+  // Soft guidance, never blocking: what the provider usually allows against what was picked.
+  function postponeWarnings(p, n, to) {
+    const out = [], from = planDates(p)[n - 1], days = diffDays(from, to);
+    if (days > 7) out.push('That is ' + days + ' days later. Providers usually allow up to 7 days.');
+    if (p.provider === 'Afterpay' && (n === 1 || n === p.total)) out.push("Afterpay usually can't move the first or last payment in the app.");
+    if (p.postponed && p.postponed.length) out.push('This plan was already postponed once. Providers usually allow it once per purchase.');
+    return out;
   }
 
   const GROUPS = ['Fixed', 'Apple Subscriptions', 'Subscriptions', 'Other bills', 'Per paycheck', 'Pay plans', 'Credit cards', 'Spending'];
@@ -2067,7 +2136,7 @@ const BT = (() => {
     return prev;
   }
 
-  return { CAT_TREE, DEFAULT_PARENT, parentNames, parentOf, catUsed, migrateCats5, pairScore, pickCandidates, pickSections, linkPaidOcc, groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, strongCategory, merchantKey, cleanDesc, shotSim, shotCands, shotMatch, shotLinks, shotDupe, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, savingsMove, savedIn, skippedIn, rollup, chartSlot, paidOf, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
+  return { CAT_TREE, DEFAULT_PARENT, parentNames, parentOf, catUsed, migrateCats5, pairScore, pickCandidates, pickSections, linkPaidOcc, groupPaychecks, paycheckParts, learnPayer, payerMatch, keyMatch, PAYROLL_RX, matchBills, matchIncome, isAnchor, guessCategory, strongCategory, merchantKey, cleanDesc, shotSim, shotCands, shotMatch, shotLinks, shotDupe, classifyTxn, classifyBatch, likelyPaid, likelyPaidAll, likelyScore, txnTaken, linkedTxnIds, nameSim, learnRule, payDates, PLAN_RX, parseBankCSV, matchPlanPayments, linkPayment, unlinkPayment, newPlanFromTxn, planMerchant, planProvider, unallocLeft, accountBalance, savingsBalance, savingsMove, savedIn, skippedIn, rollup, chartSlot, paidOf, parse, iso, addDays, addMonths, diffDays, periodRange, monthlyDates, stepDates, planSchedule, planStatus, planDates, postponeBlock, postponeDates, postponePlan, undoPostpone, postponeWarnings, occurrences, incomeIn, payAsk, payAmount, prevPay, summary, anchor, paycheck, GROUPS, round2 };
 })();
 
 
@@ -2936,6 +3005,71 @@ function catBar() {
   return n.length ? `<button class="ua-bar cat-bar" data-action="next-cat"><b>${n.length} ${n.length === 1 ? 'purchase needs' : 'purchases need'} a category.</b> ${esc(n.map(p => p.merchant).join(', '))}. Tap to pick.</button>` : '';
 }
 let catChain = false;
+// Plan payments that fall in the current period (paid and unpaid), for the summary on top of Pay later.
+function planCycle() {
+  const view = state.settings.view, r = BT.periodRange(state, view, 0, TODAY);
+  const rows = BT.occurrences(state, r, TODAY).filter(x => x.kind === 'plan');
+  const total = BT.round2(rows.reduce((a, x) => a + x.amount, 0)), paid = BT.round2(rows.filter(x => x.paid).reduce((a, x) => a + x.amount, 0));
+  return { view, r, rows, total, paid, left: BT.round2(total - paid), name: VIEWNAME[view] };
+}
+function planCycleCard() {
+  if (!state.plans.length) return '';
+  const c = planCycle(), n = c.rows.length;
+  return `<button type="button" class="card plan-sum" data-action="plans-cycle" aria-label="Plans this ${c.name}, ${n} ${n === 1 ? 'payment' : 'payments'}. Show the list">
+    <span class="ps-k">Plans this ${c.name}</span><span class="ps-v">${hm(c.total)}</span>
+    <span class="ps-s">${n} ${n === 1 ? 'payment' : 'payments'} · ${hm(c.paid)} paid · ${hm(c.left)} left</span><i class="ps-go" aria-hidden="true">›</i></button>`;
+}
+function planCycleSheet() {
+  const c = planCycle();
+  const rows = c.rows.map(x => `<li class="pcs-row"><span class="pcs-lg">${svcLogo(x.provider, 28)}</span><div class="main"><div class="nm">${esc(x.name)}</div><div class="sub">${x.n} of ${(state.plans.find(p => p.id === x.ref) || {}).total || x.n} · ${dueShort(x.due)}</div></div><span class="amt">${hm(x.amount)}</span><span class="pcs-ck${x.paid ? ' on' : ''}" role="img" aria-label="${x.paid ? 'Paid' : 'Not paid'}">${x.paid ? ICON.check : ''}</span></li>`).join('');
+  openSheet(`<div class="sheet-h"><div><h3>Plans this ${c.name}</h3><p class="lede">${rangeLabel(c.r)}</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    <div class="hl-total"><span>${c.rows.length} ${c.rows.length === 1 ? 'payment' : 'payments'}</span><b id="pcs-sum">${hm(c.total)}</b></div>
+    ${rows ? `<ul class="pcs-list">${rows}</ul>` : `<div class="empty">No plan payments this ${c.name}.</div>`}`);
+}
+// Postpone the next unpaid payment of a plan, with or without the ones after it.
+function postponeSheet(id) {
+  const p = findItem('plan', id); if (!p) return;
+  const s = BT.planStatus(state, p, TODAY), nx = s.next;
+  if (!nx || p.endDate) return;
+  const why = BT.postponeBlock(state, p, nx.n, TODAY);
+  const guide = { Klarna: 'Klarna lets you extend a payment up to 7 days, once per purchase, in the Klarna app.', Afterpay: "Afterpay lets you move a payment up to 7 days, once per order. The first and last payments can't be moved in the app (returns: up to 14 days)." }[p.provider] || "Check your provider's app for what's allowed.";
+  openSheet(`<div class="sheet-h"><div><h3>Postpone a payment</h3><p class="lede">${esc(p.merchant)} · ${esc(p.provider)}</p></div><button class="icon-btn" data-action="close" aria-label="Close">${ICON.close}</button></div>
+    <form class="form pp-form" id="postform" data-id="${p.id}" data-n="${nx.n}" novalidate>
+      <div class="hl-total pp-next"><span>Payment ${nx.n} of ${p.total} · due ${dueShort(nx.date)}</span><b>${hm(nx.amount)}</b></div>
+      ${why ? `<p class="note">${why}</p>` : ''}
+      <label class="fld" for="pp-date"><span>New date</span><input id="pp-date" name="to" type="date" min="${BT.addDays(nx.date, 1)}" value="${BT.addDays(nx.date, 7)}"${why ? ' disabled' : ''}></label>
+      <label class="fld chk"><input type="checkbox" name="shift" checked${why ? ' disabled' : ''}><span>Move the remaining payments too</span></label>
+      <div class="preview" id="pp-prev" aria-live="polite"></div>
+      <p class="note pp-guide">${guide}</p>
+      <div class="pp-warn" id="pp-warn" role="status"></div>
+      <div class="form-err" id="ferr" role="alert"></div>
+      <div class="actions"><div class="r"><button type="button" class="btn" data-action="close">Cancel</button><button type="submit" class="btn primary"${why ? ' disabled' : ''}>Postpone</button></div></div>
+    </form>`);
+  postponeLive();
+}
+function postponeLive() {
+  const f = $('#postform'); if (!f) return;
+  const p = findItem('plan', f.dataset.id), n = +f.dataset.n, to = f.elements.to.value, prev = $('#pp-prev'), warn = $('#pp-warn');
+  const cur = BT.planDates(p)[n - 1];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(to) || to <= cur) { prev.textContent = 'Pick a date after ' + lng(cur) + '.'; warn.innerHTML = ''; return; }
+  const r = BT.postponeDates(state, p, n, to, f.elements.shift.checked, TODAY);
+  const last = r.dates[p.total - 1];
+  prev.innerHTML = `Payment ${n} moves to <b>${lng(to)}</b>. ${f.elements.shift.checked ? (p.total > n ? 'The rest follow. ' : '') : 'Later payments keep their dates. '}Ends <b>${lng(last)}</b>.`;
+  warn.innerHTML = BT.postponeWarnings(p, n, to).map(w => `<p class="pp-w">${esc(w)}</p>`).join('');
+}
+function savePostpone(f) {
+  const p = findItem('plan', f.dataset.id), n = +f.dataset.n, to = f.elements.to.value;
+  if (!p) return;
+  if (p.autopay !== false && to < TODAY) { $('#ferr').textContent = 'Pick a date from today on.'; return; }
+  const r = BT.postponePlan(state, p, n, to, f.elements.shift.checked, TODAY);
+  if (!r.ok) { $('#ferr').textContent = r.error; return; }
+  closeSheet(); commit();
+  toast('Moved payment ' + n + ' to ' + dueShort(to), () => undoPostpone(p.id));
+}
+function undoPostpone(id) {
+  const p = findItem('plan', id);
+  if (p && BT.undoPostpone(p)) commit('Postpone undone');
+}
 function viewPlans() {
   const st = state.plans.map(p => ({ p, s: BT.planStatus(state, p, TODAY) }));
   const active = st.filter(x => !x.s.completed && !x.p.endDate).sort((a, b) => (a.s.next ? a.s.next.date : '9') < (b.s.next ? b.s.next.date : '9') ? -1 : 1);
@@ -2954,7 +3088,7 @@ function viewPlans() {
     <div class="pc-r1"><div class="nm">${esc(p.merchant)}</div><div class="pc-nx"><div class="amt">${fmt(s.next ? s.next.amount : p.amount)}</div>${due}</div></div>
     <div class="pc-r2"><div class="pc-l"><span class="tag prov-tag">${svcLogo(p.provider, 20)}<span>${esc(p.provider)}</span></span><button class="tag" data-action="pick-cat" data-id="${p.id}">${p.category ? catIcon(p.category) : ''}${esc(p.category || 'Add category')}</button></div></div>
     <div class="pc-r3"><div class="pips" role="img" aria-label="${s.paidCount} of ${p.total} paid">${Array.from({ length: p.total }, (_, i) => `<i class="${i < s.paidCount ? 'on' : s.next && i === s.next.n - 1 ? 'nx' : ''}"></i>`).join('')}</div><span class="pc-n">${nth}</span></div>
-    <div class="pc-r4"><span class="pc-t">Purchased ${dws(s.purchased)}${s.ends && !stopped ? ` · ${s.completed ? 'Ended' : 'Ends'} ${dws(s.ends)}` : ''} · ${s.completed ? fmt(s.total) + ' total' : '<b>' + fmt(s.owed) + '</b> left'} <em>· ${FREQ[p.freq].toLowerCase()}</em></span>${stopped ? `<button class="btn sm" data-action="restore-item" data-type="plan" data-id="${p.id}">Restore</button>` : ''}</div>
+    <div class="pc-r4"><span class="pc-t">Purchased ${dws(s.purchased)}${s.ends && !stopped ? ` · ${s.completed ? 'Ended' : 'Ends'} ${dws(s.ends)}` : ''} · ${s.completed ? fmt(s.total) + ' total' : '<b>' + fmt(s.owed) + '</b> left'} <em>· ${FREQ[p.freq].toLowerCase()}</em></span>${stopped ? `<button class="btn sm" data-action="restore-item" data-type="plan" data-id="${p.id}">Restore</button>` : !s.completed && s.next ? `<span class="pc-acts">${p.postponed && p.postponed.length ? `<button type="button" class="linkbtn" data-action="undo-postpone" data-id="${p.id}">Undo postpone</button>` : ''}<button type="button" class="btn sm" data-action="postpone" data-id="${p.id}">Postpone</button></span>` : ''}</div>
   </div>`; };
   // Category chart: total purchase value per category, all plans
   const byCat = {};
@@ -2963,9 +3097,10 @@ function viewPlans() {
   const max = cats.length ? cats[0][1] : 1;
   return `<div class="stack">
     ${catBar()}
+    ${planCycleCard()}
     <div class="prov">${prov}</div>
     <div class="grid-2"><div class="stack">
-      <section class="card"><header class="card-h"><h2>Active plans</h2><span style="display:flex;gap:8px"><button class="btn sm" data-action="bank-import">Import bank CSV</button><button class="btn primary sm" data-action="add" data-type="plan">${ICON.plus}Log purchase</button></span></header>
+      <section class="card"><header class="card-h"><h2>Active plans</h2><button type="button" class="plus-btn" data-action="add" data-type="plan" aria-label="Log a purchase">${ICON.plus}</button></header>
         ${active.length ? active.map(card).join('') : '<div class="empty">No active plans. Log a Klarna, Afterpay or PayPal purchase to auto-schedule its payments.</div>'}
         ${done.length ? `<details class="done"><summary>Completed (${done.length})</summary>${done.map(card).join('')}</details>` : ''}
       </section>
@@ -3103,8 +3238,9 @@ function viewIncome() {
   <section class="card"><header class="card-h"><h2>Your data</h2></header>
     <div class="card-b" style="display:grid;gap:12px">
       <p class="note" style="margin:0">Copy a backup before big changes. It also moves your data into the future web app.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-action="bank-import">Import bank CSV</button><button class="btn" data-action="copy-backup">Copy backup</button><button class="btn" data-action="restore">Restore from backup</button><button class="btn danger" data-action="reset">Reset to starting data</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-action="copy-backup">Copy backup</button><button class="btn" data-action="restore">Restore from backup</button><button class="btn danger" data-action="reset">Reset to starting data</button></div>
       <label class="fld chk" style="margin-top:4px"><input type="checkbox" data-action="sound" ${state.settings.sound === false ? '' : 'checked'}><span>Play a sound when a payment is checked off</span></label>
+      <div><button class="btn" data-action="bank-import">Import bank CSV</button></div>
     </div>
   </section></div>`;
 }
@@ -3214,6 +3350,8 @@ function viaManager() {
       <div class="via-act"><select class="via-type" data-i="${i}" aria-label="Type for ${esc(viaLabel(m))}"><option value="">Type</option>${CARD_TYPES.map(c => `<option${m.type === c ? ' selected' : ''}>${c}</option>`).join('')}</select><button class="btn sm" data-action="via-row-edit" data-i="${i}">Edit</button><button class="icon-btn" data-action="del-via" data-i="${i}" aria-label="Remove ${esc(viaLabel(m))}">${ICON.close}</button></div></li>`).join('')}</ul>
     <form class="via-add" id="viaadd"><input name="bank" placeholder="Bank or app" aria-label="Bank or app" autocomplete="off"><input name="last4" placeholder="Last 4" aria-label="Last 4" inputmode="numeric" maxlength="4" autocomplete="off"><button class="btn" type="submit">Add</button></form><div style="height:12px"></div></div></section>`;
 }
+document.addEventListener('input', e => { if (e.target.closest && e.target.closest('#postform')) postponeLive(); });
+document.addEventListener('change', e => { if (e.target.closest && e.target.closest('#postform')) postponeLive(); });
 document.addEventListener('change', e => { if (e.target.id === 'donesort') { state.settings.doneSort = e.target.value; try { localStorage.setItem(LS, JSON.stringify(state)); } catch (er) {} clearTimeout(timer); timer = setTimeout(flush, 600); render(); } });
 document.addEventListener('change', e => { if (e.target.matches && e.target.matches('select.cat-par[data-cat]')) { const c = e.target.dataset.cat; state.catParents[c] = e.target.value; commit('Group saved'); return; } });
 document.addEventListener('change', e => { if (e.target.matches && e.target.matches('.via-type')) { state.payVia[+e.target.dataset.i].type = e.target.value; commit('Saved'); } });
@@ -3675,7 +3813,7 @@ function saveForm(form) {
   const list = state[listOf(type)];
   if (id) {
     const it = findItem(type, id);
-    if (type === 'plan' && it.dates && ['amount', 'freq', 'lastDate', 'paid', 'total'].some(k => o[k] !== it[k])) { delete it.dates; delete it.amounts; delete it.purchased; }
+    if (type === 'plan' && it.dates && ['amount', 'freq', 'lastDate', 'paid', 'total'].some(k => o[k] !== it[k])) { delete it.dates; delete it.amounts; delete it.purchased; delete it.postponed; }
     const was = it.from || '';
     const ak = AMT_KEY[type];
     if (ak && typeof o[ak] === 'number' && o[ak] !== it[ak] && pastOccs(type, it.id).length) {
@@ -5940,6 +6078,9 @@ document.addEventListener('click', async e => {
     case 'sv-off': state.savings.on = false; commit('Savings hidden. Your entries are kept.'); accountSheet(true); break;
     case 'sv-del': state.savings.tx = state.savings.tx.filter(t => t.id !== a.dataset.id); commit('Removed'); accountSheet(true); break;
     case 'logo-sheet': logoSheet(a.dataset.name); break;
+    case 'plans-cycle': planCycleSheet(); break;
+    case 'postpone': postponeSheet(a.dataset.id); break;
+    case 'undo-postpone': undoPostpone(a.dataset.id); break;
     case 'logo-up': LOGOUI.name = a.dataset.name; logoFile.click(); break;
     case 'logo-rm': { delete state.logos[svcKey(a.dataset.name)]; if (a.dataset.sheet) closeSheet(); commit('Logo removed'); break; }
     case 'svc-icons': state.settings.svcIcons = !svcOn(); commit(state.settings.svcIcons ? 'Service icons on' : 'Service icons off'); break;
@@ -6080,6 +6221,7 @@ document.addEventListener('submit', e => {
   e.preventDefault();
   if (e.target.id === 'form') saveForm(e.target);
   if (e.target.id === 'occform') saveOcc(e.target);
+  if (e.target.id === 'postform') savePostpone(e.target);
   if (e.target.id === 'bankplan') saveBankPlan(e.target);
   if (e.target.id === 'bankconn') bankConnectSetup(e.target);
   if (e.target.id === 'allocform') saveAlloc(false);
