@@ -87,6 +87,8 @@ const planOf = (page, name) => page.locator('.plan', { hasText: name }).first();
 const noHScroll = async (page, label) => assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.body.scrollWidth <= innerWidth), 'horizontal scroll at ' + label);
 const quiet = page => page.evaluate(() => { const t = document.querySelector('#toast'); t.style.transition = 'none'; t.classList.remove('on'); const bud = document.querySelector('#bud'); if (bud) bud.style.display = 'none'; });
 const getState = page => page.evaluate(() => JSON.parse(localStorage.getItem('budtrack.v1')));
+// v21: the Service logos card is collapsed until opened.
+const openLogos = async page => { const h = page.locator('#svclogos .coll-h'); if ((await h.getAttribute('aria-expanded')) !== 'true') await h.click(); };
 const rect = (page, sel, within) => page.evaluate(([s, w]) => { const root = w ? document.querySelector(w) : document; const e = root.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; }, [sel, within || '']);
 const overlap = (a, c) => !(a.r <= c.l + 0.5 || c.r <= a.l + 0.5 || a.b <= c.t + 0.5 || c.b <= a.t + 0.5);
 
@@ -217,6 +219,7 @@ await step('setting off: letters only, no icon requests; own upload wins; settin
   for (const k of ['doordash', 'ubereats', 'uber', 'instacart', 'walmart', 'amazon', 'tmobile', 'ebay']) assert.ok(keys.includes(k), k + ' in ' + keys);
   assert.ok(keys.indexOf('doordash') < keys.indexOf('klarna'), 'found merchants listed first');
   // Upload for a merchant key from the list, e.g. Walmart
+  await openLogos(page);
   const [fc] = await Promise.all([page.waitForEvent('filechooser'), page.locator('.svc-list li', { hasText: 'Walmart' }).locator('[data-action="logo-up"]').click()]);
   await fc.setFiles({ name: 'w.png', mimeType: 'image/png', buffer: ICON }); await page.waitForTimeout(500);
   assert.ok((await getState(page)).logos.walmart, 'saved under the walmart key');

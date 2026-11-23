@@ -205,10 +205,10 @@ await step('scroll returns to the top on a tab change and the header is visible'
 });
 
 const unseen = '2000-01-01T00:00:00.000Z';
-await step('badges: 3 new bank transactions -> Transactions badge "3"; opening clears it; persists across reload until viewed', async () => {
+await step('badges: 3 bank transactions to review -> Transactions badge "3"; opening does not clear it (v21), reviewing them does', async () => {
   const { page, mock } = await newPage(390, 844, { txns: THREE, state: { bank: { lastSync: null } } });
   await page.waitForFunction(() => !document.querySelector('.tabs a[href="#transactions"] .badge').hidden);
-  let r = await badge(page, 'transactions'); assert.deepEqual([r.shown, r.text, r.label], [true, '3', 'Transactions, 3 new']);
+  let r = await badge(page, 'transactions'); assert.deepEqual([r.shown, r.text, r.label], [true, '3', 'Transactions, 3 to review']);
   for (const t of ['overview', 'bills', 'plans', 'income']) assert.equal((await badge(page, t)).shown, false, 'no badge on ' + t);
   const st = await getState(page); assert.ok(Object.values(st.bank.txns).every(t => typeof t.at === 'string'), 'first-seen at stored');
   assert.equal((await page.evaluate(() => window.__badge)).slice(-1)[0], 3, 'app icon badge');
@@ -219,8 +219,9 @@ await step('badges: 3 new bank transactions -> Transactions badge "3"; opening c
   await page.reload({ waitUntil: 'load' }); await page.waitForTimeout(400);
   r = await badge(page, 'transactions'); assert.equal(r.text, '3', 'persists across reload'); assert.equal(r.shown, true);
   await go(page, 'transactions');
-  r = await badge(page, 'transactions'); assert.equal(r.shown, false, 'cleared on open'); assert.equal(r.label, null);
-  assert.equal((await getState(page)).settings.tabSeen.transactions > (await getState(page)).bank.txns['pl:a1'].at, true);
+  r = await badge(page, 'transactions'); assert.equal(r.shown, true, 'the badge is the To review count: opening the tab keeps it'); assert.equal(r.text, '3');
+  await page.click('#txreview [data-action="ix-all"]'); await page.waitForFunction(() => document.querySelector('.tabs a[href="#transactions"] .badge').hidden);
+  r = await badge(page, 'transactions'); assert.equal(r.shown, false, 'cleared once reviewed'); assert.equal(r.label, null);
   assert.equal((await page.evaluate(() => window.__badge)).slice(-1)[0], 0, 'app icon badge cleared');
   await page.reload({ waitUntil: 'load' }); await page.waitForTimeout(400);
   assert.equal((await badge(page, 'transactions')).shown, false, 'stays cleared');
@@ -236,7 +237,7 @@ await step('badges: auto-matched bill, plan payment and paycheck show on Bills, 
   await page.waitForTimeout(400);
   const st = await getState(page); const kinds = Object.values(st.bank.seen).map(r => r.res + ':' + (r.auto ? 'auto' : 'hand') + ':' + r.src).sort();
   const b1 = { bills: await badge(page, 'bills'), plans: await badge(page, 'plans'), income: await badge(page, 'income'), tx: await badge(page, 'transactions') };
-  assert.equal(b1.tx.text, '3', JSON.stringify([b1, kinds]));
+  assert.equal(b1.tx.shown, false, 'matched on their own: nothing waits in To review ' + JSON.stringify([b1, kinds]));
   assert.ok(b1.bills.shown && b1.bills.text === '1' && b1.bills.label === 'Bills, 1 new', JSON.stringify([b1.bills, kinds]));
   assert.ok(b1.plans.shown && b1.plans.text === '1', JSON.stringify([b1.plans, kinds]));
   assert.ok(b1.income.shown && b1.income.text === '1', JSON.stringify([b1.income, kinds]));
@@ -278,12 +279,13 @@ await step('badges: 99+ cap, hidden at 0, backup carries tabSeen, restore keeps 
   const { page } = await newPage(390, 844, { state: { bank: { lastSync: new Date().toISOString() } } });
   await page.evaluate(() => {
     const s = JSON.parse(localStorage.getItem('budtrack.v1')), fut = new Date(Date.now() + 60000).toISOString(); s.bank.txns = {};
-    for (let i = 0; i < 120; i++) s.bank.txns['z' + i] = { id: 'z' + i, date: new Date().toISOString().slice(0, 10), desc: 'L' + i, amount: 1, account: null, status: 'posted', at: fut };
+    s.bank.inbox = [];
+    for (let i = 0; i < 120; i++) { const t = s.bank.txns['z' + i] = { id: 'z' + i, date: new Date().toISOString().slice(0, 10), desc: 'L' + i, amount: 1, account: null, status: 'posted', at: fut }; s.bank.inbox.push({ txn: t, kind: 'spend', cands: [], pick: null, category: 'Other', confidence: 'low' }); }
     s.settings.tabSeen = { overview: fut, transactions: '2026-11-01T00:00:00.000Z', bills: fut, plans: fut, income: fut };
     localStorage.setItem('budtrack.v1', JSON.stringify(s));
   });
   await page.reload({ waitUntil: 'load' }); await page.waitForTimeout(400);
-  let r = await badge(page, 'transactions'); assert.deepEqual([r.shown, r.text, r.label], [true, '99+', 'Transactions, 120 new']);
+  let r = await badge(page, 'transactions'); assert.deepEqual([r.shown, r.text, r.label], [true, '99+', 'Transactions, 120 to review']);
   assert.equal((await badge(page, 'bills')).shown, false);
   const st = await getState(page); assert.ok(st.settings.tabSeen && TABS.every(k => typeof st.settings.tabSeen[k] === 'string'));
   await page.context().close();

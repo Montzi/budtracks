@@ -237,11 +237,11 @@ const prepared = async (w, h, extraBank) => {
     const t = await page.locator('.bx-bar').innerText(); assert.match(t, /4 new transactions/);
     await noHScroll(page, '390 overview');
   });
-  await step('Overview bar opens the Transactions tab filtered to Needs review', async () => {
+  await step('Overview bar opens the Transactions tab on All, at the To review section', async () => {
     await page.click('.bx-bar'); await page.waitForSelector('.tx');
     assert.equal(await page.evaluate(() => location.hash), '#transactions');
-    assert.equal(await page.locator('.tx').count(), 4);
-    assert.equal(await page.locator('[data-action="tx-filter"][aria-pressed="true"]').innerText().then(t => t.split(' ')[0]), 'Review');
+    assert.equal(await page.locator('#txreview .tx').count(), 4);
+    assert.equal(await page.locator('[data-action="tx-filter"][aria-pressed="true"]').innerText().then(t => t.split(' ')[0]), 'All');
     await noHScroll(page, '390 transactions review');
   });
   await step('inbox sheet lists rows, no horizontal scroll, screenshot 390', async () => {
@@ -771,11 +771,11 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     const t = (await getState(page)).bank.txns;
     assert.ok(t.m1 && t.m2 && t.m3 && t.m3.account.institution === 'Chime' && t.m3.account.last4 === '1234', 'seeded'); assert.ok(!t.m4, 'csv-only record not seeded'); assert.ok(!t.ancient, 'older than 180 days dropped');
     await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx');
-    assert.equal(await page.locator('.tx').count(), 60, 'first 60 rows');
+    assert.equal(await page.locator('.tx').count(), 61, 'first 60 dated rows plus the line in the To review section');
     await page.click('[data-action="tx-more"]');
     assert.equal(await page.locator('.tx').count(), 75 + 3);
     assert.ok(await page.locator('.tx-day').count() > 5);
-    assert.equal(await page.locator('.tx[data-id="m1"] .txc').innerText(), 'Review'); assert.equal(await page.locator('.tx[data-id="m2"] .txc').innerText(), 'Earlier · add by hand'); assert.equal(await page.locator('.tx[data-id="m3"] .txc').innerText(), 'Added · Other');
+    assert.equal(await page.locator('.tx[data-id="m1"] .txc').innerText(), 'To review'); assert.equal(await page.locator('.tx[data-id="m2"] .txc').innerText(), 'Earlier · add by hand'); assert.equal(await page.locator('.tx[data-id="m3"] .txc').innerText(), 'Accepted · Other');
   });
   assert.deepEqual(errs, [], 'page errors in tabs/plans'); await page.context().close();
 }
@@ -790,7 +790,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
   await step('Transactions lists every txn by date with status chips; pending tag; money in is green +', async () => {
     assert.equal(await page.locator('.tx').count(), 9);
     assert.equal(await chip('pl:klarna'), 'Matched · Klarna · Nike 3 of 4'); assert.match(await chip('pl:electric'), /^Matched · /); assert.equal(await chip('pl:pay'), 'Paycheck');
-    assert.equal(await chip('pl:dd'), 'Review'); assert.equal(await chip('pl:wm'), 'Review');
+    assert.equal(await chip('pl:dd'), 'To review'); assert.equal(await chip('pl:wm'), 'To review');
     assert.match(await row('pl:pay').innerText(), /\+\$1,500\.00/); assert.ok(await row('pl:pay').locator('.amt.in').count());
     assert.match(await row('pl:pend').innerText(), /pending/i); assert.match(await row('pl:dd').innerText(), /Chime ••1234/);
     const days = await page.locator('.tx-day').allInnerTexts(); assert.deepEqual(days, [...days].sort((a, b) => 0)); assert.match(days[0], /Nov 21|Nov 20/);
@@ -800,9 +800,9 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
   });
   await step('filters and search', async () => {
     const f = v => page.click(`[data-action="tx-filter"][data-f="${v}"]`);
-    await f('review'); assert.equal(await page.locator('.tx').count(), 6);
+    assert.equal(await page.locator('#txreview .tx').count(), 6, 'six lines in the To review section of All');
     await f('matched'); assert.equal(await page.locator('.tx').count(), 2);
-    await f('added'); assert.equal(await page.locator('.tx').count(), 1);
+    await f('accepted'); assert.equal(await page.locator('.tx').count(), 1);
     await f('ignored'); assert.equal(await page.locator('.tx').count(), 0); assert.match(await page.locator('#txlist').innerText(), /Nothing matches/);
     await f('all');
     await page.fill('#txq', 'doordash'); assert.equal(await page.locator('.tx').count(), 1);
@@ -817,24 +817,24 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     const s = await getState(page), x = s.spends.find(z => z.bank === 'pl:dd');
     assert.ok(x && x.category === 'Dining Out' && x.amount === 24.5 && x.via === 'Chime **1234'); assert.equal(s.bank.seen['pl:dd'].res, 'spend'); assert.ok(!s.bank.inbox.some(i => i.txn.id === 'pl:dd'));
     assert.ok(Object.values(s.bank.rules).includes('Dining Out'));
-    assert.equal(await chip('pl:dd'), 'Added · Dining Out');
+    assert.equal(await chip('pl:dd'), 'Accepted · Dining Out');
   });
   await step('changing the category of an added row updates the spend', async () => {
     await open('pl:dd'); await row('pl:dd').locator('[data-action="tx-cats"]').click();
     await row('pl:dd').locator('.chip', { hasText: 'Groceries' }).click();
-    const s = await getState(page); assert.equal(s.spends.find(z => z.bank === 'pl:dd').category, 'Groceries'); assert.equal(await chip('pl:dd'), 'Added · Groceries');
+    const s = await getState(page); assert.equal(s.spends.find(z => z.bank === 'pl:dd').category, 'Groceries'); assert.equal(await chip('pl:dd'), 'Accepted · Groceries');
   });
   await step('Edit opens the spending form prefilled and saves through the same path', async () => {
     await open('pl:amb'); await row('pl:amb').locator('[data-action="tx-edit"]').click(); await page.waitForSelector('#form[data-tx]');
     assert.equal(await page.inputValue('#form [name=amount]'), '18.99'); assert.equal(await page.inputValue('#form [name=date]'), '2026-11-18');
     await page.fill('#form [name=desc]', 'Mystery lunch'); await page.selectOption('#form [name=category]', 'Dining Out'); await page.click('#form button[type=submit]');
     const s = await getState(page); const x = s.spends.find(z => z.bank === 'pl:amb'); assert.ok(x && x.desc === 'Mystery lunch' && x.category === 'Dining Out');
-    assert.equal(await chip('pl:amb'), 'Added · Dining Out'); assert.ok(await page.evaluate(() => document.querySelector('#sheet').hidden));
+    assert.equal(await chip('pl:amb'), 'Accepted · Dining Out'); assert.ok(await page.evaluate(() => document.querySelector('#sheet').hidden));
   });
   await step('Undo on a matched bill reverses it; Match then links it from the list', async () => {
     await open('pl:electric'); await row('pl:electric').locator('[data-action="tx-undo"]').click();
     let s = await getState(page); const ek = Object.keys(s.occ).find(k => /^b:elec:/.test(k) && s.occ[k].txn); assert.ok(!ek, 'unlinked'); assert.ok(s.bank.inbox.some(i => i.txn.id === 'pl:electric'));
-    assert.equal(await chip('pl:electric'), 'Review');
+    assert.equal(await chip('pl:electric'), 'To review');
     await open('pl:electric'); await row('pl:electric').locator('[data-action="tx-match"]').click(); await page.waitForSelector('.pk-opt');
     const cands = await page.locator('.pk-opt').allInnerTexts(); assert.match(cands[0], /Electric/); assert.match(cands[0], /Bill · due Nov 21/); assert.match(await page.locator('.pk-sec').first().innerText(), /best match/i);
     await sheetNoHScroll(page, '390 match sheet');
@@ -844,7 +844,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
   });
   await step('Match a Klarna payment to a plan from the list; screenshot of the match sheet', async () => {
     await open('pl:klarna'); await row('pl:klarna').locator('[data-action="tx-undo"]').click();
-    let s = await getState(page); assert.ok(!(s.occ['p:k1:3'] && s.occ['p:k1:3'].txn)); assert.equal(await chip('pl:klarna'), 'Review');
+    let s = await getState(page); assert.ok(!(s.occ['p:k1:3'] && s.occ['p:k1:3'].txn)); assert.equal(await chip('pl:klarna'), 'To review');
     await open('pl:klarna'); await row('pl:klarna').locator('[data-action="tx-match"]').click(); await page.waitForSelector('.pk-opt');
     const cands = await page.locator('.pk-opt').allInnerTexts(); assert.match(cands[0], /Nike/); assert.match(cands[0], /Pay plan · Klarna 3 of 4/); assert.match(await page.locator('.pk-sec').first().innerText(), /best match/i);
     await page.locator('#sheet .sheet').screenshot({ path: SHOTS + '/tx-match-390.png' });
@@ -862,11 +862,11 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     await page.click('[data-action="tx-filter"][data-f="ignored"]'); assert.equal(await page.locator('.tx').count(), 1);
     await open('pl:cc'); await row('pl:cc').locator('[data-action="tx-undo"]').click();
     assert.equal(await page.locator('.tx').count(), 0); await page.click('[data-action="tx-filter"][data-f="all"]');
-    assert.equal(await chip('pl:cc'), 'Review'); assert.ok(!('pl:cc' in (await getState(page)).bank.seen));
+    assert.equal(await chip('pl:cc'), 'To review'); assert.ok(!('pl:cc' in (await getState(page)).bank.seen));
   });
   await step('money in: Accept offers Paycheck or Refund, no Match', async () => {
     await open('pl:pay'); await row('pl:pay').locator('[data-action="tx-undo"]').click();
-    assert.equal(await chip('pl:pay'), 'Review'); assert.equal((await getState(page)).income[0].perCycle['2026-11-19'], undefined);
+    assert.equal(await chip('pl:pay'), 'To review'); assert.equal((await getState(page)).income[0].perCycle['2026-11-19'], undefined);
     await open('pl:pay'); assert.equal(await row('pl:pay').locator('[data-action="tx-match"]').count(), 0); assert.equal(await row('pl:pay').locator('[data-action="tx-edit"]').count(), 0);
     await row('pl:pay').locator('[data-action="tx-in"]').click();
     assert.match(await row('pl:pay').innerText(), /Paycheck/); assert.match(await row('pl:pay').innerText(), /Refund or transfer/);
@@ -874,8 +874,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     const s = await getState(page); assert.equal(s.income[0].perCycle['2026-11-19'], 1500); assert.equal(s.bank.seen['pl:pay'].res, 'income'); assert.equal(await chip('pl:pay'), 'Paycheck');
     await open('pl:pend'); await row('pl:pend').locator('[data-action="tx-ignore"]').click();
   });
-  await step('Show "Review one by one" sheet and Accept all remain available on Needs review', async () => {
-    await page.click('[data-action="tx-filter"][data-f="review"]');
+  await step('"Review one by one" and Accept all sit in the To review section of All', async () => {
     assert.ok(await page.locator('#main [data-action="ix-open"]').count()); assert.ok(await page.locator('#main [data-action="ix-all"]').count());
     await page.click('#main [data-action="ix-all"]'); assert.ok(await page.evaluate(() => document.querySelector('#sheet').hidden), 'no sheet opens for Accept all');
   });
@@ -931,10 +930,9 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     s = await getState(page);
     assert.equal(s.income[0].perCycle['2026-11-20'], 1973.31); assert.ok(!('pl:s2' in s.bank.seen)); assert.ok(s.bank.inbox.some(i => i.txn.id === 'pl:s2' && i.kind === 'transfer'));
     await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx');
-    assert.equal(await page.locator('.tx[data-id="pl:s2"] .txc').innerText(), 'Review');
+    assert.equal(await page.locator('.tx[data-id="pl:s2"] .txc').innerText(), 'To review');
     assert.equal(await page.locator('.tx[data-id="pl:s1"] .txc').innerText(), 'Paycheck');
-    await page.click('[data-action="tx-filter"][data-f="review"]');
-    assert.equal(await page.locator('#main [data-action="ix-all"]').isDisabled(), true, 'Accept all skips transfers without a target');
+    assert.equal(await page.locator('#main [data-action="ix-all"]').count(), 0, 'no Accept all while nothing is ready: it skips transfers without a target');
     for (const id of ['pl:odd', 'pl:s2']) { await page.locator(`.tx[data-id="${id}"] .tx-main`).click(); await page.locator(`.tx[data-id="${id}"] [data-action="tx-in"]`).click(); await page.locator(`.tx[data-id="${id}"] [data-action="tx-refund"]`).click(); }
     s = await getState(page); assert.equal(s.income[0].perCycle['2026-11-20'], 1973.31, 'strangers never join the paycheck');
     assert.equal(s.bank.seen['pl:odd'].res, 'transfer'); assert.equal(s.bank.seen['pl:s2'].res, 'transfer');
@@ -1092,9 +1090,9 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     // Added spend is replaced
     await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx');
     await page.locator('.tx[data-id="pl:wm"] .tx-main').click(); await page.locator('.tx[data-id="pl:wm"] [data-action="tx-cats"]').click(); await page.locator('.tx[data-id="pl:wm"] .chip', { hasText: 'Groceries' }).click();
-    s = await getState(page); assert.ok(s.spends.some(x => x.bank === 'pl:wm')); assert.equal(await page.locator('.tx[data-id="pl:wm"] .txc').innerText(), 'Added · Groceries');
+    s = await getState(page); assert.ok(s.spends.some(x => x.bank === 'pl:wm')); assert.equal(await page.locator('.tx[data-id="pl:wm"] .txc').innerText(), 'Accepted · Groceries');
     await openPicker('pl:wm'); await page.fill('#pkq', 'visa'); await page.click('.pk-opt[data-key^="c:visa:"]'); await page.waitForSelector('.pk-warn');
-    assert.match(await page.locator('#sheet').innerText(), /This will replace: Added · Groceries/);
+    assert.match(await page.locator('#sheet').innerText(), /This will replace: Accepted · Groceries/);
     await page.click('[data-action="cf-yes"]');
     s = await getState(page); assert.ok(!s.spends.some(x => x.bank === 'pl:wm'), 'spend removed'); assert.equal(s.bank.seen['pl:wm'].res, 'bill');
     await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx'); assert.match(await page.locator('.tx[data-id="pl:wm"] .txc').innerText(), /^Matched · Visa/);
@@ -1260,47 +1258,47 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     await page.goto(BASE + '#transactions'); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
   };
   const inboxHas = async id => (await getState(page)).bank.inbox.some(x => (x.parts || [x.txn]).some(t => t.id === id || t.pendingOf === id));
-  await step('pending txn: Accept from Transactions tab shows Added, not Needs review', async () => {
+  await step('pending txn: Accept from Transactions tab shows Accepted, not To review', async () => {
     await fresh([DP()]);
-    assert.equal(await chip('pl:dpend'), 'Review');
+    assert.equal(await chip('pl:dpend'), 'To review');
     await accept('pl:dpend');
-    assert.match(await chip('pl:dpend'), /^Added/); assert.ok(!(await inboxHas('pl:dpend')), 'left the inbox');
+    assert.match(await chip('pl:dpend'), /^Accepted/); assert.ok(!(await inboxHas('pl:dpend')), 'left the inbox');
   });
-  await step('add note then accept, and accept then add note: stays Added', async () => {
+  await step('add note then accept, and accept then add note: stays Accepted', async () => {
     await fresh([DP()]);
     await addNote('pl:dpend', 'Mikes Pizza - Burguer');
-    assert.equal(await chip('pl:dpend'), 'Review', 'note alone does not change review status');
+    assert.equal(await chip('pl:dpend'), 'To review', 'note alone does not change review status');
     await accept('pl:dpend');
-    assert.match(await chip('pl:dpend'), /^Added/);
+    assert.match(await chip('pl:dpend'), /^Accepted/);
     let s = await getState(page); assert.equal(s.spends[0].note, 'Mikes Pizza - Burguer');
     await resync(); await page.waitForTimeout(150);
     await fresh([DP()]); await accept('pl:dpend'); await addNote('pl:dpend', 'Mikes Pizza - Burguer');
-    assert.match(await chip('pl:dpend'), /^Added/); assert.ok(!(await inboxHas('pl:dpend')));
+    assert.match(await chip('pl:dpend'), /^Accepted/); assert.ok(!(await inboxHas('pl:dpend')));
     await resync(); await page.goto(BASE + '#transactions'); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
-    assert.match(await chip('pl:dpend'), /^Added/); assert.equal((await getState(page)).spends.length, 1);
+    assert.match(await chip('pl:dpend'), /^Accepted/); assert.equal((await getState(page)).spends.length, 1);
   });
   await step('Edit with a note from the Transactions tab: Added', async () => {
     await fresh([DP()]);
     await open('pl:dpend'); await row('pl:dpend').locator('[data-action="tx-edit"]').click(); await page.waitForSelector('#f-note');
     await page.fill('#f-note', 'Mikes Pizza - Burguer'); await page.click('#form button[type=submit]');
     await page.waitForFunction(() => Object.keys(JSON.parse(localStorage.getItem('budtrack.v1')).bank.seen).length);
-    assert.match(await chip('pl:dpend'), /^Added/); assert.ok(!(await inboxHas('pl:dpend')));
+    assert.match(await chip('pl:dpend'), /^Accepted/); assert.ok(!(await inboxHas('pl:dpend')));
   });
   await step('re-delivered and modified pending txn after accept stays Added', async () => {
     await fresh([DP()]); await accept('pl:dpend');
     await resync(); await resync();
     mock.txns = [DP({ amount: 17.99, desc: 'DOORDASH*MIKES PIZZA NY' })]; await resync();
     await page.goto(BASE + '#transactions'); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
-    assert.match(await chip('pl:dpend'), /^Added/); assert.ok(!(await inboxHas('pl:dpend')), 'not back in the inbox');
-    assert.equal((await page.locator('.txc', { hasText: /^Review$/ }).count()), 0);
+    assert.match(await chip('pl:dpend'), /^Accepted/); assert.ok(!(await inboxHas('pl:dpend')), 'not back in the inbox');
+    assert.equal((await page.locator('.txc', { hasText: /^To review$/ }).count()), 0);
     assert.equal((await getState(page)).spends.length, 1, 'no duplicate spend');
   });
   await step('posted twin with pendingOf after accepting pending: Added on the posted row, no Needs review row', async () => {
     await fresh([DP()]); await accept('pl:dpend');
     mock.txns = [T('dpost', '2026-11-20', 'DOORDASH*MIKES PIZZA', 17.99, { account: santander, pendingOf: 'pl:dpend' })]; mock.removed = ['pl:dpend']; await resync();
     await page.goto(BASE + '#transactions'); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
-    assert.match(await chip('pl:dpost'), /^Added/); assert.equal(await page.locator('.tx[data-id="pl:dpend"]').count(), 0);
-    assert.equal((await page.locator('.txc', { hasText: /^Review$/ }).count()), 0);
+    assert.match(await chip('pl:dpost'), /^Accepted/); assert.equal(await page.locator('.tx[data-id="pl:dpend"]').count(), 0);
+    assert.equal((await page.locator('.txc', { hasText: /^To review$/ }).count()), 0);
     const s = await getState(page); assert.ok(s.bank.seen['pl:dpost'] && !s.bank.seen['pl:dpend']); assert.ok(!(await inboxHas('pl:dpend')) && !(await inboxHas('pl:dpost')));
     // the pending one is re-delivered later by a stale batch: still not a new review row
     mock.txns = [DP(), T('dpost', '2026-11-20', 'DOORDASH*MIKES PIZZA', 17.99, { account: santander, pendingOf: 'pl:dpend' })]; mock.removed = []; await resync();
@@ -1310,7 +1308,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     await fresh([DP()]); await accept('pl:dpend');
     await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')), t = s.bank.txns['pl:dpend']; s.bank.inbox = [{ txn: t, kind: 'spend', confidence: 'low', cands: [], pick: null, category: 'Other', source: 'default' }]; s.imports = s.imports.filter(k => k !== 'inbox-purge-1'); localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
     await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
-    assert.match(await chip('pl:dpend'), /^Added/);
+    assert.match(await chip('pl:dpend'), /^Accepted/);
     const s = await getState(page); assert.equal(s.bank.inbox.length, 0); assert.ok(s.imports.includes('inbox-purge-1'));
   });
   await step('inbox-purge-1 repair: posted row whose pending twin was accepted inherits the decision', async () => {
@@ -1318,7 +1316,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')), q = { id: 'pl:dpost', date: '2026-11-20', desc: 'DOORDASH*MIKES PIZZA', rawDesc: 'x', amount: 17.99, status: 'posted', pendingOf: 'pl:dpend', account: s.bank.txns['pl:dpend'].account };
       s.bank.txns['pl:dpost'] = q; s.bank.inbox = [{ txn: q, kind: 'spend', confidence: 'low', cands: [], pick: null, category: 'Other', source: 'default' }]; s.imports = s.imports.filter(k => k !== 'inbox-purge-1'); localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
     await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
-    assert.match(await chip('pl:dpost'), /^Added/); assert.equal(await page.locator('.tx[data-id="pl:dpend"]').count(), 0);
+    assert.match(await chip('pl:dpost'), /^Accepted/); assert.equal(await page.locator('.tx[data-id="pl:dpend"]').count(), 0);
     const s = await getState(page); assert.equal(s.bank.inbox.length, 0); assert.equal(s.spends.length, 1); assert.equal(s.spends[0].bank, 'pl:dpost');
   });
   assert.deepEqual(errs, [], 'page errors in v6 accept flow'); await page.context().close();
@@ -1628,7 +1626,8 @@ const BT_round = n => Math.round(n * 100) / 100;
     const before = (await getState(page)).spends.length;
     await page.goto(BASE + '#transactions', { waitUntil: 'load' }); await page.waitForSelector('.tx[data-id="pl:g9"]');
     await page.locator('.tx[data-id="pl:g9"] .tx-main').click(); await page.locator('.tx[data-id="pl:g9"] [data-action="tx-match"]').click(); await page.waitForSelector('.pk-opt');
-    const opt = page.locator('.pk-opt', { hasText: 'Count toward Groceries budget' }); assert.equal(await opt.count(), 1);
+    const opt = page.locator('.pk-opt', { hasText: 'Count toward Groceries budget' }).filter({ hasNotText: 'Cycle of' }); assert.equal(await opt.count(), 1, 'this cycle once; earlier cycles are labeled');
+    assert.ok(await page.locator('.pk-opt', { hasText: /Count toward Groceries budget[\s\S]*Cycle of/ }).count() >= 1, 'earlier cycles are offered too');
     assert.match(await page.locator('#sheet').innerText(), /Count toward Gas budget/); assert.doesNotMatch(await page.locator('#sheet').innerText(), /Pets budget/);
     await opt.click(); await page.waitForFunction(n => JSON.parse(localStorage.getItem('budtrack.v1')).spends.length === n + 1, before);
     const s = await getState(page), sp = s.spends.find(x => x.bank === 'pl:g9');

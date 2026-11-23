@@ -139,9 +139,9 @@ const jpegSize = (page, data) => page.evaluate(d => new Promise(ok => { const i 
     await page.keyboard.press('Escape'); await page.evaluate(() => { const s = document.querySelector('#sheet'); if (!s.hidden) document.querySelector('#sheet [data-action="close"]').click(); });
     await page.waitForFunction(() => document.querySelector('#sheet').hidden);
   });
-  await step('Chips: five equal widths and identical tops; spent row on one line with the switch', async () => {
+  await step('Chips: four equal widths and identical tops; spent row on one line with the switch', async () => {
     const m = await page.$$eval('.tx-chips > button', bs => bs.map(b => { const r = b.getBoundingClientRect(); return [r.width, r.top, r.height]; }));
-    assert.equal(m.length, 5);
+    assert.equal(m.length, 4);
     m.forEach(x => { assert.ok(Math.abs(x[0] - m[0][0]) <= 1, 'equal width ' + m.map(y => y[0])); assert.equal(Math.round(x[1]), Math.round(m[0][1])); assert.ok(Math.abs(x[2] - m[0][2]) <= 1); });
     const row = await page.$eval('.tx-chips', el => { const r = el.getBoundingClientRect(), p = el.parentElement.getBoundingClientRect(); return [r.width, p.width, el.scrollWidth <= el.clientWidth + 1]; });
     assert.ok(row[0] > row[1] - 24 && row[2], 'fills the width, no inner scroll');
@@ -221,7 +221,8 @@ const jpegSize = (page, data) => page.evaluate(d => new Promise(ok => { const i 
     assert.equal(sh[0].shot.pending, true); assert.equal(sh[0].shot.rawMerchant, 'DD *DOORDASH');
     const after = await spentSoFar(page);
     assert.equal(Math.round((after - before) * 100), Math.round(ADDED * 100), `spent ${before} -> ${after}`);
-    assert.ok(await page.locator('.tag.shot:has-text("Screenshot · waiting for bank")').count() >= 5, 'tags in the overview list');
+    assert.ok(await page.locator('.shot-ic').count() >= 5, 'photo icons in the overview list (v21: no "waiting for bank" chip)');
+    assert.doesNotMatch(await page.locator('#main').innerText(), /waiting for bank/i);
     await page.goto(BASE + '#transactions'); await page.waitForSelector('.shot-wait');
     assert.equal(await page.locator('.shot-wait .shot-w').count(), 5);
     await noHScroll(page, 'transactions waiting 390');
@@ -276,8 +277,7 @@ const jpegSize = (page, data) => page.evaluate(d => new Promise(ok => { const i 
   await step('Review suggestion: "Matches your screenshot entry Uber Eats $35.35 (bank $41.35)" -> Link and use bank amount', async () => {
     const spentBefore = await spentSoFar(page);
     await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx');
-    await page.click('[data-action="tx-filter"][data-f="review"]');
-    await page.click('[data-action="ix-open"]');
+    await page.click('#txreview [data-action="ix-open"]');
     await page.waitForSelector('.shot-sg');
     assert.match(await page.locator('.shot-sg').innerText(), /Matches your screenshot entry Uber Eats \$35\.35 \(bank \$41\.35\)/);
     assert.equal(await page.locator('.shot-sg [data-action="shot-no"]').innerText(), 'Not the same');
@@ -308,8 +308,7 @@ const jpegSize = (page, data) => page.evaluate(d => new Promise(ok => { const i 
     assert.ok(s.bank.inbox.some(z => z.txn.id === 'pl:ube'), 'bank line back in Review');
     assert.deepEqual(s.bank.notShot['pl:ube'], [x.id]);
     // An automatic link undone from "Recently synced": the laundromat entry stays too.
-    await page.click('[data-action="tx-filter"][data-f="review"]');
-    await page.click('[data-action="ix-open"]');
+    await page.click('#txreview [data-action="ix-open"]');
     await page.waitForSelector('.bx-rec');
     const li = page.locator('.bx-rec li:has-text("Laundry") [data-action="ix-undo"]').first();
     await li.click();

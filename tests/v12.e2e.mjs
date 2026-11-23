@@ -229,19 +229,19 @@ for (const [w, h] of [[390, 844], [669, 951], [951, 669], [1000, 703]]) {
 /* ---------- 5. Transactions: shorter labels on one line ---------- */
 {
   const { ctx, page, errs } = await newPage(390, 844, { dark: false, hash: '#transactions' });
-  await step('390: chips read All · Review · N · Added · Matched · Skipped on one line, no page scroll', async () => {
+  await step('390: chips read All · Accepted · Matched · Skipped on one line, no page scroll (v21: no Review chip)', async () => {
     await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx-chips');
     const m = await page.evaluate(() => { const row = document.querySelector('.tx-chips'), cs = [...row.querySelectorAll('.chip')];
       return { t: cs.map(c => c.textContent), tops: cs.map(c => Math.round(c.getBoundingClientRect().top)), fs: getComputedStyle(cs[0]).fontSize, sw: row.scrollWidth, cw: row.clientWidth, ox: getComputedStyle(row).overflowX }; });
-    assert.equal(m.t.length, 5); assert.equal(m.t[0], 'All'); assert.match(m.t[1], /^Review \d+$/); assert.deepEqual(m.t.slice(2), ['Added', 'Matched', 'Skipped']);
+    assert.equal(m.t.length, 4); assert.deepEqual(m.t, ['All', 'Accepted', 'Matched', 'Skipped']);
     assert.equal(new Set(m.tops).size, 1, 'one line ' + m.tops); assert.equal(m.fs, '13px');
-    assert.ok(m.sw <= m.cw + 1, `all five fit at 390: ${m.sw} > ${m.cw}`);
+    assert.ok(m.sw <= m.cw + 1, `all four fit at 390: ${m.sw} > ${m.cw}`);
     await noHScroll(page, '390 transactions');
     await quiet(page); await page.screenshot({ path: SHOTS + '/tx-chips-390.png' });
   });
-  await step('row chips say "Review" and, after Skip, "Skipped"', async () => {
+  await step('row chips say "To review" and, after Skip, "Skipped"', async () => {
     const chip = id => page.locator(`.tx[data-id="${id}"] .txc`).innerText();
-    assert.equal(await chip('pl:g2'), 'Review');
+    assert.equal(await chip('pl:g2'), 'To review');
     await page.locator('.tx[data-id="pl:g2"] .tx-main').click(); await page.locator('.tx[data-id="pl:g2"] [data-action="tx-ignore"]').click();
     await page.waitForFunction(() => { const r = JSON.parse(localStorage.getItem('budtrack.v1')).bank.seen['pl:g2']; return r && r.res === 'skip'; });
     assert.equal(await chip('pl:g2'), 'Skipped');
@@ -279,8 +279,7 @@ for (const [w, h] of [[390, 844], [669, 951], [951, 669], [1000, 703]]) {
     assert.equal(await page.locator('.cat-legend > li[data-g="Savings"]').count(), 1, 'savings group in the chart');
     await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx');
     assert.equal(await page.locator('.tx[data-id="pl:xo"] .txc').innerText(), 'Savings'); assert.equal(await page.locator('.tx[data-id="pl:xi"] .txc').innerText(), 'Savings');
-    await page.click('[data-action="tx-filter"][data-f="review"]');
-    assert.equal(await page.locator('.tx[data-id="pl:xo"], .tx[data-id="pl:xi"]').count(), 0);
+    assert.equal(await page.locator('#txreview .tx[data-id="pl:xo"], #txreview .tx[data-id="pl:xi"]').count(), 0, 'not in To review');
   });
   await step('a later sync does not record the move twice', async () => {
     await page.goto(BASE + '#overview'); await page.click('.hero [data-action="account"]'); await page.waitForSelector('[data-action="bal-sync"]');

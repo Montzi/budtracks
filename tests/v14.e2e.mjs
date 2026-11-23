@@ -82,9 +82,9 @@ for (const [w, h, dark] of [[390, 844, true], [390, 844, false], [669, 951, true
   await page.waitForTimeout(300);
   await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx-card');
 
-  await step(`Header icons (camera, +, sync) and five equal filter chips, one line (${tag})`, async () => {
+  await step(`Header icons (camera, +, sync) and four equal filter chips, one line (${tag})`, async () => {
     const labels = (await page.locator('.tx-chips > button').allInnerTexts()).map(t => t.trim().toLowerCase());
-    assert.deepEqual(labels.map(l => l.replace(/ \d+$/, '')), ['all', 'review', 'added', 'matched', 'skipped']);
+    assert.deepEqual(labels.map(l => l.replace(/ \d+$/, '')), ['all', 'accepted', 'matched', 'skipped']);
     assert.equal(await page.locator('.tx-chips [data-action="bk-sync"], .tx-chips .chip-sync').count(), 0, 'no Sync chip');
     const hdr = page.locator('.tx-card .card-h .tx-hb > button');
     assert.deepEqual(await hdr.evaluateAll(bs => bs.map(b => b.dataset.action)), ['shot-open', 'add', 'bk-sync']);

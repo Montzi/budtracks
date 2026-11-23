@@ -100,7 +100,7 @@ test('picker: a $1.99 Apple line on Nov 21 offers the assumed-paid Nov 17 UHF fi
   assert.equal(new Set(all).size, all.length, 'each item once');
 });
 
-test('picker: Earlier lists the previous two pay cycles (paid, assumed paid and unpaid) newest first; not already-linked ones', () => {
+test('picker: Earlier lists the previous three pay cycles (paid, assumed paid and unpaid) newest first; not already-linked ones', () => {
   const st = fixture({ since: '2026-10-01' });
   st.bills.push({ id: 'gym', name: 'Gym', amount: 30, day: 28, group: 'Fixed', category: '' });
   st.marks['b:icl:2026-11-20'] = true;                      // marked paid, before the bank line
@@ -108,9 +108,10 @@ test('picker: Earlier lists the previous two pay cycles (paid, assumed paid and 
   st.occ['b:rent:2026-10-25'] = { txn: 'pl:rent-oct' };     // linked to another line: never offered
   const p = BT.pickSections(st, T('pl:x', '2026-11-21', 'MYSTERY', 7.5), TODAY);
   const e = keys(p.earlier);
-  // Previous two cycles: Oct 22 - Nov 19. Oct 17 is older than that.
-  assert.ok(e.includes('b:icl:2026-11-20') && e.includes('b:uhf:2026-11-17') && e.includes('b:gym:2026-10-28'), e.join());
-  assert.ok(!e.includes('b:uhf:2026-10-17'), 'older than the previous two cycles');
+  // Previous three cycles (v21): Oct 8 - Nov 19. Oct 17 is now inside; Sep 17 is older than that ("Show older" reaches it).
+  assert.ok(e.includes('b:icl:2026-11-20') && e.includes('b:uhf:2026-11-17') && e.includes('b:gym:2026-10-28') && e.includes('b:uhf:2026-10-17'), e.join());
+  assert.ok(!e.includes('b:uhf:2026-09-17'), 'older than the previous three cycles');
+  assert.ok(keys(BT.pickSections(st, T('pl:x', '2026-11-21', 'MYSTERY', 7.5), TODAY, { cycles: 6 }).earlier).includes('b:uhf:2026-09-17'), 'Show older reaches it');
   assert.ok(!e.includes('b:rent:2026-10-25') && ![...p.same, ...p.near, ...p.up].some(r => r.x.key === 'b:rent:2026-10-25'));
   const due = p.earlier.map(r => r.x.due); assert.deepEqual(due, due.slice().sort().reverse());
   // Paid items after the bank line still need "Show paid items too".

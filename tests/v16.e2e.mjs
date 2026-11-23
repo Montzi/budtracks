@@ -84,6 +84,8 @@ const planOf = (page, name) => page.locator('.plan', { hasText: name }).first();
 const noHScroll = async (page, label) => assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.body.scrollWidth <= innerWidth), 'horizontal scroll at ' + label);
 const quiet = page => page.evaluate(() => { const t = document.querySelector('#toast'); t.style.transition = 'none'; t.classList.remove('on'); const bud = document.querySelector('#bud'); if (bud) bud.style.display = 'none'; });
 const getState = page => page.evaluate(() => JSON.parse(localStorage.getItem('budtrack.v1')));
+// v21: the Service logos card is collapsed until opened.
+const openLogos = async page => { const h = page.locator('#svclogos .coll-h'); if ((await h.getAttribute('aria-expanded')) !== 'true') await h.click(); };
 const rect = (page, sel, within) => page.evaluate(([s, w]) => { const root = w ? document.querySelector(w) : document; const e = root.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; }, [sel, within || '']);
 const overlap = (a, c) => !(a.r <= c.l + 0.5 || c.r <= a.l + 0.5 || a.b <= c.t + 0.5 || c.b <= a.t + 0.5);
 
@@ -157,7 +159,7 @@ await step('service logo: icon from the provider domain; letter when off; letter
   assert.ok(hits.some(u => /klarna\.com\//.test(u)) && !hits.some(u => /google|gstatic|duckduckgo|clearbit/.test(u)), 'only the service domain is asked');
   // Turn the setting off in Income.
   await page.evaluate(() => { location.hash = 'income'; }); await page.waitForTimeout(300);
-  await page.locator('#svclogos input[data-action="svc-icons"]').click(); await page.waitForTimeout(200);
+  await openLogos(page); await page.locator('#svclogos input[data-action="svc-icons"]').click(); await page.waitForTimeout(200);
   assert.equal((await getState(page)).settings.svcIcons, false);
   const before = hits.length;
   await page.evaluate(() => { location.hash = 'plans'; }); await page.waitForTimeout(400);
@@ -212,7 +214,7 @@ await step('uploaded logo: resized to a small PNG, shows first, persists, is in 
   const bk = await page.locator('#bk').inputValue(); assert.ok(bk.includes('"logos"') && bk.includes(url.slice(0, 60)));
   await page.locator('#sheet [data-action="close"]').first().click();
   // Remove from the settings list.
-  await page.locator('.svc-list li', { hasText: 'Klarna' }).locator('[data-action="logo-rm"]').click(); await page.waitForTimeout(200);
+  await openLogos(page); await page.locator('.svc-list li', { hasText: 'Klarna' }).locator('[data-action="logo-rm"]').click(); await page.waitForTimeout(200);
   assert.equal(Object.keys((await getState(page)).logos).length, 0);
   // A bad file is refused.
   await page.locator('.svc-list li', { hasText: 'Afterpay' }).locator('[data-action="logo-up"]').click().catch(() => {});

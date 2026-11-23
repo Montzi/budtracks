@@ -197,13 +197,14 @@ const heroNeeds = page => page.locator('.lad.l2 .v').innerText().then(num);
     s = await getState(page); assert.ok(!s.bank.seen['pl:tr1'] || s.bank.seen['pl:tr1'].res !== 'transfer'); assert.ok(!s.savings.tx.some(t => t.txn === 'pl:tr1'));
     assert.equal(await bal(), b0, 'Undo gives back exactly what the move took (no leftover adjustment)'); assert.ok(!s.account.adj.some(x => x.sv));
     await noHScroll(page, '390 transactions');
-    // any money-out row offers it; money in does not
-    await page.locator('.tx[data-id="pl:cof"] .tx-main').click(); assert.equal(await page.locator('.tx[data-id="pl:cof"] [data-action="tx-sv"]').count(), 1);
-    await page.locator('.tx[data-id="pl:cof"] [data-action="tx-sv"]').click(); await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).savings.tx.some(t => t.txn === 'pl:cof'));
+    // v21: only transfers, person-to-person lines and money in offer it; a purchase never does
+    await page.locator('.tx[data-id="pl:cof"] .tx-main').click(); assert.equal(await page.locator('.tx[data-id="pl:cof"] [data-action="tx-sv"]').count(), 0, 'a purchase has no To savings');
+    await page.locator('.tx[data-id="pl:tr1"] .tx-main').click(); assert.equal(await page.locator('.tx[data-id="pl:tr1"] [data-action="tx-sv"]').count(), 1);
+    await page.locator('.tx[data-id="pl:tr1"] [data-action="tx-sv"]').click(); await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).savings.tx.some(t => t.txn === 'pl:tr1'));
     assert.equal(await bal(), b0); await noHScroll(page, '390 transactions expanded');
-    await page.click('#toast .toast-undo'); await page.waitForFunction(() => !JSON.parse(localStorage.getItem('budtrack.v1')).savings.tx.some(t => t.txn === 'pl:cof'));
+    await page.click('#toast .toast-undo'); await page.waitForFunction(() => !JSON.parse(localStorage.getItem('budtrack.v1')).savings.tx.some(t => t.txn === 'pl:tr1'));
     assert.equal(await bal(), b0, 'undo from the toast too');
-    await page.setViewportSize({ width: 951, height: 669 }); await page.locator('.tx[data-id="pl:cof"] .tx-main').click(); await noHScroll(page, '951 transactions expanded'); await page.setViewportSize({ width: 390, height: 844 });
+    await page.setViewportSize({ width: 951, height: 669 }); await page.locator('.tx[data-id="pl:tr1"] .tx-main').click(); await noHScroll(page, '951 transactions expanded'); await page.setViewportSize({ width: 390, height: 844 });
   });
   assert.deepEqual(errs, [], 'page errors'); await ctx.close();
 }
