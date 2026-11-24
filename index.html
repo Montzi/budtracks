@@ -304,6 +304,9 @@ textarea { width: 100%; min-height: 120px; border-radius: 10px; border: 1px soli
 .toast { position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%); z-index: 70; background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 99px; font-size: 13.5px; box-shadow: var(--shadow); opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.on { opacity: 1; }
 .toast.has-undo { pointer-events: auto; }
+.toast.on { pointer-events: auto; display: flex; align-items: center; gap: 4px; }
+.toast-x { flex: none; display: grid; place-items: center; width: 28px; height: 28px; margin: -6px -10px -6px 4px; border: 0; border-radius: 50%; background: transparent; color: inherit; opacity: .75; cursor: pointer; }
+.toast-x:hover, .toast-x:focus-visible { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); }
 .toast-undo { background: none; border: 0; padding: 0 0 0 2px; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .note { font-size: 13px; color: var(--ink-2); line-height: 1.5; }
 .note b { color: var(--ink); font-weight: 600; }
@@ -2802,12 +2805,12 @@ function party() {
   document.querySelectorAll('.brandbar').forEach(h => h.classList.add('party'));
   clearTimeout(partyTimer); partyTimer = setTimeout(() => document.querySelectorAll('.brandbar').forEach(h => h.classList.remove('party')), 10000);
 }
-function commit(msg) {
+function commit(msg, o) {
   try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {}
   clearTimeout(timer); timer = setTimeout(flush, 600);
   render();
   requestAnimationFrame(budReact); party();
-  if (msg) toast(msg);
+  if (msg) toast(msg, null, o);
 }
 async function flush() {
   if (!docRef) { setSync('Saved in this browser', 'ok'); return; }
@@ -2855,10 +2858,23 @@ async function connect() {
 }
 
 /* ---------- Helpers ---------- */
-function toast(msg, undo) {
-  const t = $('#toast'); t.textContent = msg; t.classList.add('on'); t.classList.toggle('has-undo', !!undo); toast.undo = undo || null;
+// Messages: at least 10 seconds on screen, always with an X to close. News from the banks (o.sticky) stays until closed;
+// a message that arrives meanwhile shows for its 10 seconds, then the bank news comes back.
+const TOAST_MS = 10000;
+function toast(msg, undo, o) {
+  const t = $('#toast'), sticky = !!(o && o.sticky);
+  if (sticky) toast.pin = msg;
+  t.textContent = msg; t.classList.add('on'); t.classList.toggle('has-undo', !!undo); toast.undo = undo || null; t.dataset.pin = sticky ? '1' : '';
   if (undo) { t.append(' · '); const b = document.createElement('button'); b.type = 'button'; b.className = 'toast-undo'; b.dataset.action = 'toast-undo'; b.textContent = 'Undo'; t.append(b); }
-  clearTimeout(toast.t); toast.t = setTimeout(() => { t.classList.remove('on', 'has-undo'); toast.undo = null; }, undo ? 7000 : 2200);
+  const x = document.createElement('button'); x.type = 'button'; x.className = 'toast-x'; x.dataset.action = 'toast-x'; x.setAttribute('aria-label', 'Close message');
+  x.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>'; t.append(x);
+  clearTimeout(toast.t); if (!sticky) toast.t = setTimeout(toastDone, TOAST_MS);
+}
+// Hides the current message; a pinned bank message comes back if it is still open.
+function toastDone() {
+  const t = $('#toast'); clearTimeout(toast.t); toast.undo = null;
+  if (toast.pin && t.dataset.pin !== '1') { toast(toast.pin, null, { sticky: true }); return; }
+  t.classList.remove('on', 'has-undo'); t.dataset.pin = '';
 }
 const listOf = type => ({ bill: 'bills', spend: 'perPeriod', income: 'income', plan: 'plans', card: 'cards', extra: 'spends' }[type]);
 const findItem = (type, id) => state[listOf(type)].find(x => x.id === id);
@@ -5275,9 +5291,11 @@ async function bankSync(o) {
     const newN = allIn.filter(t => t.date >= historyFrom && !known.has(t.id) && !(t.pendingOf && known.has(t.pendingOf))).length;
     const count = newN ? newN + (newN === 1 ? ' new transaction' : ' new transactions') : 'No new transactions';
     const msg = em || (one && !auto ? [(o.label || 'Bank') + (o.refreshed ? ' refreshed' : ' synced'), news, note].filter(Boolean).join(' · ') : auto ? news : [count, news, asked, note].filter(Boolean).join(' · '));
-    if (applied || fresh || dropped || !auto) commit(msg); else saveQuiet();
+    // News from the banks (matched, to review, updated) and sync errors stay on screen until closed.
+    const pin = !!(applied || fresh || dropped || em);
+    if (applied || fresh || dropped || !auto) commit(msg, { sticky: pin }); else saveQuiet();
     if (em) BANKUI.syncErr = em;
-    if (em && (applied || fresh || dropped || auto)) toast(em);
+    if (em && (applied || fresh || dropped || auto)) toast(em, null, { sticky: true });
     if (errs.some(e => e.needsReconnect)) { BANKUI.enr = null; BANKUI.loadErr = ''; }
     sendSnapshot(true).catch(() => {});
   } catch (e) { purgeInbox(state); BANKUI.syncErr = e.message; if (!auto) toast(e.message); }
@@ -5355,7 +5373,7 @@ async function bankItemSync(id) {
   }
   catch (er) { failed = er.message; }
   BANKUI.syncing = false;
-  if (failed) { BANKUI.rowBusy = ''; toast(failed); render(); return; }
+  if (failed) { BANKUI.rowBusy = ''; toast(failed, null, { sticky: true }); render(); return; }
   try { await bankSync({ auto: false, item: id, label, refreshed, note }); } finally { BANKUI.rowBusy = ''; render(); }
   clearTimeout(BANKUI.follow);
   BANKUI.follow = setTimeout(() => { if (document.visibilityState === 'visible') bankSync({ auto: true, item: id, label }); }, window.BT_FOLLOWUP_MS || 45000);
@@ -6608,6 +6626,7 @@ document.addEventListener('click', async e => {
     }
     case 'pay-hand': HEROUI.hand = true; render(); setTimeout(() => { const f = $('#payamt'); if (f) f.focus(); }, 30); break;
     case 'likely-open': case 'likely-first': case 'likely-yes': case 'likely-no': case 'likely-other': case 'lk-pick': case 'pk-pick': case 'pk-paid': case 'pk-older': case 'cf-yes': case 'cf-back': case 'toast-undo': likelyAct(act, a); break;
+    case 'toast-x': { const t = $('#toast'); if (t.dataset.pin === '1') toast.pin = null; toastDone(); break; }
     case 'hx-open': case 'hx-add': case 'hx-hide': case 'hx-undo': historyAct(act, a); break;
     case 'bank-read': case 'bank-ok': case 'bank-new': case 'bank-back': case 'bank-skip': case 'bank-pick': bankAct(act, a); break;
     case 'copy-backup': backupSheet('copy'); break;
@@ -6738,7 +6757,7 @@ function budSay(text, ms) {
 }
 function budReact() {
   let l; do { l = BUD_LINES[Math.floor(Math.random() * BUD_LINES.length)]; } while (l === lastLine);
-  lastLine = l; budSay(l, 1800);
+  lastLine = l; budSay(l, 10000);
 }
 document.addEventListener('mouseover', e => {
   const h = e.target.closest && e.target.closest('.wm svg.hd');
@@ -7059,9 +7078,9 @@ function render() {
   if (tab === 'transactions' && TXUI.toReview) { TXUI.toReview = false; setTimeout(() => { const el = $('#txreview'); if (el && currentTab() === 'transactions') el.scrollIntoView({ block: 'start' }); }, 80); }
 }
 let lastTab = null;
-window.addEventListener('hashchange', () => { closePeriod(false); render(); window.scrollTo(0, 0); requestAnimationFrame(() => budSay(TABNAME[currentTab()], 1600)); });
+window.addEventListener('hashchange', () => { closePeriod(false); render(); window.scrollTo(0, 0); requestAnimationFrame(() => budSay(TABNAME[currentTab()], 10000)); });
 // Tapping the tab you are already on has no hash change: Bud still says its name and the page returns to the top.
-document.addEventListener('click', e => { const a = e.target.closest('.tabs a'); if (a && a.getAttribute('href') === '#' + currentTab()) { window.scrollTo(0, 0); requestAnimationFrame(() => budSay(TABNAME[currentTab()], 1600)); } });
+document.addEventListener('click', e => { const a = e.target.closest('.tabs a'); if (a && a.getAttribute('href') === '#' + currentTab()) { window.scrollTo(0, 0); requestAnimationFrame(() => budSay(TABNAME[currentTab()], 10000)); } });
 render();
 const bankBoot = () => { bankOAuthResume(); bankAutoSync(); sendSnapshot().catch(() => {}); };
 connect().then(bankBoot, bankBoot);

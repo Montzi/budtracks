@@ -436,4 +436,31 @@ for (const [w, h] of [[763, 390], [667, 375]]) {
   });
   await ctx.close();
 }
+
+/* ---------- 9. Messages: bank news stays until closed; others at least 10 seconds ---------- */
+{
+  const { ctx, page, errs } = await newPage(390, 844, { dark: true, hash: '#income', txns: LOGO_TXNS() });
+  await step('390: new bank lines from a sync stay on screen with an X; another message shows its 10 seconds, then the bank news comes back; X closes it', async () => {
+    await page.waitForSelector('#toast.on');
+    const news = await txt(page, '#toast');
+    assert.match(news, /to review/); assert.equal(await page.getAttribute('#toast', 'data-pin'), '1');
+    assert.equal(await page.locator('#toast .toast-x').count(), 1);
+    await page.waitForTimeout(11000);
+    assert.ok(await page.locator('#toast.on').count(), 'still showing after 11 s'); assert.equal(await txt(page, '#toast'), news);
+    await page.waitForSelector('#aicard'); await page.click('#aicard [data-p="gemini"]');
+    assert.match(await txt(page, '#toast'), /Gemini Flash answers now/);
+    await page.waitForTimeout(6000); assert.match(await txt(page, '#toast'), /Gemini Flash answers now/, 'still up after 6 s');
+    await page.waitForTimeout(4600); assert.equal(await txt(page, '#toast'), news, 'bank news back after 10 s');
+    await page.click('#toast .toast-x');
+    assert.equal(await page.locator('#toast.on').count(), 0);
+    await page.waitForTimeout(500); assert.equal(await page.locator('#toast.on').count(), 0, 'stays closed');
+  });
+  await step('390: a plain message closes with its X before the 10 seconds are up', async () => {
+    await page.click('#aicard [data-p="claude"]'); await page.waitForSelector('#toast.on');
+    assert.equal(await page.getAttribute('#toast', 'data-pin'), '');
+    await page.click('#toast .toast-x'); assert.equal(await page.locator('#toast.on').count(), 0);
+    assert.deepEqual(errs, []);
+  });
+  await ctx.close();
+}
 await b.close(); console.log(failed ? failed + " FAILED" : "all ok"); process.exit(failed ? 1 : 0);
