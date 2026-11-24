@@ -2733,6 +2733,7 @@ function normalize(s) {
   }
   if (!o.catParents || typeof o.catParents !== 'object' || Array.isArray(o.catParents)) o.catParents = {};
   if (!o.bank.notes || typeof o.bank.notes !== 'object') o.bank.notes = {};
+  if (!o.bank.names || typeof o.bank.names !== 'object' || Array.isArray(o.bank.names)) o.bank.names = {};
   // Parent groups and the full default category set, merged into the user's own. Nothing of theirs is removed.
   if (!o.imports.includes('cats-v2')) {
     o.imports.push('cats-v2');
@@ -4113,7 +4114,7 @@ function saveForm(form) {
       else setAmountForever(type, it, o[ak]);
     }
     Object.assign(it, o); if (!it.from) delete it.from;
-    if (type === 'extra' && it.bank) { if (it.note) state.bank.notes[it.bank] = it.note; else delete state.bank.notes[it.bank]; }
+    if (type === 'extra' && it.bank) { if (it.note) state.bank.notes[it.bank] = it.note; else delete state.bank.notes[it.bank]; if (it.desc && txnOf(it.bank) && it.desc !== cleanMerchant(txnOf(it.bank))) state.bank.names[it.bank] = String(it.desc).trim().slice(0, 60); }
     closeSheet(); commit(type === 'extra' && it.from && it.from !== was ? 'Counted as part of unallocated spending' : 'Saved'); return;
   }
   if (type === 'extra' && o.recurring) {
@@ -5384,6 +5385,8 @@ function pruneSeenTxn() {
 
 /* Applying and undoing suggestions */
 function cleanMerchant(t) {
+  // The name you typed for this bank line always wins, whatever the bank or a match says.
+  const own = t && t.id && state.bank && state.bank.names && state.bank.names[t.id]; if (own) return String(own).slice(0, 60);
   let s = String(t.counterparty || '').trim();
   if (!s) s = BT.cleanDesc(t).replace(/\s+[A-Z]{2}\s*$/, '');
   if (s && s === s.toUpperCase()) s = s.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());
@@ -5601,6 +5604,7 @@ function carryPending(pid, t, o) {
   if (r.res === 'dupe' && r.of === pid) r.of = t.id;
   // The note typed on the pending line follows it, and neither id may stay in the review list.
   if (o.bank.notes && o.bank.notes[pid]) { if (!o.bank.notes[t.id]) o.bank.notes[t.id] = o.bank.notes[pid]; delete o.bank.notes[pid]; }
+  if (o.bank.names && o.bank.names[pid]) { if (!o.bank.names[t.id]) o.bank.names[t.id] = o.bank.names[pid]; delete o.bank.names[pid]; }
   o.bank.inbox = o.bank.inbox.filter(s => !(s.parts || [s.txn]).some(x => x.id === pid || x.id === t.id));
   if (o.bank.txns) { delete o.bank.txns[pid]; if (!o.bank.txns[t.id]) o.bank.txns[t.id] = t; }
   if (r.res === 'income' && r.part && old) {
@@ -6027,6 +6031,15 @@ function setTxNote(id, text) {
   }
   TXUI.mode = ''; commit(text ? 'Note saved' : 'Note removed');
 }
+// Saves the merchant name you typed for a bank line. Empty goes back to the bank's name. Its spending entry follows.
+function setTxName(id, text) {
+  text = String(text || '').trim().slice(0, 60);
+  const names = state.bank.names, r = state.bank.seen[id], t = txnOf(id);
+  if (text) names[id] = text; else delete names[id];
+  const nm = t ? cleanMerchant(t) : text;
+  if (r && r.spendId) { const x = state.spends.find(z => z.id === r.spendId); if (x) x.desc = nm; }
+  TXUI.mode = ''; commit(text ? 'Name saved' : 'Bank name restored');
+}
 // Bank money out in a range that isn't recorded anywhere yet: lines waiting for review, or earlier lines not added.
 // Transfers, card payments and ignored lines are left out, and anything already decided is counted through its spend or bill.
 const XFER_RX = /\btransfer\b|\bxfer\b|to savings|from savings|zelle to self|payment thank you|autopay|(?:credit )?card payment|online payment|add to balance/i;
@@ -6055,6 +6068,7 @@ function txStatus(t) {
   }
   return { k: 'none', f: 'ignored', label: 'Not counted' };
 }
+const txBankName = t => { const n = state.bank.names; if (!n || !n[t.id]) return cleanMerchant(t); const o = Object.assign({}, t, { id: '' }); return cleanMerchant(o); };
 const txBankKey = t => acctDots(t) || 'Other';
 const txSorted = (a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : b.amount - a.amount;
 // Lines waiting for a decision. One list feeds the "To review" section, the tab badge, the Overview bar and the app badge.
@@ -6090,6 +6104,7 @@ function txPanel(t, st) {
     const sugg = s && s.pick && ['plan', 'bill', 'transfer'].includes(s.kind) && k === 'review' ? `<div class="h">Suggested</div><div class="chips"><button class="chip" data-action="tx-sugg" data-id="${id}">${guessHTML(s)}</button></div>` : '';
     return `<div class="tx-p">${sugg}<div class="h">${k === 'spend' ? 'Change category' : 'Category'}</div>${catChipsHTML('tx-cat', `data-id="${id}"`, c => cur === c)}<div class="bx-a"><button class="btn sm" data-action="tx-back" data-id="${id}">Back</button></div></div>`;
   }
+  if (TXUI.mode === 'name') return `<div class="tx-p"><label class="fld" for="txname"><span>Merchant <em>your name wins over the bank's</em></span><input id="txname" type="text" maxlength="60" autocomplete="off" value="${esc(cleanMerchant(t))}" placeholder="${esc(txBankName(t))}"></label><div class="bx-a"><button class="btn sm primary" data-action="tx-name-save" data-id="${id}">Save name</button>${state.bank.names[t.id] ? `<button class="btn sm" data-action="tx-name-reset" data-id="${id}">Use bank name</button>` : ''}<button class="btn sm" data-action="tx-back" data-id="${id}">Cancel</button></div></div>`;
   if (TXUI.mode === 'note') return `<div class="tx-p"><label class="fld" for="txnote"><span>Note <em>optional</em></span><input id="txnote" type="text" maxlength="120" autocomplete="off" value="${esc(noteOfTxn(t))}" placeholder="What was this for?"></label><div class="bx-a"><button class="btn sm primary" data-action="tx-note-save" data-id="${id}">Save note</button><button class="btn sm" data-action="tx-back" data-id="${id}">Cancel</button></div></div>`;
   if (TXUI.mode === 'in') return `<div class="tx-p"><div class="h">Count this money in as</div><div class="chips"><button class="chip" data-action="tx-paycheck" data-id="${id}">Paycheck</button><button class="chip" data-action="tx-refund" data-id="${id}">Refund or transfer</button></div><div class="bx-a"><button class="btn sm" data-action="tx-back" data-id="${id}">Back</button></div></div>`;
   const b = (a, l, p) => `<button class="btn sm${p ? ' primary' : ''}" data-action="${a}" data-id="${id}">${l}</button>`;
@@ -6101,7 +6116,7 @@ function txPanel(t, st) {
   else if (k === 'none') acts = money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit');
   else acts = (money ? b('tx-in', 'Accept', 1) : b('tx-cats', 'Accept', 1) + b('tx-match', 'Match') + b('tx-edit', 'Edit')) + b('tx-ignore', 'Skip');
   if (svOk(t, st, s) && !(k === 'transfer' && st.r && st.r.sv) && k !== 'dupe') acts += b('tx-sv', 'To savings');
-  acts += b('tx-note', noteOfTxn(t) ? 'Edit note' : 'Add note');
+  acts += b('tx-name', 'Rename') + b('tx-note', noteOfTxn(t) ? 'Edit note' : 'Add note');
   const sm = k === 'review' || k === 'none' ? shotSuggest(t) : null;
   return `<div class="tx-p">${sm ? shotSuggestHTML(t, sm) : ''}${s && k === 'review' ? `<div class="bx-g"><span class="pill conf-${s.confidence}">${{ high: 'Sure', medium: 'Likely', low: 'Unsure' }[s.confidence]}</span><span class="g-t">${guessHTML(s)}</span></div>` : ''}${note ? `<div class="bm-m">${note}</div>` : ''}<div class="bx-a">${acts}</div></div>`;
 }
@@ -6351,6 +6366,9 @@ function txAct(act, a) {
     case 'tx-open': TXUI.open = TXUI.open === id ? null : id; TXUI.mode = ''; { const l = $('#txlist'); if (l) l.innerHTML = txListHTML(); } break;
     case 'tx-back': TXUI.mode = ''; render(); break;
     case 'tx-note': TXUI.mode = 'note'; render(); { const i = $('#txnote'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } } break;
+    case 'tx-name': TXUI.mode = 'name'; render(); { const i = $('#txname'); if (i) { i.focus(); i.select(); } } break;
+    case 'tx-name-save': { const i = $('#txname'); setTxName(id, i ? i.value : ''); break; }
+    case 'tx-name-reset': setTxName(id, ''); break;
     case 'tx-note-save': { const i = $('#txnote'); setTxNote(id, i ? i.value : ''); break; }
     case 'tx-cats': TXUI.mode = 'cats'; render(); break;
     case 'tx-in': TXUI.mode = 'in'; render(); break;
@@ -6612,7 +6630,7 @@ document.addEventListener('click', async e => {
     case 'shot-add': scanAdd(); break;
     case 'shot-cancel': SCANUI = scanFresh(); closeSheet(); break;
     case 'ix-open': case 'ix-accept': case 'ix-change': case 'ix-pick': case 'ix-cat': case 'ix-cats': case 'ix-new': case 'ix-match': case 'ix-edit': case 'ix-skip': case 'ix-all': case 'ix-undo': inboxAct(act, a); break;
-    case 'tx-note': case 'tx-note-save': case 'tx-review': case 'tx-filter': case 'tx-more': case 'tx-open': case 'tx-back': case 'tx-cats': case 'tx-in': case 'tx-cat': case 'tx-sugg': case 'tx-match': case 'tx-edit': case 'tx-ignore': case 'tx-undo': case 'tx-refund': case 'tx-paycheck': case 'tx-sv': txAct(act, a); break;
+    case 'tx-name': case 'tx-name-save': case 'tx-name-reset': case 'tx-note': case 'tx-note-save': case 'tx-review': case 'tx-filter': case 'tx-more': case 'tx-open': case 'tx-back': case 'tx-cats': case 'tx-in': case 'tx-cat': case 'tx-sugg': case 'tx-match': case 'tx-edit': case 'tx-ignore': case 'tx-undo': case 'tx-refund': case 'tx-paycheck': case 'tx-sv': txAct(act, a); break;
     case 'pc-out': payPartOut(a.dataset.id); break;
     case 'pc-edit': INCUI.edit = a.dataset.date; render(); setTimeout(() => { const f = $('#pcamt'); if (f) { f.focus(); f.select(); } }, 30); break;
     case 'pc-cancel': INCUI.edit = null; render(); break;

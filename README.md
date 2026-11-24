@@ -4,7 +4,7 @@ Pay-cycle budget tracker for one person. Installable web app (PWA) on GitHub Pag
 
 - App: https://montzi.github.io/budtracks/
 - Worker: https://budtracks-worker.atsdsc27.workers.dev
-- Current release: `budtracks-v44` (see `sw.js`)
+- Current release: `budtracks-v45` (see `sw.js`)
 - History: [CHANGELOG.md](CHANGELOG.md). How updates are made: [CLAUDE.md](CLAUDE.md). Worker details: [worker/README.md](worker/README.md).
 
 ## What is in the repo
@@ -23,7 +23,7 @@ Pay-cycle budget tracker for one person. Installable web app (PWA) on GitHub Pag
 - **Tabs:** Overview, Transactions, Bills, Plans, Income. Settings sit on the Income tab below the income section. One fixed header with Bud on every tab; Bud names the tab and shows quick messages.
 - **Pay cycles:** income per paycheck, bills, budgets per cycle or month, savings, "Left in paycheck" and "Still due".
 - **Charts:** spending by parent category, monthly toggle, income trend. Landscape has its own layout.
-- **Transactions:** categories with sub-categories, notes, receipt photos, To review on top. Edit a row to change its **Logo**: pick any logo or upload one; it applies to that merchant everywhere.
+- **Transactions:** categories with sub-categories, notes, receipt photos, To review on top. Rename any row, matched or not, and your name always wins. Edit a row to change its **Logo**: pick any logo or upload one; it applies to that merchant everywhere.
 - **Plans:** Klarna, Afterpay, PayPal pay plans and credit cards, due dates, postpone a payment.
 - **Bank sync (Plaid production):** automatic on open and with Sync, instant updates by webhook, review inbox, matching to bills, plans and paychecks, undo.
 - **Add from screenshot:** Claude Haiku 5.5 reads banking app screenshots; real bank rows later link to them.
