@@ -205,12 +205,13 @@ const LOGO_TXNS = () => [T('sr1', TODAY, 'SHOPRITE 123', 41.2), T('sr2', addD(TO
 for (const [w, h, dark] of [[390, 844, true], [951, 669, false]]) {
   const tag = `${w}x${h} ${dark ? 'dark' : 'light'}`;
   const { ctx, page, errs, mock } = await newPage(w, h, { dark, hash: '#overview', txns: LOGO_TXNS() });
-  await step(`${tag}: tapping Bud opens the chat under the logo with Style, Settings, a greeting and suggestions`, async () => {
+  await step(`${tag}: tapping Bud opens the chat at the top of the screen with Style, Settings, a greeting and suggestions`, async () => {
     await quiet(page);
     await page.locator('#brandbar svg.hd').dispatchEvent('click');
     await page.waitForSelector('#budchat:not([hidden]) .bc');
     const g = await page.evaluate(() => { const bb = document.querySelector('#brandbar').getBoundingClientRect(), bc = document.querySelector('.bc').getBoundingClientRect(); return { top: bc.top, bbBottom: bb.bottom, left: bc.left, right: bc.right, bottom: bc.bottom, vw: innerWidth, vh: innerHeight }; });
-    assert.ok(g.top >= g.bbBottom && g.top - g.bbBottom < 20, 'under the logo ' + JSON.stringify(g));
+    assert.ok(g.top >= 0 && g.top <= 20, 'at the top ' + JSON.stringify(g));
+    assert.ok(g.bottom >= g.vh - 20, 'full height ' + JSON.stringify(g));
     assert.ok(g.right <= g.vw && g.left >= 0 && g.bottom <= g.vh, 'inside the screen ' + JSON.stringify(g));
     assert.equal(await page.locator('.bc-h [data-action="style"]').innerText(), 'Style');
     assert.equal(await page.getAttribute('.bc-h [data-action="settings"]', 'aria-label'), 'Settings');
@@ -412,6 +413,25 @@ for (const [w, h] of [[763, 390], [667, 375]]) {
     await page.click('#bcmenu [data-action="bc-keys"]');
     await page.waitForFunction(() => location.hash === '#income'); await page.waitForTimeout(400);
     const top = await page.evaluate(() => document.querySelector('#aicard').getBoundingClientRect().top); assert.ok(top > -10 && top < 80, 'Ask Bud card at top: ' + top);
+    assert.deepEqual(errs, []);
+  });
+  await ctx.close();
+}
+
+/* ---------- 8. Chat with the keyboard up ---------- */
+{
+  const { ctx, page, errs } = await newPage(390, 844, { dark: true, hash: '#overview', noSync: true });
+  await step('390: when the keyboard takes the bottom 336px, only the chat\'s bottom edge moves up; the header stays at the top', async () => {
+    await quiet(page); await page.locator('#brandbar svg.hd').dispatchEvent('click'); await page.waitForSelector('#budchat:not([hidden])'); await page.waitForTimeout(250);
+    const before = await page.evaluate(() => { const r = document.querySelector('.bc').getBoundingClientRect(), h = document.querySelector('.bc-h').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, head: h.top }; });
+    // Stand in for the iOS keyboard: a visual viewport 336px shorter than the window.
+    await page.evaluate(() => { const vv = window.visualViewport; Object.defineProperty(vv, 'height', { configurable: true, get: () => innerHeight - 336 }); vv.dispatchEvent(new Event('resize')); });
+    await page.waitForTimeout(100);
+    const after = await page.evaluate(() => { const r = document.querySelector('.bc').getBoundingClientRect(), h = document.querySelector('.bc-h').getBoundingClientRect(), i = document.querySelector('.bc-in').getBoundingClientRect(), l = document.querySelector('.bc-log').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, head: h.top, inBottom: i.bottom, log: l.height }; });
+    assert.equal(after.top, before.top, 'top unchanged'); assert.equal(after.head, before.head, 'header unchanged');
+    assert.ok(after.bottom <= 844 - 336 && after.bottom >= 844 - 336 - 20, 'above the keyboard ' + JSON.stringify(after));
+    assert.ok(after.log >= 200, 'room for messages ' + JSON.stringify(after));
+    await page.screenshot({ path: SHOTS + '/v22-chat-keyboard-390.png' });
     assert.deepEqual(errs, []);
   });
   await ctx.close();

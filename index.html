@@ -6802,19 +6802,16 @@ function chatPaint() {
   const cb = document.querySelector('.bc-clear'); if (cb) cb.hidden = !CHAT.msgs.some(m => m.r !== 'sep');
   const mn = $('#bcmenu'); if (mn && !mn.hidden) mn.innerHTML = bcMenuHTML();
 }
-// Sits right under the brand header (or the top of the screen when it is scrolled away) and above the keyboard.
-// Short landscape screens have no room under the logo: the chat sits beside it, or slides up over it.
+// Opens at the top of the screen with the full height, so the keyboard only pulls up the bottom edge.
+// It follows the visible area (iOS can scroll it when the keyboard opens). Wide screens keep the logo column visible beside it.
 function chatPlace() {
   const w = $('#budchat'); if (!w || w.hidden) return;
-  const bb = $('#brandbar').getBoundingClientRect(), vv = window.visualViewport, vh = vv ? vv.height + vv.offsetTop : innerHeight, W = innerWidth;
-  const MIN = Math.min(320, vh - 16), under = Math.max(8, Math.round(bb.bottom + 8));
-  let top = under, left = W >= 700 ? Math.max(12, Math.round(bb.left)) : 8, width = W >= 700 ? Math.min(560, W - left - 12) : W - 16;
-  if (vh - under < MIN) {
-    if (W - bb.right - 20 >= 320) { top = Math.max(8, Math.round(bb.top)); left = Math.round(bb.right + 8); width = Math.min(560, W - left - 12); }
-    else top = Math.max(8, Math.round(vh - MIN));
-  }
-  w.style.setProperty('--bc-top', top + 'px');
-  w.style.setProperty('--bc-bottom', Math.max(0, Math.round(innerHeight - vh)) + 'px');
+  const bb = $('#brandbar').getBoundingClientRect(), vv = window.visualViewport, W = innerWidth;
+  const vTop = vv ? vv.offsetTop : 0, vBottom = vv ? vv.offsetTop + vv.height : innerHeight;
+  let left = 8, width = W - 16;
+  if (W >= 700) { if (W - bb.right - 20 >= 360) { left = Math.round(bb.right + 8); width = Math.min(560, W - left - 12); } else { left = 12; width = Math.min(560, W - 24); } }
+  w.style.setProperty('--bc-top', Math.round(vTop + 8) + 'px');
+  w.style.setProperty('--bc-bottom', Math.max(0, Math.round(innerHeight - vBottom)) + 'px');
   w.style.setProperty('--bc-left', left + 'px');
   w.style.setProperty('--bc-w', width + 'px');
 }
