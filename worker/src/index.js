@@ -1378,12 +1378,17 @@ async function askGemini(env, { ctx, past, q, today, limit, used }) {
     finally { clearTimeout(t); }
     if (r && (r.ok || ![429, 500, 502, 503, 504].includes(r.status))) break;
   }
-  // Only the status is logged, never the question, the data or Google's message (it can quote the input).
+  // Only the status and Google's error codes are logged, never the question, the data or Google's message (it can quote the input).
   if (!r) throw new HttpError(502, "Couldn't reach Gemini, try again");
+  const ge = (j && j.error) || {}, gst = typeof ge.status === 'string' ? ge.status.replace(/[^A-Z_]/g, '').slice(0, 40) : '';
+  const grs = (Array.isArray(ge.details) ? ge.details : []).map((d) => d && d.reason).find((x) => typeof x === 'string') || '';
+  const code = [r.status, gst, grs.replace(/[^A-Z_]/g, '').slice(0, 40)].filter(Boolean).join(' ');
+  if (!r.ok) console.error('ask: gemini error', code);
+  if (/API_KEY_INVALID|API_KEY_EXPIRED|PERMISSION_DENIED|UNAUTHENTICATED/.test(code)) throw new HttpError(503, "Gemini's key is invalid (" + code + ')');
   if (r.status === 429) { console.error('ask: gemini rate limited'); throw new HttpError(429, 'Gemini is busy or its free limit is used up for now, try again later'); }
   if (r.status === 401 || r.status === 403) { console.error('ask: gemini key rejected', r.status); throw new HttpError(503, "Gemini's key is invalid"); }
-  if (r.status === 400 || r.status === 404) { console.error('ask: gemini request rejected', r.status); throw new HttpError(502, 'Gemini rejected the request. The server needs an update.'); }
-  if (!r.ok) { console.error('ask: gemini error', r.status); throw new HttpError(502, 'Gemini had a problem, try again'); }
+  if (r.status === 400 || r.status === 404) throw new HttpError(502, 'Gemini rejected the request (' + code + ')');
+  if (!r.ok) throw new HttpError(502, 'Gemini had a problem (' + code + '), try again');
   const text = (Array.isArray(j?.steps) ? j.steps : []).filter((s) => s && s.type === 'model_output')
     .flatMap((s) => (Array.isArray(s.content) ? s.content : [])).filter((c) => c && c.type === 'text' && typeof c.text === 'string').map((c) => c.text).join('\n\n');
   const bubbles = askBubbles(text);

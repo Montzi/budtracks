@@ -476,7 +476,8 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 /* Ask Bud: a chat window under the logo */
 .bc-wrap { position: fixed; inset: 0; z-index: 38; }
 .bc-back { position: absolute; inset: 0; background: #0a0e1873; }
-.bc { position: absolute; top: var(--bc-top, 120px); bottom: calc(var(--bc-bottom, 0px) + 8px + env(safe-area-inset-bottom)); left: var(--bc-left, 0px); width: var(--bc-w, 100%); max-width: 100%;
+.bc { --bc-l: max(var(--bc-left, 0px), calc(env(safe-area-inset-left) + 8px)); position: absolute; top: max(var(--bc-top, 120px), calc(env(safe-area-inset-top) + 8px)); bottom: calc(var(--bc-bottom, 0px) + 8px + env(safe-area-inset-bottom));
+  left: var(--bc-l); width: min(var(--bc-w, 100%), calc(100% - var(--bc-l) - env(safe-area-inset-right) - 8px)); max-width: 100%;
   display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow), 0 18px 50px #0006; overflow: hidden; animation: bcIn .18s ease-out; }
 @keyframes bcIn { from { opacity: 0; transform: translateY(-8px); } }
 @media (prefers-reduced-motion: reduce) { .bc { animation: none; } }
@@ -6788,6 +6789,7 @@ async function budAsk(text) {
   } catch (e) {
     CHAT.busy = false;
     say(e.status === 429 ? (/daily limit/.test(e.message) ? "That's all the thinking I can do today. Ask me again tomorrow!" : /Gemini/.test(e.message) ? e.message + '. You can switch to Claude in Settings.' : 'I am a bit busy right now. Try again in a minute.')
+      : e.status === 503 && /key is invalid/.test(e.message) ? e.message + '. Check the ' + (/Gemini/.test(e.message) ? 'GEMINI_API_KEY' : 'ANTHROPIC_API_KEY') + ' secret, or switch AI in Settings.'
       : e.status === 503 ? (/Gemini/.test(e.message) ? "Gemini isn't connected yet. Add its key on the server, or switch back to Claude in Settings." : "I'm not switched on yet: the server needs its Anthropic key.") : e.status === 404 ? 'The server is out of date. It updates itself shortly, then ask me again.'
       : e.offline ? "I can't reach the server. Check your connection and try again." : e.message || 'Something went wrong. Try again?', 1);
     chatPaint();

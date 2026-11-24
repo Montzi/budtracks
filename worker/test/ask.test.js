@@ -159,3 +159,11 @@ test('config reports which AI providers are set up', async () => {
   const j = await (await worker.fetch(new Request('https://w.test/config', { headers: { Origin: ORIGIN } }), env)).json();
   assert.deepEqual(j.ai, { claude: true, gemini: true });
 });
+
+test('ask gemini: an invalid key (Google answers 400 API_KEY_INVALID) says so, with codes only', async () => {
+  const g = fakeGemini(() => ({ status: 400, json: { error: { code: 400, message: 'API key not valid. SHOPRITE', status: 'INVALID_ARGUMENT', details: [{ '@type': 'type.googleapis.com/google.rpc.ErrorInfo', reason: 'API_KEY_INVALID' }] } } }));
+  const { env, key } = await paired({ GEMINI_FETCH: g, GEMINI_API_KEY: 'bad' });
+  let r, j; const out = await logs(async () => { r = await call(env, ok({ provider: 'gemini' }), { key }); j = await r.json(); });
+  assert.equal(r.status, 503); assert.equal(j.error, "Gemini's key is invalid (400 INVALID_ARGUMENT API_KEY_INVALID)");
+  assert.match(out, /ask: gemini error 400 INVALID_ARGUMENT API_KEY_INVALID/); assert.equal(/SHOPRITE|not valid/.test(out), false);
+});
