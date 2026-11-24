@@ -74,6 +74,7 @@ Aim: a small change ships in 5 to 8 minutes. The user checks it on the phone and
 - CSS class names too (`.bud` clashed with the speech bubble, chat uses `.bot`).
 - Toasts must not block taps: the pill has `pointer-events: none`; only its buttons take taps.
 - Tests should close messages with ✕ instead of waiting for them to disappear.
-- `tests/v12.e2e.mjs` timed out in setup when the machine was busy. Setup waits now allow 20 s.
+- `tests/v12.e2e.mjs` sometimes never gets balances from its first sync. The retry passes. When it fails, the log has a `SYNC WAIT TIMED OUT` line with the app's state. Read that before changing anything.
+- GitHub's test machine needs Inter as its default font, like the sandbox. `tests/fonts-prefer-inter.conf` does that. Without it, text is wider and layout checks fail.
 - Plaid Trial caps at 10 bank logins and removing one does not free a slot.
 - Teller shut down its API; Plaid replaced it.
