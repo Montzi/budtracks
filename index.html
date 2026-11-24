@@ -481,8 +481,9 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 @keyframes bcIn { from { opacity: 0; transform: translateY(-8px); } }
 @media (prefers-reduced-motion: reduce) { .bc { animation: none; } }
 .bc-h { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 12px; border-bottom: 1px solid var(--line); }
-.bc-sp { flex: 1; }
+.bc-sp { flex: 1; min-width: 0; text-align: center; font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bc-new[hidden] { display: none; }
+.note.warn { color: var(--warn, #b7791f); }
 .bc-log { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 14px 12px 6px; display: flex; flex-direction: column; gap: 8px; }
 .bc-m { display: flex; align-items: flex-end; gap: 8px; max-width: 88%; }
 .bc-m p { margin: 0; padding: 9px 13px; border-radius: 18px; font-size: 15px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -1247,7 +1248,7 @@ body.dragging-bank { cursor: grabbing; -webkit-user-select: none; user-select: n
 </div></nav>
 <div id="sheet" class="sheet-wrap" hidden><div class="backdrop" data-action="close"></div><div class="sheet" role="dialog" aria-modal="true"><div id="sheetBody"></div></div></div>
 <div id="budchat" class="bc-wrap" hidden><div class="bc-back" data-action="bc-close"></div><section class="bc" role="dialog" aria-modal="true" aria-labelledby="bc-title">
-  <header class="bc-h"><h2 id="bc-title" class="sr">Ask Bud</h2><button type="button" class="btn sm" data-action="style">Style</button><button type="button" class="btn sm" data-action="settings">Settings</button><span class="bc-sp"></span><button type="button" class="btn sm bc-new" data-action="bc-new" hidden>New chat</button><button type="button" class="icon-btn" data-action="bc-close" aria-label="Close">
+  <header class="bc-h"><h2 id="bc-title" class="sr">Ask Bud</h2><button type="button" class="btn sm" data-action="style">Style</button><button type="button" class="btn sm" data-action="settings">Settings</button><span class="bc-sp" id="bcwho"></span><button type="button" class="btn sm bc-new" data-action="bc-new" hidden>New chat</button><button type="button" class="icon-btn" data-action="bc-close" aria-label="Close">
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
   <div class="bc-log" id="bclog" aria-live="polite"></div>
   <form class="bc-in" id="bcform" autocomplete="off"><label class="sr" for="bcq">Ask Bud</label><input id="bcq" type="text" placeholder="Ask Bud about your money" maxlength="600" enterkeyhint="send"><button type="submit" class="bc-send" aria-label="Send"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5"/></svg></button></form>
@@ -3366,6 +3367,7 @@ function viewIncome() {
   ${viaManager()}
   ${bankCard()}
   ${logosCard()}
+  ${aiCard()}
   <section class="card appear"><header class="card-h"><div><h2>Appearance</h2><span class="meta">Auto follows your phone</span></div>${themeSeg()}</header></section>
   <section class="card" id="yourdata"><header class="card-h"><div><h2>Your data</h2>${state.settings.lastBackup ? `<span class="meta">Last backup file ${md(state.settings.lastBackup)}</span>` : ''}</div></header>
     <div class="card-b" style="display:grid;gap:12px">
@@ -6497,6 +6499,7 @@ document.addEventListener('click', async e => {
     case 'pick-icon': iconSheet(a.dataset.cat); break;
     case 'hat': case 'style': hatSheet(); break;
     case 'bud': budChatOpen(); break;
+    case 'ai-prov': state.settings.aiProvider = a.dataset.p === 'gemini' ? 'gemini' : 'claude'; commit(AI_NAME[aiProv()] + ' answers now'); break;
     case 'bc-close': budChatClose(); break;
     case 'bc-new': CHAT.msgs = []; chatSave(); chatPaint(); $('#bcq').focus(); break;
     case 'bc-ask': budAsk(a.dataset.q); break;
@@ -6690,6 +6693,29 @@ document.addEventListener('mouseout', e => {
 window.addEventListener('scroll', () => { if (!budHover) $('#bud').classList.remove('on'); }, { passive: true });
 
 /* ---------- Ask Bud ---------- */
+// Which AI answers: Claude Haiku 5.5 (Anthropic) or Gemini 3.8 Flash (Google's free tier). The server says which keys it has.
+const AIUI = { ai: null, loading: false };
+const aiProv = () => state.settings.aiProvider === 'gemini' ? 'gemini' : 'claude';
+const AI_NAME = { claude: 'Claude Haiku', gemini: 'Gemini Flash' };
+async function aiCfgLoad() {
+  if (!bankApi() || AIUI.ai || AIUI.loading) return;
+  AIUI.loading = true;
+  try { const c = await bankFetch('/config', { auth: false }); AIUI.ai = c && c.ai && typeof c.ai === 'object' ? c.ai : { claude: true, gemini: false }; } catch (e) {}
+  AIUI.loading = false;
+  if (currentTab() === 'income' && AIUI.ai) { const el = $('#aicard'); if (el) el.outerHTML = aiCard(); }
+}
+function aiCard() {
+  const p = aiProv(), ai = AIUI.ai, off = ai && !ai[p];
+  const note = p === 'gemini'
+    ? 'Gemini 3.8 Flash by Google, on its free tier: free within Google\'s daily limits. On the free tier, Google may use what you send to improve its products.'
+    : 'Claude Haiku 5.5 by Anthropic, the cheapest Claude. About a tenth of a cent per question on your Anthropic account. Anthropic does not train on API data.';
+  return `<section class="card" id="aicard"><header class="card-h"><div><h2>Ask Bud</h2><span class="meta">Which AI answers when you tap Bud</span></div></header>
+    <div class="card-b" style="display:grid;gap:10px">
+      <div class="seg kind-seg" role="group" aria-label="AI for Ask Bud"><button type="button" data-action="ai-prov" data-p="claude" aria-pressed="${p === 'claude'}">Claude Haiku</button><button type="button" data-action="ai-prov" data-p="gemini" aria-pressed="${p === 'gemini'}">Gemini Flash</button></div>
+      <p class="note" style="margin:0">${note}</p>
+      ${off ? `<p class="note warn" style="margin:0">Not set up on your server yet: add ${p === 'gemini' ? 'GEMINI_API_KEY' : 'ANTHROPIC_API_KEY'} to the GitHub repository secrets. Bud picks it up after the next server update.</p>` : ''}
+    </div></section>`;
+}
 // Tap Bud: a chat window under the logo. Questions go to the BudTracks server (/ask) with a compact summary built here
 // (totals, trends, upcoming, recent lines), never the raw data. The chat lives only in this browser (not in backups).
 const CHATLS = 'budtrack.chat';
@@ -6707,6 +6733,7 @@ function chatPaint() {
   if (CHAT.busy) html += `<div class="bc-m bot typing">${av}<p aria-label="Bud is thinking"><i></i><i></i><i></i></p></div>`;
   log.innerHTML = html; log.scrollTop = log.scrollHeight;
   const nb = document.querySelector('.bc-new'); if (nb) nb.hidden = !CHAT.msgs.length;
+  const who = $('#bcwho'); if (who) who.textContent = AI_NAME[aiProv()];
 }
 // Sits right under the brand header (or the top of the screen when it is scrolled away) and above the keyboard.
 // Short landscape screens have no room under the logo: the chat sits beside it, or slides up over it.
@@ -6752,7 +6779,7 @@ async function budAsk(text) {
   if (!bankReady()) { say('I talk through the BudTracks server, and this phone is not paired with it yet. Pair it on the Income tab under Bank connections, then ask me again.', 1); chatPaint(); return; }
   CHAT.busy = true; chatPaint();
   try {
-    const r = await bankFetch('/ask', { method: 'POST', body: { q, history, ctx: aiContext(), today: TODAY }, timeout: 100000 });
+    const r = await bankFetch('/ask', { method: 'POST', body: { q, history, ctx: aiContext(), today: TODAY, provider: aiProv() }, timeout: 100000 });
     CHAT.busy = false;
     const bs = Array.isArray(r.bubbles) ? r.bubbles.filter(x => typeof x === 'string' && x.trim()).slice(0, 6) : [];
     if (!bs.length) { say('Hmm, I lost my train of thought. Try asking again?', 1); chatPaint(); return; }
@@ -6760,8 +6787,8 @@ async function budAsk(text) {
     for (let i = 0; i < bs.length; i++) { if (i) { CHAT.busy = true; chatPaint(); await new Promise(ok => setTimeout(ok, 420)); CHAT.busy = false; } say(bs[i].slice(0, 1200)); chatPaint(); }
   } catch (e) {
     CHAT.busy = false;
-    say(e.status === 429 ? (/daily limit/.test(e.message) ? "That's all the thinking I can do today. Ask me again tomorrow!" : 'I am a bit busy right now. Try again in a minute.')
-      : e.status === 503 ? "I'm not switched on yet: the server needs its Anthropic key." : e.status === 404 ? 'The server is out of date. It updates itself shortly, then ask me again.'
+    say(e.status === 429 ? (/daily limit/.test(e.message) ? "That's all the thinking I can do today. Ask me again tomorrow!" : /Gemini/.test(e.message) ? e.message + '. You can switch to Claude in Settings.' : 'I am a bit busy right now. Try again in a minute.')
+      : e.status === 503 ? (/Gemini/.test(e.message) ? "Gemini isn't connected yet. Add its key on the server, or switch back to Claude in Settings." : "I'm not switched on yet: the server needs its Anthropic key.") : e.status === 404 ? 'The server is out of date. It updates itself shortly, then ask me again.'
       : e.offline ? "I can't reach the server. Check your connection and try again." : e.message || 'Something went wrong. Try again?', 1);
     chatPaint();
   }
@@ -6891,7 +6918,7 @@ function render() {
   $('#main').innerHTML = TABS[tab]();
   if (lastTab !== null && lastTab !== tab) { const mn = $('#main'); mn.classList.remove('tabin'); void mn.offsetWidth; mn.classList.add('tabin'); }
   lastTab = tab;
-  if (tab === 'income') bankCardLoad();
+  if (tab === 'income') { bankCardLoad(); aiCfgLoad(); }
   if (Date.now() < partyUntil) $('#brandbar').classList.add('party');
   // The brand header stays mounted: only its dynamic bits change (Saved pill, hat).
   const bb = $('#brandbar'), sy = bb.querySelector('.sync'), hk = JSON.stringify(hat());

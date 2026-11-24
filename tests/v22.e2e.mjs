@@ -54,7 +54,7 @@ async function newPage(w, h, o) {
     if (m === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     calls.push({ m, p });
     const json = (x, status) => route.fulfill({ status: status || 200, headers: cors, contentType: 'application/json', body: JSON.stringify(x) });
-    if (p === '/config') return json({ provider: 'plaid', env: 'production', paired: true });
+    if (p === '/config') return json({ provider: 'plaid', env: 'production', paired: true, ai: mock.ai || { claude: true, gemini: true } });
     if (p === '/accounts') return json({ enrollments: [{ id: 'enr_c', institution: 'Chime', accounts: [{ id: 'ch1', name: 'Checking', type: 'depository', subtype: 'checking', last_four: '1111', enabled: true }] }] });
     if (p === '/sync') return json({ txns: mock.txns, removed: mock.removed || [], errors: [], syncToken: 'tok', syncedAt: new Date().toISOString() });
     if (p === '/status') return json({ items: [], refresh: { supported: false, reason: 'no' }, balance: { supported: false, reason: 'no' }, env: 'production', at: new Date().toISOString() });
@@ -296,6 +296,40 @@ for (const [w, h] of [[763, 390], [667, 375]]) {
     assert.ok(g.log >= 140, 'log height ' + JSON.stringify(g));
     assert.ok(g.top >= 0 && g.bottom <= h && g.left >= 0 && g.right <= w, 'on screen ' + JSON.stringify(g));
     await noHScroll(page, w + ' chat'); assert.deepEqual(errs, []);
+  });
+  await ctx.close();
+}
+
+/* ---------- 5. Ask Bud: Claude Haiku or Gemini Flash, from Settings ---------- */
+{
+  const { ctx, page, errs, mock } = await newPage(390, 844, { dark: true, hash: '#income', txns: LOGO_TXNS() });
+  await step('390: Settings has an Ask Bud card; Claude Haiku is the default and each choice explains cost and privacy', async () => {
+    await page.waitForSelector('#aicard');
+    assert.equal(await page.locator('#aicard [data-p="claude"]').getAttribute('aria-pressed'), 'true');
+    assert.match(await txt(page, '#aicard'), /Claude Haiku 5\.5/);
+    await page.click('#aicard [data-p="gemini"]');
+    assert.equal((await getState(page)).settings.aiProvider, 'gemini');
+    assert.match(await txt(page, '#aicard'), /Gemini 3\.8 Flash[\s\S]*free tier[\s\S]*improve its products/);
+    assert.equal(await page.locator('#aicard .note.warn').count(), 0);
+    await quiet(page); await page.locator('#aicard').screenshot({ path: SHOTS + '/v22-ai-card-390.png' });
+  });
+  await step('390: with Gemini picked, questions go out with provider "gemini" and the chat header says Gemini Flash', async () => {
+    await page.locator('#brandbar svg.hd').dispatchEvent('click'); await page.waitForSelector('#budchat:not([hidden])');
+    assert.equal(await txt(page, '#bcwho'), 'Gemini Flash');
+    await page.fill('#bcq', 'Hi'); await page.press('#bcq', 'Enter');
+    await page.waitForFunction(() => document.querySelectorAll('.bc-m.bot:not(.typing)').length >= 4 && !document.querySelector('.bc-m.typing'));
+    assert.equal(mock.asks.at(-1).provider, 'gemini');
+    mock.askErr = [503, "Gemini isn't set up yet"];
+    await page.fill('#bcq', 'Again'); await page.press('#bcq', 'Enter');
+    await page.waitForSelector('.bc-m.bot.err'); assert.match(await txt(page, '.bc-m.bot.err'), /switch back to Claude in Settings/);
+    mock.askErr = null; await page.keyboard.press('Escape');
+  });
+  await step('390: when the server has no Gemini key, the card says what to add', async () => {
+    mock.ai = { claude: true, gemini: false }; await page.reload({ waitUntil: 'load' }); await page.waitForSelector('#aicard .note.warn');
+    assert.match(await txt(page, '#aicard .note.warn'), /GEMINI_API_KEY/);
+    await page.click('#aicard [data-p="claude"]'); assert.equal(await page.locator('#aicard .note.warn').count(), 0);
+    assert.equal((await getState(page)).settings.aiProvider, 'claude');
+    assert.deepEqual(errs, []);
   });
   await ctx.close();
 }

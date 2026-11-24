@@ -33,7 +33,7 @@ test('encryption round trip; ciphertext differs and hides plaintext', async () =
 
 test('config is public and reports provider, env and paired state', async () => {
   const env = mkEnv();
-  assert.deepEqual(await (await call(env, 'GET', '/config')).json(), { provider: 'plaid', env: 'sandbox', paired: false });
+  assert.deepEqual(await (await call(env, 'GET', '/config')).json(), { provider: 'plaid', env: 'sandbox', paired: false, ai: { claude: false, gemini: false } });
   await paired(env);
   assert.equal((await (await call(env, 'GET', '/config')).json()).paired, true);
   assert.equal((await (await call(mkEnv({ PLAID_ENV: 'production' }), 'GET', '/config')).json()).env, 'production');

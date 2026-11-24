@@ -1275,7 +1275,10 @@ async function scan(env, req) {
 // POST /ask {q, history: [{q, a}], ctx, today}: Bud answers a question about your budget in a few short chat bubbles.
 // The app sends a compact summary it builds on the phone (totals, trends, recent lines), never the raw data. Questions,
 // answers and data go to the Anthropic API only; nothing is stored or logged here except counts.
-const ASK_MODEL = 'claude-opus-5-5';
+// Claude Haiku 5.5 (Anthropic's cheapest), or Gemini 3.8 Flash (free tier on Google's side) when the app asks for it.
+const ASK_MODEL = 'claude-haiku-5-5';
+const GEMINI_MODEL = 'gemini-3.8-flash';
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/interactions';
 const ASK_MAX_BODY = 160 * 1024, ASK_MAX_CTX = 120 * 1024, ASK_TTL = 2 * 86400;
 const askLimit = (env) => { const n = Number(env.ASK_DAILY_LIMIT); return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 80; };
 const ASK_SYSTEM = `You are Bud, the mascot of BudTracks, a personal budgeting app for one person. You wear a hat and sit at a laptop in the app's logo.
@@ -1303,7 +1306,7 @@ export function validateAsk(b) {
   if (enc.encode(ctx).length > ASK_MAX_CTX) throw new HttpError(413, 'budget data too large');
   const history = (Array.isArray(b.history) ? b.history : []).slice(-6)
     .map((h) => ({ q: clipQ(h && h.q, 600), a: clipQ(h && h.a, 2000) })).filter((h) => h.q && h.a);
-  return { q, ctx, history, today: b.today };
+  return { q, ctx, history, today: b.today, provider: b.provider === 'gemini' ? 'gemini' : 'claude' };
 }
 // The reply's text, split into chat bubbles on blank lines.
 export function askBubbles(text) {
@@ -1311,13 +1314,13 @@ export function askBubbles(text) {
 }
 
 async function ask(env, req) {
-  if (!env.ANTHROPIC_API_KEY) throw new HttpError(503, "Bud isn't set up yet");
   if (Number(req.headers.get('Content-Length') || 0) > ASK_MAX_BODY) throw new HttpError(413, 'request too large');
   const raw = await req.text();
   if (enc.encode(raw).length > ASK_MAX_BODY) throw new HttpError(413, 'request too large');
   let body;
   try { body = JSON.parse(raw); } catch { throw new HttpError(400, 'invalid JSON'); }
-  const { q, ctx, history, today } = validateAsk(body);
+  const { q, ctx, history, today, provider } = validateAsk(body);
+  if (provider === 'gemini' ? !env.GEMINI_API_KEY : !env.ANTHROPIC_API_KEY) throw new HttpError(503, provider === 'gemini' ? "Gemini isn't set up yet" : "Bud isn't set up yet");
   const ck = 'ask:' + utcDay(), used = Number((await env.BT_KV.get(ck)) || 0) || 0, limit = askLimit(env);
   if (used + 1 > limit) throw new HttpError(429, 'daily limit');
   await env.BT_KV.put(ck, String(used + 1), { expirationTtl: ASK_TTL });
@@ -1325,14 +1328,13 @@ async function ask(env, req) {
   // One request per question. Earlier turns go in as quoted text, so no assistant turn (or its thinking) is replayed.
   // The budget data comes first with a cache breakpoint: follow-up questions read it from the cache.
   const past = history.length ? '<earlier_chat>\n' + history.map((h) => `Me: ${h.q}\nBud: ${h.a}`).join('\n\n') + '\n</earlier_chat>\n\n' : '';
+  if (provider === 'gemini') return askGemini(env, { ctx, past, q, today, limit, used });
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 2, timeout: 90_000, fetch: typeof env.ANTHROPIC_FETCH === 'function' ? env.ANTHROPIC_FETCH : (u, i) => fetch(u, i), logLevel: 'off' });
   let msg;
   try {
-    msg = await client.beta.messages.create({
+    msg = await client.messages.create({
       model: ASK_MODEL,
       max_tokens: 8000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
       output_config: { effort: 'low' },
       system: ASK_SYSTEM,
       messages: [{ role: 'user', content: [
@@ -1355,7 +1357,40 @@ async function ask(env, req) {
   if (!bubbles.length) { console.error('ask: empty reply', msg.stop_reason); throw new HttpError(502, 'Bud lost his train of thought, try again'); }
   console.log('ask: ok', bubbles.length, 'bubbles');
   const u = msg.usage || {};
-  return { bubbles, model: msg.model || ASK_MODEL, usage: { input_tokens: u.input_tokens ?? 0, output_tokens: u.output_tokens ?? 0, cache_read_input_tokens: u.cache_read_input_tokens ?? 0 }, left: Math.max(0, limit - used - 1) };
+  return { bubbles, provider: 'claude', model: msg.model || ASK_MODEL, usage: { input_tokens: u.input_tokens ?? 0, output_tokens: u.output_tokens ?? 0, cache_read_input_tokens: u.cache_read_input_tokens ?? 0 }, left: Math.max(0, limit - used - 1) };
+}
+
+// Gemini through the Interactions API: one stateless call (store: false), the same prompt and data as Claude.
+async function askGemini(env, { ctx, past, q, today, limit, used }) {
+  const f = typeof env.GEMINI_FETCH === 'function' ? env.GEMINI_FETCH : (u, i) => fetch(u, i);
+  const body = {
+    model: GEMINI_MODEL, store: false, system_instruction: ASK_SYSTEM,
+    input: `<budget_data>\n${ctx}\n</budget_data>\n\n${past}Today is ${today}.\n\n${q}`,
+    generation_config: { thinking_level: 'low', max_output_tokens: 8000 },
+  };
+  let r, j = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 90_000);
+    try {
+      r = await f(GEMINI_URL, { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY, 'Api-Revision': '2026-05-20' }, body: JSON.stringify(body) });
+      try { j = await r.json(); } catch { j = null; }
+    } catch (e) { console.error('ask: gemini connection failed', e?.name); r = null; }
+    finally { clearTimeout(t); }
+    if (r && (r.ok || ![429, 500, 502, 503, 504].includes(r.status))) break;
+  }
+  // Only the status is logged, never the question, the data or Google's message (it can quote the input).
+  if (!r) throw new HttpError(502, "Couldn't reach Gemini, try again");
+  if (r.status === 429) { console.error('ask: gemini rate limited'); throw new HttpError(429, 'Gemini is busy or its free limit is used up for now, try again later'); }
+  if (r.status === 401 || r.status === 403) { console.error('ask: gemini key rejected', r.status); throw new HttpError(503, "Gemini's key is invalid"); }
+  if (r.status === 400 || r.status === 404) { console.error('ask: gemini request rejected', r.status); throw new HttpError(502, 'Gemini rejected the request. The server needs an update.'); }
+  if (!r.ok) { console.error('ask: gemini error', r.status); throw new HttpError(502, 'Gemini had a problem, try again'); }
+  const text = (Array.isArray(j?.steps) ? j.steps : []).filter((s) => s && s.type === 'model_output')
+    .flatMap((s) => (Array.isArray(s.content) ? s.content : [])).filter((c) => c && c.type === 'text' && typeof c.text === 'string').map((c) => c.text).join('\n\n');
+  const bubbles = askBubbles(text);
+  if (j?.status === 'failed' || !bubbles.length) { console.error('ask: gemini empty reply', j?.status); throw new HttpError(502, 'Bud lost his train of thought, try again'); }
+  console.log('ask: gemini ok', bubbles.length, 'bubbles');
+  const u = j.usage || {};
+  return { bubbles, provider: 'gemini', model: j.model || GEMINI_MODEL, usage: { input_tokens: u.total_input_tokens ?? 0, output_tokens: (u.total_output_tokens ?? 0) + (u.total_thought_tokens ?? 0), cache_read_input_tokens: u.total_cached_tokens ?? 0 }, left: Math.max(0, limit - used - 1) };
 }
 
 // ---------- entry point ----------
@@ -1383,7 +1418,7 @@ export default {
       const url = new URL(req.url), path = url.pathname, m = req.method;
       let out;
       if (m === 'GET' && path === '/config') {
-        out = { provider: 'plaid', env: plaidEnv(env), paired: !!(await env.BT_KV.get('key_hash')) };
+        out = { provider: 'plaid', env: plaidEnv(env), paired: !!(await env.BT_KV.get('key_hash')), ai: { claude: !!env.ANTHROPIC_API_KEY, gemini: !!env.GEMINI_API_KEY } };
       } else if (m === 'POST' && path === '/pair') {
         out = await pair(env);
       } else {
