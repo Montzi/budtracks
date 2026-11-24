@@ -1,7 +1,7 @@
 // POST /ask: Bud answers budget questions through Claude Haiku 5.5 or Gemini 3.8 Flash, with an injected fetch standing in for the Messages API.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { askBubbles, validateAsk } from '../src/index.js';
+import worker, { askBubbles, validateAsk, cleanKey } from '../src/index.js';
 
 const ORIGIN = 'https://montzi.github.io';
 const kv = () => { const m = new Map(), ttl = new Map(); return { m, ttl,
@@ -166,4 +166,15 @@ test('ask gemini: an invalid key (Google answers 400 API_KEY_INVALID) says so, w
   let r, j; const out = await logs(async () => { r = await call(env, ok({ provider: 'gemini' }), { key }); j = await r.json(); });
   assert.equal(r.status, 503); assert.equal(j.error, "Gemini's key is invalid (400 INVALID_ARGUMENT API_KEY_INVALID)");
   assert.match(out, /ask: gemini error 400 INVALID_ARGUMENT API_KEY_INVALID/); assert.equal(/SHOPRITE|not valid/.test(out), false);
+});
+
+test('keys pasted on a phone: a long dash from Smart Punctuation becomes "--" again; spaces and line breaks go', async () => {
+  assert.equal(cleanKey(' AIzaSyAbc—T-K8\n'), 'AIzaSyAbc--T-K8');
+  assert.equal(cleanKey('ab–cd'), 'ab--cd');
+  const g = fakeGemini();
+  const { env, key } = await paired({ GEMINI_FETCH: g, GEMINI_API_KEY: 'AIzaSyAbc—T-K8 ' });
+  assert.equal((await call(env, ok({ provider: 'gemini' }), { key })).status, 200);
+  assert.equal(g.calls[0].headers.get('x-goog-api-key'), 'AIzaSyAbc--T-K8');
+  const { env: e2, key: k2 } = await paired({ GEMINI_FETCH: g, GEMINI_API_KEY: 'AIzaébad' });
+  const r = await call(e2, ok({ provider: 'gemini' }), { key: k2 }); assert.equal(r.status, 503); assert.match((await r.json()).error, /paste it again/);
 });

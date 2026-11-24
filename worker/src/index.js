@@ -1240,7 +1240,7 @@ async function scan(env, req) {
     try { if (r.ok) { const j = await r.clone().json(); if (j && typeof j.stop_reason === 'string') stop = j.stop_reason; } } catch { /* not JSON */ }
     return r;
   };
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 2, timeout: 60_000, fetch: watch, logLevel: 'off' });
+  const client = new Anthropic({ apiKey: cleanKey(env.ANTHROPIC_API_KEY), maxRetries: 2, timeout: 60_000, fetch: watch, logLevel: 'off' });
   let msg;
   try {
     msg = await client.messages.parse({
@@ -1279,6 +1279,9 @@ async function scan(env, req) {
 const ASK_MODEL = 'claude-haiku-5-5';
 const GEMINI_MODEL = 'gemini-3.8-flash';   // key: GEMINI_API_KEY repo secret, set on each deploy
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/interactions';
+// API keys pasted on a phone: iOS Smart Punctuation turns "--" into a long dash, and copies can carry spaces or line breaks.
+export const cleanKey = (k) => String(k || '').replace(/[\u2014\u2013]/g, '--').replace(/\s+/g, '');
+const keyOk = (k) => /^[\x21-\x7e]+$/.test(k);
 const ASK_MAX_BODY = 160 * 1024, ASK_MAX_CTX = 120 * 1024, ASK_TTL = 2 * 86400;
 const askLimit = (env) => { const n = Number(env.ASK_DAILY_LIMIT); return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 80; };
 const ASK_SYSTEM = `You are Bud, the mascot of BudTracks, a personal budgeting app for one person. You wear a hat and sit at a laptop in the app's logo.
@@ -1329,7 +1332,7 @@ async function ask(env, req) {
   // The budget data comes first with a cache breakpoint: follow-up questions read it from the cache.
   const past = history.length ? '<earlier_chat>\n' + history.map((h) => `Me: ${h.q}\nBud: ${h.a}`).join('\n\n') + '\n</earlier_chat>\n\n' : '';
   if (provider === 'gemini') return askGemini(env, { ctx, past, q, today, limit, used });
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 2, timeout: 90_000, fetch: typeof env.ANTHROPIC_FETCH === 'function' ? env.ANTHROPIC_FETCH : (u, i) => fetch(u, i), logLevel: 'off' });
+  const client = new Anthropic({ apiKey: cleanKey(env.ANTHROPIC_API_KEY), maxRetries: 2, timeout: 90_000, fetch: typeof env.ANTHROPIC_FETCH === 'function' ? env.ANTHROPIC_FETCH : (u, i) => fetch(u, i), logLevel: 'off' });
   let msg;
   try {
     msg = await client.messages.create({
@@ -1362,7 +1365,8 @@ async function ask(env, req) {
 
 // Gemini through the Interactions API: one stateless call (store: false), the same prompt and data as Claude.
 async function askGemini(env, { ctx, past, q, today, limit, used }) {
-  const f = typeof env.GEMINI_FETCH === 'function' ? env.GEMINI_FETCH : (u, i) => fetch(u, i);
+  const f = typeof env.GEMINI_FETCH === 'function' ? env.GEMINI_FETCH : (u, i) => fetch(u, i), gkey = cleanKey(env.GEMINI_API_KEY);
+  if (!keyOk(gkey)) { console.error('ask: gemini key has characters a key cannot have'); throw new HttpError(503, "Gemini's key is invalid (it has a character a key can't have; paste it again)"); }
   const body = {
     model: GEMINI_MODEL, store: false, system_instruction: ASK_SYSTEM,
     input: `<budget_data>\n${ctx}\n</budget_data>\n\n${past}Today is ${today}.\n\n${q}`,
@@ -1372,7 +1376,7 @@ async function askGemini(env, { ctx, past, q, today, limit, used }) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 90_000);
     try {
-      r = await f(GEMINI_URL, { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY, 'Api-Revision': '2026-05-20' }, body: JSON.stringify(body) });
+      r = await f(GEMINI_URL, { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': gkey, 'Api-Revision': '2026-05-20' }, body: JSON.stringify(body) });
       try { j = await r.json(); } catch { j = null; }
     } catch (e) { console.error('ask: gemini connection failed', e?.name); r = null; }
     finally { clearTimeout(t); }
