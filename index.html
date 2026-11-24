@@ -526,6 +526,16 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .bc-send { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink, #0b1222); display: grid; place-items: center; }
 body.bc-on { overflow: hidden; }
 .settings-anchor { scroll-margin-top: 12px; }
+/* Income tab: two independently stacked columns in landscape; in portrait the columns dissolve and --o keeps the single-column order. */
+.inc-grid > .inc-col { display: contents; }
+.inc-grid .inc-col > * { order: var(--o, 0); min-width: 0; }
+@media (min-width: 900px), (orientation: landscape) and (min-width: 740px) {
+  .inc-grid > .inc-col { display: grid; gap: 16px; align-content: start; position: relative; min-width: 0; }
+  .inc-grid .inc-col > * { order: 0; }
+  #yourdata .card-b { grid-template-columns: minmax(0, 1fr); }
+  #yourdata .fld { grid-column: auto; }
+  .inc-grid .settings-anchor { position: absolute; top: 0; left: 0; width: 100%; height: 0; pointer-events: none; }
+}
 .bk-sum { list-style: none; margin: 0 0 12px; padding: 12px 14px; display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); font-size: 14px; color: var(--ink-2); }
 .bk-sum b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .lg-acts { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
@@ -645,7 +655,10 @@ button.slogo-btn:hover .slogo { outline: 2px solid var(--accent); outline-offset
 .tabs .badge[hidden] { display: none; }
 .app[data-tab="overview"] .hero { border-top: 0; border-radius: 0 0 22px 22px; padding-top: 6px; }
 @media (min-width: 900px), (orientation: landscape) and (min-width: 740px) {
-  .brandbar { width: calc((100% - 16px) * .43); }
+  /* Overview: the bar tops the left column and merges into the cycle card. Other tabs: full width, logo centered. */
+  .app[data-tab="overview"] .brandbar { width: calc((100% - 16px) * .43); }
+  /* Chart card starts level with the top of the bar (--bb-h is the bar height, set from JS) and ends with the cycle card. */
+  .app[data-tab="overview"] .ov > .ov-donut { margin-top: calc(-1 * var(--bb-h, 0px)); }
 }
 
 /* Bud speech bubble: navy cloud with thought dots, same navy as the cycle card */
@@ -3377,21 +3390,15 @@ function otherIncomeHTML() {
         <div class="amt">${i.askFrom ? (() => { const v = BT.prevPay(i, '9999-12-31'); return v ? '<span class="muted">last</span> ' + fmt(v) : '<span class="muted">Each cycle</span>'; })() : i.amount ? fmt(i.amount) : '<span class="muted">Set amount</span>'}</div></li>`).join('')}</ul></div></section>`;
 }
 function viewIncome() {
-  return `<div class="grid-2"><div class="stack">
+  return `<div class="grid-2 inc-grid"><div class="inc-col"><div class="stack" style="--o:1">
     ${latestPaycheckCard()}
     ${otherIncomeHTML()}
     <div class="inc-acts"><button type="button" class="btn" data-action="add" data-type="income">${ICON.plus}Add income</button><button type="button" class="btn" data-action="sv-add">Add to savings</button></div>
     ${svOn() ? `<p class="inc-sv meta">Savings ${hid() ? MASK : fmt(svBal())}</p>` : ''}
     <p class="note">Each pay cycle starts on a paycheck date and runs until the day before the next one. A bill belongs to the most recent deposit before its due date, so <b>Up next</b> always shows what this paycheck has to cover.</p>
   </div>
-  <div id="settings" class="settings-anchor"></div>
-  ${catManager()}
-  ${viaManager()}
-  ${bankCard()}
-  ${logosCard()}
-  ${aiCard()}
-  <section class="card appear"><header class="card-h"><div><h2>Appearance</h2><span class="meta">Auto follows your phone</span></div>${themeSeg()}</header></section>
-  <section class="card" id="yourdata"><header class="card-h"><div><h2>Your data</h2>${state.settings.lastBackup ? `<span class="meta">Last backup file ${md(state.settings.lastBackup)}</span>` : ''}</div></header>
+  <div class="inc-w" style="--o:5">${bankCard()}</div>
+  <section class="card" id="yourdata" style="--o:9"><header class="card-h"><div><h2>Your data</h2>${state.settings.lastBackup ? `<span class="meta">Last backup file ${md(state.settings.lastBackup)}</span>` : ''}</div></header>
     <div class="card-b" style="display:grid;gap:12px">
       <p class="note" style="margin:0">A backup file holds everything: your items, history, notes, the logos you uploaded and the ones you picked for merchants. Save it to Files or iCloud Drive, then open it on a new phone with Restore from file. Logos loaded from websites come back by themselves.</p>
       ${bankKey() ? `<label class="fld chk" style="margin:0"><input type="checkbox" id="bk-key" checked><span>Include the bank connection, so a new phone syncs without pairing again. Keep this file private.</span></label>` : ''}
@@ -3400,7 +3407,15 @@ function viewIncome() {
       <label class="fld chk" style="margin-top:4px"><input type="checkbox" data-action="sound" ${state.settings.sound === false ? '' : 'checked'}><span>Play a sound when a payment is checked off</span></label>
       <div><button class="btn" data-action="bank-import">Import bank CSV</button></div>
     </div>
-  </section></div>`;
+  </section>
+  </div>
+  <div class="inc-col"><div id="settings" class="settings-anchor" style="--o:2"></div>
+  <div class="inc-w" style="--o:3">${catManager()}</div>
+  <div class="inc-w" style="--o:4">${viaManager()}</div>
+  <div class="inc-w" style="--o:7">${aiCard()}</div>
+  <div class="inc-w" style="--o:6">${logosCard()}</div>
+  <section class="card appear" style="--o:8"><header class="card-h"><div><h2>Appearance</h2><span class="meta">Auto follows your phone</span></div>${themeSeg()}</header></section>
+  </div></div>`;
 }
 
 /* ---------- Service logos: settings, upload sheet ---------- */
@@ -6682,6 +6697,14 @@ function onResize() {
   rotT = setTimeout(() => { buildMarks(); requestAnimationFrame(() => document.documentElement.classList.remove('rotating')); }, 220);
 }
 window.addEventListener('resize', onResize);
+// The brand bar height drives the Overview chart card (it starts level with the bar). The bar also changes width between tabs, so redraw the logo arms.
+(function () {
+  const bb = document.getElementById('brandbar'), app = document.querySelector('.app'); if (!bb || !app) return;
+  let lastH = -1, lastBW = -1, raf = 0;
+  const sync = () => { raf = 0; const h = bb.offsetHeight, w = bb.offsetWidth; if (h !== lastH) { lastH = h; app.style.setProperty('--bb-h', h + 'px'); } if (w !== lastBW) { lastBW = w; buildMarks(); } };
+  if (window.ResizeObserver) new ResizeObserver(() => { if (!raf) raf = requestAnimationFrame(sync); }).observe(bb); else sync();
+  sync();
+})();
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'payamt') { e.preventDefault(); const b = document.querySelector('[data-action="pay-set"]'); if (b) b.click(); } });
 window.addEventListener('orientationchange', () => { document.documentElement.classList.add('rotating'); onResize(); });
 
@@ -6809,7 +6832,11 @@ function chatPlace() {
   const bb = $('#brandbar').getBoundingClientRect(), vv = window.visualViewport, W = innerWidth;
   const vTop = vv ? vv.offsetTop : 0, vBottom = vv ? vv.offsetTop + vv.height : innerHeight;
   let left = 8, width = W - 16;
-  if (W >= 700) { if (W - bb.right - 20 >= 360) { left = Math.round(bb.right + 8); width = Math.min(560, W - left - 12); } else { left = 12; width = Math.min(560, W - 24); } }
+  if (W >= 700) { if (W - bb.right - 20 >= 360) { left = Math.round(bb.right + 8); width = Math.min(560, W - left - 12); } else {
+    // Full-width brand bar (other tabs): panel sits at the right edge of the content area, inside the safe area.
+    const l0 = bb.width > W * .6 ? Math.round(bb.left) : 12, r0 = bb.width > W * .6 ? Math.round(bb.right) : W - 12;
+    width = Math.min(560, r0 - l0); left = r0 - width;
+  } }
   w.style.setProperty('--bc-top', Math.round(vTop + 8) + 'px');
   w.style.setProperty('--bc-bottom', Math.max(0, Math.round(innerHeight - vBottom)) + 'px');
   w.style.setProperty('--bc-left', left + 'px');
