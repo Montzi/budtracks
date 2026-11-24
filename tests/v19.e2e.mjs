@@ -180,8 +180,11 @@ await step('Bud says the tab name on every tab change (not on load), replaces th
   }
   await page.evaluate(() => { location.hash = 'bills'; }); await page.waitForTimeout(120); await page.evaluate(() => { location.hash = 'plans'; }); await page.waitForTimeout(300);
   assert.equal(await page.evaluate(() => document.querySelector('#bud').textContent.trim()), 'Plans', 'replaced, not stacked');
+  // v26: Bud's messages stay at least 10 seconds.
   await page.waitForTimeout(1800);
-  assert.equal(await page.evaluate(() => document.querySelector('#bud').classList.contains('on')), false, 'gone after ~1.6s');
+  assert.equal(await page.evaluate(() => document.querySelector('#bud').classList.contains('on')), true, 'still showing after 1.8 s');
+  await page.waitForTimeout(8600);
+  assert.equal(await page.evaluate(() => document.querySelector('#bud').classList.contains('on')), false, 'gone after ~10 s');
   await page.click('.tabs a[href="#bills"]'); await page.waitForTimeout(300); assert.equal(await page.evaluate(() => document.querySelector('#bud').textContent.trim()), 'Bills', 'tap');
   await page.waitForTimeout(1900);
   await page.click('.tabs a[href="#bills"]'); await page.waitForTimeout(300); assert.equal(await page.evaluate(() => document.querySelector('#bud').classList.contains('on') && document.querySelector('#bud').textContent.trim()), 'Bills', 'same tab tapped again');

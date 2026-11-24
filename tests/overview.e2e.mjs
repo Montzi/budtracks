@@ -172,7 +172,7 @@ const heroNeeds = page => page.locator('.lad.l2 .v').innerText().then(num);
     assert.equal(await page.locator('.cat-legend > li[data-g="Savings"]').count(), 1); assert.equal(await page.locator('.donut-wrap .slice').count(), await page.locator('.cat-legend > li').count());
     assert.equal(await heroNeeds(page), needed0, 'savings is not spending: cycle needs unchanged');
     const after = await page.evaluate(([t]) => BT.accountBalance(JSON.parse(localStorage.getItem('budtrack.v1')), t), [TODAY]); assert.equal(Math.round((before - after) * 100), 10000, 'checking drops by the move');
-    await noHScroll(page, '390 savings'); await page.waitForFunction(() => !document.querySelector('#toast').classList.contains('on')); await page.waitForTimeout(600); await page.screenshot({ path: SHOTS + '/savings-390.png' });
+    await noHScroll(page, '390 savings'); await page.evaluate(() => { const x = document.querySelector('#toast.on .toast-x'); if (x) x.click(); }); await page.waitForTimeout(600); await page.screenshot({ path: SHOTS + '/savings-390.png' });
   });
   await step('live bank balances on: savings does not change In account (no double count)', async () => {
     await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.bank.balances = { at: new Date().toISOString(), items: [{ itemId: 'enr_1', institution: 'Chime', accounts: [{ id: 'a1', name: 'Checking', type: 'depository', current: 1234.5, available: 1234.5 }] }] }; localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
@@ -239,7 +239,7 @@ const heroNeeds = page => page.locator('.lad.l2 .v').innerText().then(num);
     assert.ok(await page.locator('#o-scope').isHidden(), 'no question until the amount changes');
     await page.fill('#o-amount', '900'); assert.ok(await page.locator('#o-scope').isVisible());
     assert.equal(await page.locator('#o-scope input[value="once"]').isChecked(), true); assert.match(await page.locator('#o-scope').innerText(), /Just this cycle[\s\S]*From now on/);
-    await page.waitForFunction(() => !document.querySelector('#toast').classList.contains('on')); await page.waitForTimeout(600); await sheetShot(page, 'amount-ask-390.png'); await noHScroll(page, '390 amount ask');
+    await page.evaluate(() => { const x = document.querySelector('#toast.on .toast-x'); if (x) x.click(); }); await page.waitForTimeout(600); await sheetShot(page, 'amount-ask-390.png'); await noHScroll(page, '390 amount ask');
     await page.click('#occform button[type="submit"]'); await page.waitForFunction(() => /\$900\.00/.test(document.querySelector('.ov-bills .rows').innerText));
     let s = await getState(page), rk = Object.keys(s.occ).find(k => /^b:rent:/.test(k) && s.occ[k].amount === 900);
     assert.ok(rk, 'cycle override stored'); assert.equal(s.bills.find(b => b.id === 'rent').amount, 1000, 'bill unchanged');

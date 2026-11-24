@@ -992,7 +992,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     assert.equal(await page.locator('.ov-bills .row', { hasText: 'Rent' }).locator('.pill.likely').count(), 0);
     await noHScroll(page, '390 likely overview');
     await page.locator('.ov-bills').scrollIntoViewIfNeeded(); await carRow().scrollIntoViewIfNeeded();
-    await page.waitForFunction(() => !document.querySelector('#toast').classList.contains('on'), null, { timeout: 8000 }); await page.waitForTimeout(300); await page.screenshot({ path: SHOTS + '/likely-390.png' });
+    await page.evaluate(() => { const x = document.querySelector('#toast.on .toast-x'); if (x) x.click(); }); await page.waitForTimeout(300); await page.screenshot({ path: SHOTS + '/likely-390.png' });
   });
   await step('likely sheet shows item vs transaction side by side; Yes, match links and marks paid; Undo restores', async () => {
     await carRow().locator('.pill.likely').click(); await page.waitForSelector('.lk-cmp');
@@ -1083,7 +1083,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     await openPicker('pl:wm'); await page.fill('#pkq', 'visa'); await page.click('.pk-opt[data-key^="c:visa:"]'); await page.waitForSelector('.pk-warn');
     const t = await page.locator('#sheet').innerText();
     assert.match(t, /Amounts differ: transaction \$42\.10, scheduled \$35\.00 \(\$7\.10 more\)/); assert.match(t, /Date is 6 days before the due date \(due Nov 22, paid Nov 16\)/); assert.match(t, /Names don't look alike \(Walmart Supercenter vs Visa\)/);
-    await page.waitForTimeout(450); await page.waitForFunction(() => !document.querySelector('#toast').classList.contains('on'), null, { timeout: 8000 }); await page.screenshot({ path: SHOTS + '/picker-warn-390.png' });
+    await page.waitForTimeout(450); await page.evaluate(() => { const x = document.querySelector('#toast.on .toast-x'); if (x) x.click(); }); await page.screenshot({ path: SHOTS + '/picker-warn-390.png' });
     await page.click('[data-action="cf-yes"]');
     let s = await getState(page); assert.equal(s.bank.seen['pl:wm'].res, 'bill');
     await page.click('#toast .toast-undo');

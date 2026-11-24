@@ -303,9 +303,9 @@ textarea { width: 100%; min-height: 120px; border-radius: 10px; border: 1px soli
 .tip.on { opacity: 1; transform: none; }
 .toast { position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%); z-index: 70; background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 99px; font-size: 13.5px; box-shadow: var(--shadow); opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.on { opacity: 1; }
-.toast.has-undo { pointer-events: auto; }
-.toast.on { pointer-events: auto; display: flex; align-items: center; gap: 4px; }
-.toast-x { flex: none; display: grid; place-items: center; width: 28px; height: 28px; margin: -6px -10px -6px 4px; border: 0; border-radius: 50%; background: transparent; color: inherit; opacity: .75; cursor: pointer; }
+/* Taps pass through the message to whatever is behind it; only its Undo and X take taps. */
+.toast .toast-x, .toast .toast-undo { pointer-events: auto; }
+.toast-x { display: inline-grid; vertical-align: middle; place-items: center; width: 28px; height: 28px; margin: -6px -10px -6px 6px; border: 0; border-radius: 50%; background: transparent; color: inherit; opacity: .75; cursor: pointer; }
 .toast-x:hover, .toast-x:focus-visible { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); }
 .toast-undo { background: none; border: 0; padding: 0 0 0 2px; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .note { font-size: 13px; color: var(--ink-2); line-height: 1.5; }
