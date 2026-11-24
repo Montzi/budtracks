@@ -68,6 +68,7 @@ async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.dark ? 'dark' : 'light', deviceScaleFactor: 1 });
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
+  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
   const errs = [], calls = [];
   const mock = { txns: TXNS(), balances: BAL(), status: STATUS(), refreshResp: { refreshed: false, notEnabled: true, results: [{ itemId: 'enr_s', institution: 'Santander', refreshed: false, reason: NOREF, code: 'PRODUCT_NOT_ENABLED', notEnabled: true }, { itemId: 'enr_c', institution: 'Chime', refreshed: false, reason: NOREF, code: 'PRODUCT_NOT_ENABLED', notEnabled: true }] }, balResp: null };
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));

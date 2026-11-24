@@ -33,6 +33,7 @@ async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.scheme || 'dark', reducedMotion: o.reduce ? 'reduce' : 'no-preference', deviceScaleFactor: 1 });
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
+  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
   const errs = [], mock = { txns: o.txns || [], seq: 0 };
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   await page.addInitScript(() => { window.__badge = []; navigator.setAppBadge = n => { window.__badge.push(n); return Promise.resolve(); }; navigator.clearAppBadge = () => { window.__badge.push(0); return Promise.resolve(); }; });

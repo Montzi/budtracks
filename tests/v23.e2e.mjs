@@ -44,6 +44,7 @@ async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.dark ? 'dark' : 'light', deviceScaleFactor: 1 });
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
+  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
   const errs = [], calls = [], mock = { txns: o.txns || [], offline: false };
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
@@ -175,7 +176,7 @@ for (const [w, h] of [[390, 844], [430, 932]]) {
     near(bb.w, mn.w, 2, 'brandbar full'); near(hero.w, mn.w, 1, 'hero full'); near(dn.w, mn.w, 1, 'donut full');
     assert.ok(hero.t >= bb.b - 18 && hero.t <= bb.b + 2, 'hero joins bar'); assert.ok(dn.t > hero.b, 'donut below hero');
     await go(page, 'income');
-    const ys = await page.evaluate(() => { const g = s => { const e = [...document.querySelectorAll('#main h2')].find(h => h.textContent.trim().startsWith(s)); return e ? e.getBoundingClientRect().top + scrollY : -1; }; return ['Latest paycheck', 'Categories', 'Paid via', 'Bank connections', 'Service logos', 'Ask Bud', 'Appearance', 'Your data'].map(g); });
+    const ys = await page.evaluate(() => { const g = s => { const e = [...document.querySelectorAll('#main h2')].find(h => h.textContent.trim().startsWith(s)); return e ? e.getBoundingClientRect().top + scrollY : -1; }; return ['Latest paycheck', 'Bank connections', 'Categories', 'Paid via', 'Service logos', 'Ask Bud', 'Appearance', 'Your data'].map(g); });
     assert.ok(ys.every(y => y > 0), JSON.stringify(ys)); assert.deepEqual([...ys].sort((a, b) => a - b), ys, 'order ' + JSON.stringify(ys));
     await noHScroll(page, `${w}x${h} income`);
     assert.deepEqual(errs, []);

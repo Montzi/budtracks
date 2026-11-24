@@ -45,6 +45,7 @@ const browser = await chromium.launch();
 async function newPage(w, h, patch) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block' });
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
+  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
   const errs = [], calls = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });

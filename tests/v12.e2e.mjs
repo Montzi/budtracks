@@ -54,6 +54,7 @@ async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.dark ? 'dark' : 'light', deviceScaleFactor: 1 });
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
+  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
   const errs = [], mock = { txns: o.txns || TXNS(), balances: BAL() };
   if (o.savBal != null) { const a = mock.balances[0].accounts[1]; a.available = a.current = o.savBal; }
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));

@@ -40,6 +40,7 @@ const browser = await chromium.launch();
 async function newPage(w, h) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block' });
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
+  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
   const errs = [], calls = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
@@ -89,7 +90,7 @@ const sheetNoHScroll = async (page, label) => assert.ok(await page.evaluate(() =
   await page.goto(BASE + '#income', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
   await step('card shows connect form when not set up', async () => {
     await page.waitForSelector('#bankconn');
-    assert.equal(await page.locator('#bankcard h2').innerText(), 'Bank connections · via Plaid');
+    assert.equal(await page.locator('#bankcard .coll-t').innerText(), 'Bank connections');
     await noHScroll(page, '390 card (not set up)');
   });
   await step('already-paired service with no local key explains the lock', async () => {

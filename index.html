@@ -529,6 +529,8 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .bc-send { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink, #0b1222); display: grid; place-items: center; }
 body.bc-on { overflow: hidden; }
 .settings-anchor { scroll-margin-top: 12px; }
+/* A zero-height anchor in a grid would add a second gap; this takes it back. */
+.inc-grid .settings-anchor { margin-top: -16px; }
 /* Income tab: two independently stacked columns in landscape; in portrait the columns dissolve and --o keeps the single-column order. */
 .inc-grid > .inc-col { display: contents; }
 .inc-grid .inc-col > * { order: var(--o, 0); min-width: 0; }
@@ -537,7 +539,7 @@ body.bc-on { overflow: hidden; }
   .inc-grid .inc-col > * { order: 0; }
   #yourdata .card-b { grid-template-columns: minmax(0, 1fr); }
   #yourdata .fld { grid-column: auto; }
-  .inc-grid .settings-anchor { position: absolute; top: 0; left: 0; width: 100%; height: 0; pointer-events: none; }
+  .inc-grid .settings-anchor { margin-top: 0; position: absolute; top: 0; left: 0; width: 100%; height: 0; pointer-events: none; }
 }
 .bk-sum { list-style: none; margin: 0 0 12px; padding: 12px 14px; display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); font-size: 14px; color: var(--ink-2); }
 .bk-sum b { color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -1145,6 +1147,11 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 /* Collapsible Income sections: the header is one button; the body is hidden until opened. */
 .card-h.coll { padding: 0; display: block; }
 .card-h.coll h2 { margin: 0; font-size: inherit; font-weight: inherit; }
+.card-h.coll.bk-h { display: flex; align-items: center; gap: 8px; padding-right: 12px; }
+.bk-h h2 { flex: 1; min-width: 0; }
+.bk-h .coll-t { white-space: nowrap; flex: none; }
+.bk-h .coll-h .meta { flex: 1; text-align: right; }
+.bk-via { margin: 0; font-size: 12.5px; color: var(--ink-3); }
 .coll-h { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 12px 16px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; border-radius: var(--r); }
 .coll-h:hover { background: var(--surface-2); }
 .coll-h:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -3414,9 +3421,8 @@ function viewIncome() {
     ${otherIncomeHTML()}
     <div class="inc-acts"><button type="button" class="btn" data-action="add" data-type="income">${ICON.plus}Add income</button><button type="button" class="btn" data-action="sv-add">Add to savings</button></div>
     ${svOn() ? `<p class="inc-sv meta">Savings ${hid() ? MASK : fmt(svBal())}</p>` : ''}
-    <p class="note">Each pay cycle starts on a paycheck date and runs until the day before the next one. A bill belongs to the most recent deposit before its due date, so <b>Up next</b> always shows what this paycheck has to cover.</p>
+    ${bankCard()}
   </div>
-  <div class="inc-w" style="--o:5">${bankCard()}</div>
   <section class="card" id="yourdata" style="--o:9"><header class="card-h"><div><h2>Your data</h2>${state.settings.lastBackup ? `<span class="meta">Last backup file ${md(state.settings.lastBackup)}</span>` : ''}</div></header>
     <div class="card-b" style="display:grid;gap:12px">
       <p class="note" style="margin:0">A backup file holds everything: your items, history, notes, the logos you uploaded and the ones you picked for merchants. Save it to Files or iCloud Drive, then open it on a new phone with Restore from file. Logos loaded from websites come back by themselves.</p>
@@ -4937,26 +4943,28 @@ function loadPlaid() {
 function bankCard() {
   const b = state.bank, ready = bankReady(), n = (b.inbox || []).length, hn = (b.history || []).length;
   if (ready) setTimeout(bankCardStatus, 0);
-  const head = `<header class="card-h"><div><h2>Bank connections · via Plaid</h2>${ready ? `<span class="meta">${b.lastSync ? 'Last synced ' + esc(relTime(b.lastSync)) : 'Not synced yet'} · <button type="button" class="linkbtn" data-action="bk-status" aria-label="Plaid status details">Details</button></span>` : ''}</div>
-    ${ready ? syncBtnHTML('Refresh all', 'class="btn sm" data-action="bk-sync"') : ''}</header>`;
-  if (!ready) return `<section class="card" id="bankcard">${head}<div class="card-b bk">
+  // Collapsible like the other Income sections. Refresh all stays in the header so it works while closed.
+  const o = incOpen('bank'), meta = ready ? `<span class="meta">${b.lastSync ? 'Synced ' + esc(relTime(b.lastSync)) : 'Not synced yet'}</span>` : '';
+  const head = `<header class="card-h coll bk-h"><h2><button type="button" class="coll-h" data-action="inc-toggle" data-k="bank" aria-expanded="${o}" aria-controls="coll-bank"><span class="coll-t">Bank connections</span>${meta}<span class="chev" aria-hidden="true">›</span></button></h2>${ready ? syncBtnHTML('Refresh all', 'class="btn sm" data-action="bk-sync"') : ''}</header>`;
+  const sub = ready ? `<p class="bk-via">Via Plaid · ${b.lastSync ? 'Last synced ' + esc(relTime(b.lastSync)) : 'Not synced yet'} · <button type="button" class="linkbtn" data-action="bk-status" aria-label="Plaid status details">Details</button></p>` : '';
+  if (!ready) return `<section class="card" id="bankcard">${head}<div class="coll-body" id="coll-bank"${o ? '' : ' hidden'}><div class="card-b bk">
     <p class="note" style="margin:0">Pull in transactions from your banks automatically. Paste the address of your BudTracks bank service. The first time, this phone is paired with it. Your budget stays on this phone.</p>
     <form id="bankconn" class="bk-form" novalidate><label class="fld" for="bk-url"><span>Bank service address</span><input id="bk-url" name="url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://budtracks-bank.example.workers.dev" value="${esc(BANKUI.url)}"></label>
       <div><button class="btn primary" type="submit"${BANKUI.busy ? ' disabled' : ''}>${BANKUI.busy ? 'Connecting…' : 'Connect'}</button></div></form>
-    <p class="bk-err" role="alert">${esc(BANKUI.err)}</p></div></section>`;
+    <p class="bk-err" role="alert">${esc(BANKUI.err)}</p></div></div></section>`;
   const enr = BANKUI.enr;
   const list = enr === null ? (BANKUI.loadErr ? `<p class="bk-err" role="alert">${esc(BANKUI.loadErr)}</p>` : '<p class="bk-ok">Loading your banks…</p>')
     : enr.length ? orderBanks(enr, e => e.id).map(e => `<div class="bk-enr"><div class="bk-eh">${svcLogo(e.institution || 'Bank', 22)}<b>${esc(e.institution || 'Bank')}</b>${e.needsReconnect ? '<span class="pill soft warn">Needs reconnect</span>' : ''}<span class="bk-sp"></span>${e.needsReconnect ? `<button class="btn sm" data-action="bk-reconnect" data-id="${esc(e.id)}">Reconnect</button>` : `<button class="btn sm" data-action="bk-item-sync" data-id="${esc(e.id)}" aria-label="Sync ${esc(e.institution || 'bank')}"${BANKUI.syncing || BANKUI.now || BANKUI.rowBusy ? ' disabled' : ''}${BANKUI.rowBusy === e.id ? ' aria-busy="true"' : ''}>${BANKUI.rowBusy === e.id ? '<span class="spin" aria-hidden="true"></span>Syncing…' : 'Sync'}</button>`}<button class="btn sm danger" data-action="bk-disc" data-id="${esc(e.id)}">Disconnect</button></div>
       ${plaidLine(e.id)}<ul class="bk-acc">${(e.accounts || []).map(a => `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}</div><div class="sub">${esc([a.subtype || a.type, a.last_four ? '··' + a.last_four : ''].filter(Boolean).join(' · '))}</div></div>
         <label class="tgl"><input type="checkbox" data-action="bk-toggle" data-id="${esc(a.id)}" data-eid="${esc(e.id)}"${a.enabled ? ' checked' : ''} aria-label="Sync ${esc(a.name || 'account')}"><span aria-hidden="true"></span></label></li>`).join('') || '<li><div class="sub">No accounts found.</div></li>'}</ul></div>`).join('')
     : '<p class="bk-ok">No banks connected yet. Tap Connect a bank.</p>';
-  return `<section class="card" id="bankcard">${head}<div class="card-b bk">${list}
+  return `<section class="card" id="bankcard">${head}<div class="coll-body" id="coll-bank"${o ? '' : ' hidden'}><div class="card-b bk">${sub}${list}
     <div class="bk-btns"><button class="btn primary" data-action="bk-connect"${BANKUI.busy ? ' disabled' : ''}>Connect a bank</button>${n ? `<button class="btn" data-action="tx-review">Review ${n} new</button>` : ''}<button class="btn" data-action="ix-open">Recently synced</button><button class="btn" data-action="hx-open">Earlier transactions · ${hn}</button></div>
     <label class="bk-auto"><span>Automatic from ${esc(md(b.autoFrom))}</span><input type="date" id="bk-autofrom" value="${esc(b.autoFrom)}" aria-label="Automatic from date"></label>
     ${hooksNeeded() ? `<div class="bk-alerts bk-hooks"><div class="main"><div class="nm">Instant updates</div><div class="sub">Plaid tells BudTracks as soon as a bank has new transactions</div></div><button class="btn sm" data-action="bk-hooks"${BANKUI.hooksBusy ? ' disabled aria-busy="true"' : ''}>${BANKUI.hooksBusy ? 'Turning on…' : 'Turn on instant updates'}</button></div>` : ''}
     <div class="bk-alerts"><div class="main"><div class="nm">Email alerts</div><div class="sub">A morning recap of this ${VIEWNAME[state.settings.view]} and what is due soon</div></div><button class="btn sm" data-action="alerts-test">Send test email</button></div>
     <p class="bk-err" role="alert">${esc(BANKUI.err)}</p>
-    <p class="note" style="margin:0">From the automatic date on, matching bills, paychecks and Klarna, Afterpay and PayPal payments are applied for you, and anything unsure waits in your review list. Earlier ones are yours to add by hand. <button class="linkbtn" style="color:var(--ink-3)" data-action="bk-forget">Remove pairing from this phone</button></p></div></section>`;
+    <p class="note" style="margin:0">From the automatic date on, matching bills, paychecks and Klarna, Afterpay and PayPal payments are applied for you, and anything unsure waits in your review list. Earlier ones are yours to add by hand. <button class="linkbtn" style="color:var(--ink-3)" data-action="bk-forget">Remove pairing from this phone</button></p></div></div></section>`;
 }
 // Under each bank: when Plaid last got new data from it, and a badge when Plaid reports an error on the connection.
 function plaidLine(id) {

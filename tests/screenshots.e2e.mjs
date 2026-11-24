@@ -56,6 +56,7 @@ async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.dark ? 'dark' : 'light', deviceScaleFactor: 1 });
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
+  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
   const errs = [], calls = [];
   const mock = { txns: [], removed: [], scan: SCAN(), scanErr: null, scanDelay: 400 };
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));

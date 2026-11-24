@@ -24,6 +24,7 @@ const b = await pw.chromium.launch();
 async function newPage(w, h) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block' });
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
+  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
   const errs = [], calls = [];
   // A per-bank change log like the Worker's sync objects: rows {seq, txn}; acks drop rows up to the acked seq.
   const mock = {
@@ -176,6 +177,7 @@ for (const [w, h] of [[390, 844], [1280, 900]]) {
 {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
+  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
   const calls = []; let n = 0;
   await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.route('**/worker.test/**', async route => {

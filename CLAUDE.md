@@ -3,7 +3,7 @@
 Working rules for anyone (or any Claude session) changing this repo. Keep this file current after every release.
 
 ## Status (2026-11-24)
-- Live release: `budtracks-v45` on https://montzi.github.io/budtracks/
+- Live release: `budtracks-v46` on https://montzi.github.io/budtracks/
 - Worker `budtracks-worker` live on Cloudflare, Plaid **production**.
 - AI: Claude Haiku 5.5 default, Gemini 3.8 Flash optional. Both keys work.
 - Nothing pending.
@@ -65,6 +65,7 @@ Working rules for anyone (or any Claude session) changing this repo. Keep this f
 - Logos: `state.logoFor` maps a merchant key to a logo. `addLogoField` adds the picker in the spending form.
 - Backup: `saveBackupFile`, `readBackup`, `restoreAsk`, `restoreNow`. Envelope `{app, kind:'backup', v:2, at, data, bank?}`.
 - Names: `state.bank.names` maps a bank line id to the name you typed. `cleanMerchant` returns it first. `setTxName` saves it.
+- Income tab: collapsible sections use `collHead` and `INCOPEN` in `budtrack.incopen`. Bank connections is key `bank`. E2E setups open it with an init script.
 - Ask Bud: `#budchat`, `budAsk`, `aiContext`, `chatPlace`, `bcMenuHTML`, `aiCost`, `aiCard`, `aiKeyBox`, `goSettings`.
 
 ## Lessons learned
@@ -72,5 +73,6 @@ Working rules for anyone (or any Claude session) changing this repo. Keep this f
 - CSS class names too (`.bud` clashed with the speech bubble, chat uses `.bot`).
 - Toasts must not block taps: the pill has `pointer-events: none`; only its buttons take taps.
 - Tests should close messages with ✕ instead of waiting for them to disappear.
+- `tests/v12.e2e.mjs` crashes in setup before its last block. It does so on v45 too. Not fixed yet.
 - Plaid Trial caps at 10 bank logins and removing one does not free a slot.
 - Teller shut down its API; Plaid replaced it.
