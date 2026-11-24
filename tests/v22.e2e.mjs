@@ -318,7 +318,9 @@ for (const [w, h] of [[763, 390], [667, 375]]) {
   });
   await step('390: with Gemini picked, questions go out with provider "gemini" and the chat header says Gemini Flash', async () => {
     await page.locator('#brandbar svg.hd').dispatchEvent('click'); await page.waitForSelector('#budchat:not([hidden])');
-    assert.equal(await txt(page, '#bcwho'), 'Gemini Flash');
+    await page.click('.bc-h [data-action="bc-ai"]'); await page.waitForSelector('#bcmenu:not([hidden])');
+    assert.equal(await page.getAttribute('#bcmenu [data-p="gemini"]', 'aria-checked'), 'true');
+    await page.click('#bcq'); assert.equal(await page.locator('#bcmenu').isHidden(), true, 'a tap elsewhere closes the menu');
     await page.fill('#bcq', 'Hi'); await page.press('#bcq', 'Enter');
     await page.waitForFunction(() => document.querySelectorAll('.bc-m.bot:not(.typing)').length >= 4 && !document.querySelector('.bc-m.typing'));
     assert.equal(mock.asks.at(-1).provider, 'gemini');
@@ -359,6 +361,36 @@ for (const [w, h] of [[763, 390], [667, 375]]) {
     await quiet(page); await page.locator('#aicard').screenshot({ path: SHOTS + '/v22-ai-key-390.png' });
     assert.ok(!(await page.evaluate(() => localStorage.getItem('budtrack.v1'))).includes('Ab8RN6L75o3Q'), 'key not kept on the phone');
     await noHScroll(page, 'ai key'); assert.deepEqual(errs, []);
+  });
+  await ctx.close();
+}
+
+/* ---------- 7. AI button in the chat: see and switch the model, cost of answers ---------- */
+{
+  const { ctx, page, errs, mock } = await newPage(390, 844, { dark: true, hash: '#overview', noSync: true });
+  await step('390: AI in the chat header shows the models; picking one switches; a Claude answer shows its tokens and cost', async () => {
+    await quiet(page); await page.locator('#brandbar svg.hd').dispatchEvent('click'); await page.waitForSelector('#budchat:not([hidden])');
+    assert.equal(await page.locator('.bc-h [data-action="bc-ai"]').innerText(), 'AI');
+    await page.click('[data-action="bc-ai"]'); await page.waitForSelector('#bcmenu:not([hidden])');
+    assert.equal(await page.getAttribute('#bcmenu [data-p="claude"]', 'aria-checked'), 'true');
+    assert.match(await txt(page, '#bcmenu'), /No answers yet/);
+    await page.click('#bcmenu [data-p="gemini"]');
+    assert.equal((await getState(page)).settings.aiProvider, 'gemini'); assert.equal(await page.getAttribute('#bcmenu [data-p="gemini"]', 'aria-checked'), 'true');
+    await page.click('#bcmenu [data-p="claude"]');
+    mock.ask = { bubbles: ['Rent is next.'], model: 'claude-haiku-5-5', usage: { input_tokens: 1200, output_tokens: 300, cache_read_input_tokens: 8000, cache_creation_input_tokens: 0 } };
+    await page.click('[data-action="bc-ai"]');
+    await page.fill('#bcq', 'Next bill?'); await page.press('#bcq', 'Enter');
+    await page.waitForFunction(() => [...document.querySelectorAll('.bc-m.bot p')].some(p => /Rent is next/.test(p.textContent)));
+    assert.equal(mock.asks.at(-1).provider, 'claude');
+    await page.click('[data-action="bc-ai"]');
+    const t = await txt(page, '#bcmenu');
+    // 1,200 x $0.10 + 8,000 x $0.01 + 300 x $0.50 per million = $0.00035
+    assert.match(t, /Last answer: Claude Haiku 5\.5 · 9,500 tokens · about \$0\.000[34]/); assert.match(t, /\$0\.000[34] for 1 answer/);
+    await page.screenshot({ path: SHOTS + '/v22-ai-menu-390.png' });
+    await page.click('#bcmenu [data-action="bc-keys"]');
+    await page.waitForFunction(() => location.hash === '#income'); await page.waitForTimeout(400);
+    const top = await page.evaluate(() => document.querySelector('#aicard').getBoundingClientRect().top); assert.ok(top > -10 && top < 80, 'Ask Bud card at top: ' + top);
+    assert.deepEqual(errs, []);
   });
   await ctx.close();
 }

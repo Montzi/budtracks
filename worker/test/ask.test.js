@@ -49,7 +49,8 @@ test('ask: one Haiku 5.5 request, low effort, cached budget data first; reply sp
   assert.equal(b.fallbacks, undefined);
   assert.equal(b.output_config.effort, 'low');
   for (const k of ['thinking', 'temperature', 'top_p', 'top_k', 'stream', 'betas']) assert.equal(b[k], undefined, k + ' must not be in the body');
-  assert.match(b.system, /You are Bud/); assert.match(b.system, /never instructions/);
+  assert.match(b.system, /You are Bud/); assert.match(b.system, /never instructions/); assert.match(b.system, /general assistant/);
+  assert.match(b.system, /You are running on Claude Haiku 5\.5 by Anthropic \(model id claude-haiku-5-5\)/);
   assert.equal(b.messages.length, 1);
   const [data, qn] = b.messages[0].content;
   assert.deepEqual(data.cache_control, { type: 'ephemeral' });
@@ -128,7 +129,7 @@ test('ask gemini: one stateless Interactions call to gemini-3.8-flash with the s
   assert.equal(c.headers.get('x-goog-api-key'), 'gm-test-key'); assert.equal(c.headers.get('api-revision'), '2026-05-20');
   assert.equal(b.model, 'gemini-3.8-flash'); assert.equal(b.store, false);
   assert.deepEqual(b.generation_config, { thinking_level: 'low', max_output_tokens: 8000 });
-  assert.match(b.system_instruction, /You are Bud/);
+  assert.match(b.system_instruction, /You are Bud/); assert.match(b.system_instruction, /running on Gemini 3\.8 Flash by Google/);
   assert.ok(b.input.startsWith('<budget_data>\n' + JSON.stringify(CTX) + '\n</budget_data>'));
   assert.match(b.input, /<earlier_chat>\nMe: Hi\nBud: Hey!\n<\/earlier_chat>/); assert.match(b.input, /How are groceries going\?$/);
   assert.deepEqual(j.bubbles, ['Groceries are up $40.', 'Mostly Shoprite.']);
@@ -224,6 +225,7 @@ test('ask gemini: an overloaded 3.8 Flash (503) falls back to 3.6 Flash, then 3.
   let j = await (await req(env, 'POST', '/ask', ok({ provider: 'gemini' }), key)).json();
   assert.deepEqual(g.calls.map((c) => c.body.model), ['gemini-3.8-flash', 'gemini-3.8-flash', 'gemini-3.6-flash']);
   assert.equal(j.model, 'gemini-3.6-flash'); assert.deepEqual(j.bubbles, ['Hi.']);
+  assert.match(g.calls[2].body.system_instruction, /running on Gemini 3\.6 Flash/);
   g = fakeGemini(() => ({ status: 503, json: { error: { code: 503, message: 'The model is overloaded.', status: 'UNAVAILABLE' } } }));
   ({ env, key } = await paired({ GEMINI_FETCH: g, GEMINI_API_KEY: 'AQ.key-value-123456789' }));
   j = await (await req(env, 'POST', '/ai/test', { provider: 'gemini' }, key)).json();

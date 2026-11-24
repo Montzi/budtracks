@@ -484,6 +484,17 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .bc-h { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 12px; border-bottom: 1px solid var(--line); }
 .bc-sp { flex: 1; min-width: 0; text-align: center; font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bc-new[hidden] { display: none; }
+.bc-menu { position: absolute; top: 58px; left: 10px; right: 10px; z-index: 3; display: grid; gap: 6px; padding: 10px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line-2); box-shadow: 0 14px 40px #0006; }
+.bc-menu[hidden] { display: none; }
+.bc-mh { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); padding: 2px 4px; }
+.bc-opt { display: flex; align-items: flex-start; gap: 10px; text-align: left; padding: 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); }
+.bc-opt[aria-checked="true"] { border-color: var(--accent); }
+.bc-opt b { display: block; font-size: 15px; } .bc-opt small { display: block; font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+.bc-dot { flex: none; width: 16px; height: 16px; margin-top: 2px; border-radius: 50%; border: 2px solid var(--line-2); }
+.bc-opt[aria-checked="true"] .bc-dot { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, transparent 50%); }
+.bc-mi { font-size: 13px; color: var(--ink-2); padding: 2px 4px; }
+.bc-mi b { color: var(--ink); }
+.bc-ai[aria-expanded="true"] { border-color: var(--accent); color: var(--ink); }
 .note.warn { color: var(--warn, #b7791f); }
 .note.good { color: var(--good); }
 .ai-key { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
@@ -1254,8 +1265,9 @@ body.dragging-bank { cursor: grabbing; -webkit-user-select: none; user-select: n
 </div></nav>
 <div id="sheet" class="sheet-wrap" hidden><div class="backdrop" data-action="close"></div><div class="sheet" role="dialog" aria-modal="true"><div id="sheetBody"></div></div></div>
 <div id="budchat" class="bc-wrap" hidden><div class="bc-back" data-action="bc-close"></div><section class="bc" role="dialog" aria-modal="true" aria-labelledby="bc-title">
-  <header class="bc-h"><h2 id="bc-title" class="sr">Ask Bud</h2><button type="button" class="btn sm" data-action="style">Style</button><button type="button" class="btn sm" data-action="settings">Settings</button><span class="bc-sp" id="bcwho"></span><button type="button" class="btn sm bc-new" data-action="bc-new" hidden>New chat</button><button type="button" class="icon-btn" data-action="bc-close" aria-label="Close">
+  <header class="bc-h"><h2 id="bc-title" class="sr">Ask Bud</h2><button type="button" class="btn sm" data-action="style">Style</button><button type="button" class="btn sm" data-action="settings">Settings</button><button type="button" class="btn sm bc-ai" data-action="bc-ai" aria-expanded="false" aria-controls="bcmenu">AI</button><span class="bc-sp"></span><button type="button" class="btn sm bc-new" data-action="bc-new" hidden>New chat</button><button type="button" class="icon-btn" data-action="bc-close" aria-label="Close">
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
+  <div class="bc-menu" id="bcmenu" hidden></div>
   <div class="bc-log" id="bclog" aria-live="polite"></div>
   <form class="bc-in" id="bcform" autocomplete="off"><label class="sr" for="bcq">Ask Bud</label><input id="bcq" type="text" placeholder="Ask Bud about your money" maxlength="600" enterkeyhint="send"><button type="submit" class="bc-send" aria-label="Send"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5"/></svg></button></form>
 </section></div>
@@ -6509,6 +6521,9 @@ document.addEventListener('click', async e => {
     case 'ai-forget': bankFetch('/ai/key?provider=' + aiProv(), { method: 'DELETE' }).then(() => { AIUI.ai = null; AIUI.st = null; AIUI.res = null; aiCfgLoad(); }, e => toast(e.message)); break;
     case 'ai-prov': AIUI.res = null; state.settings.aiProvider = a.dataset.p === 'gemini' ? 'gemini' : 'claude'; commit(AI_NAME[aiProv()] + ' answers now'); break;
     case 'bc-close': budChatClose(); break;
+    case 'bc-ai': bcMenu($('#bcmenu').hidden); break;
+    case 'bc-pick': AIUI.res = null; state.settings.aiProvider = a.dataset.p === 'gemini' ? 'gemini' : 'claude'; try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} clearTimeout(timer); timer = setTimeout(flush, 600); bcMenu(true); toast(AI_NAME[aiProv()] + ' answers now'); break;
+    case 'bc-keys': bcMenu(false); goSettings('aicard'); break;
     case 'bc-new': CHAT.msgs = []; chatSave(); chatPaint(); $('#bcq').focus(); break;
     case 'bc-ask': budAsk(a.dataset.q); break;
     case 'settings': goSettings(); break;
@@ -6774,7 +6789,7 @@ function chatPaint() {
   if (CHAT.busy) html += `<div class="bc-m bot typing">${av}<p aria-label="Bud is thinking"><i></i><i></i><i></i></p></div>`;
   log.innerHTML = html; log.scrollTop = log.scrollHeight;
   const nb = document.querySelector('.bc-new'); if (nb) nb.hidden = !CHAT.msgs.length;
-  const who = $('#bcwho'); if (who) who.textContent = AI_NAME[aiProv()];
+  const mn = $('#bcmenu'); if (mn && !mn.hidden) mn.innerHTML = bcMenuHTML();
 }
 // Sits right under the brand header (or the top of the screen when it is scrolled away) and above the keyboard.
 // Short landscape screens have no room under the logo: the chat sits beside it, or slides up over it.
@@ -6797,13 +6812,41 @@ function budChatOpen() {
   w.hidden = false; document.body.classList.add('bc-on'); chatPlace(); chatPaint();
   if (matchMedia('(pointer: fine)').matches) setTimeout(() => $('#bcq').focus(), 30);
 }
-function budChatClose() { $('#budchat').hidden = true; document.body.classList.remove('bc-on'); }
+// The AI menu in the chat header: which model answers, the cost of the last answer, Claude spending on this phone, and a switch.
+// Claude Haiku 5.5 prices per million tokens: $0.10 in, $0.50 out; cache reads 0.1x and cache writes 1.25x the input price.
+const AI_PRICE = { 'claude-haiku-5-5': { in: 0.10, out: 0.50 } };
+const SPENDLS = 'budtrack.aispend';
+function aiSpend() { try { const v = JSON.parse(localStorage.getItem(SPENDLS) || 'null'); if (v && typeof v === 'object' && typeof v.usd === 'number') return v; } catch (e) {} return { since: TODAY, usd: 0, n: 0, free: 0 }; }
+function aiCost(model, u) {
+  const p = AI_PRICE[String(model || '').replace(/-\d{8}$/, '')]; if (!p || !u) return null;
+  return ((u.input_tokens || 0) * p.in + (u.cache_creation_input_tokens || 0) * p.in * 1.25 + (u.cache_read_input_tokens || 0) * p.in * 0.1 + (u.output_tokens || 0) * p.out) / 1e6;
+}
+const MODEL_LABEL = m => ({ 'claude-haiku-5-5': 'Claude Haiku 5.5', 'gemini-3.8-flash': 'Gemini 3.8 Flash', 'gemini-3.6-flash': 'Gemini 3.6 Flash', 'gemini-3.5-flash-lite': 'Gemini 3.5 Flash-Lite' })[String(m || '').replace(/-\d{8}$/, '')] || m;
+const usd = v => v >= 0.1 ? '$' + v.toFixed(2) : v >= 0.01 ? '$' + v.toFixed(3) : '$' + v.toFixed(4);
+function bcMenuHTML() {
+  const p = aiProv(), last = [...CHAT.msgs].reverse().find(m => m.r === 'bud' && m.model), sp = aiSpend();
+  const opt = (k, title, sub) => `<button type="button" class="bc-opt" role="menuitemradio" aria-checked="${p === k}" data-action="bc-pick" data-p="${k}"><span class="bc-dot" aria-hidden="true"></span><span><b>${title}</b><small>${sub}</small></span></button>`;
+  return `<div class="bc-mh">AI for Bud</div>
+    ${opt('claude', 'Claude Haiku 5.5', 'Anthropic · about a tenth of a cent per question')}
+    ${opt('gemini', 'Gemini 3.8 Flash', "Google · free tier · may be used to improve Google's products")}
+    <div class="bc-mi">${last ? `Last answer: <b>${esc(MODEL_LABEL(last.model))}</b>${last.tok ? ` · ${last.tok.toLocaleString()} tokens` : ''}${last.cost != null ? ` · about ${usd(last.cost)}` : ' · free'}` : 'No answers yet in this chat.'}</div>
+    <div class="bc-mi">Claude on this phone since ${md(sp.since)}: <b>${usd(sp.usd)}</b> for ${sp.n} ${sp.n === 1 ? 'answer' : 'answers'}${sp.free ? ` · ${sp.free} free Gemini ${sp.free === 1 ? 'answer' : 'answers'}` : ''}</div>
+    <button type="button" class="linkbtn" data-action="bc-keys">Keys and settings</button>`;
+}
+function bcMenu(open) {
+  const mn = $('#bcmenu'), b = document.querySelector('.bc-ai'); if (!mn) return;
+  mn.hidden = !open; if (open) { mn.innerHTML = bcMenuHTML(); const h = document.querySelector('.bc-h'); if (h) mn.style.top = (h.offsetHeight + 4) + 'px'; }
+  if (b) b.setAttribute('aria-expanded', String(!!open));
+}
+// A tap anywhere else in the chat closes the AI menu.
+document.addEventListener('click', e => { const mn = $('#bcmenu'); if (mn && !mn.hidden && !e.target.closest('#bcmenu, .bc-ai')) bcMenu(false); }, true);
+function budChatClose() { bcMenu(false); $('#budchat').hidden = true; document.body.classList.remove('bc-on'); }
 window.addEventListener('resize', chatPlace);
 if (window.visualViewport) { visualViewport.addEventListener('resize', chatPlace); visualViewport.addEventListener('scroll', chatPlace); }
-function goSettings() {
+function goSettings(id) {
   budChatClose(); if (!$('#sheet').hidden) closeSheet();
   if (currentTab() !== 'income') location.hash = '#income';
-  setTimeout(() => { const el = $('#settings'); if (el) el.scrollIntoView({ block: 'start' }); }, 120);
+  setTimeout(() => { const el = $('#' + (id || 'settings')); if (el) el.scrollIntoView({ block: 'start' }); }, 120);
 }
 // Earlier questions and answers, newest last, for follow-ups ("and last month?").
 function chatHistory() {
@@ -6816,7 +6859,7 @@ async function budAsk(text) {
   const inp = $('#bcq'), q = String(text != null ? text : inp.value).trim().slice(0, 600); if (!q || CHAT.busy) return;
   const history = chatHistory();
   inp.value = ''; CHAT.msgs.push({ r: 'me', t: q, at: new Date().toISOString() }); chatSave();
-  const say = (t, err) => { CHAT.msgs.push({ r: 'bud', t, at: new Date().toISOString(), err: err ? 1 : undefined }); chatSave(); };
+  const say = (t, err, x) => { CHAT.msgs.push(Object.assign({ r: 'bud', t, at: new Date().toISOString(), err: err ? 1 : undefined }, x || {})); chatSave(); };
   if (!bankReady()) { say('I talk through the BudTracks server, and this phone is not paired with it yet. Pair it on the Income tab under Bank connections, then ask me again.', 1); chatPaint(); return; }
   CHAT.busy = true; chatPaint();
   try {
@@ -6825,7 +6868,10 @@ async function budAsk(text) {
     const bs = Array.isArray(r.bubbles) ? r.bubbles.filter(x => typeof x === 'string' && x.trim()).slice(0, 6) : [];
     if (!bs.length) { say('Hmm, I lost my train of thought. Try asking again?', 1); chatPaint(); return; }
     // One bubble at a time, like texting.
-    for (let i = 0; i < bs.length; i++) { if (i) { CHAT.busy = true; chatPaint(); await new Promise(ok => setTimeout(ok, 420)); CHAT.busy = false; } say(bs[i].slice(0, 1200)); chatPaint(); }
+    // The model, tokens and cost ride on the last bubble of the answer; Claude spending adds up on this phone.
+    const u = r.usage || {}, cost = aiCost(r.model, u), tok = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.output_tokens || 0);
+    { const sp = aiSpend(); if (cost != null) { sp.usd += cost; sp.n++; } else sp.free = (sp.free || 0) + 1; try { localStorage.setItem(SPENDLS, JSON.stringify(sp)); } catch (e) {} }
+    for (let i = 0; i < bs.length; i++) { if (i) { CHAT.busy = true; chatPaint(); await new Promise(ok => setTimeout(ok, 420)); CHAT.busy = false; } say(bs[i].slice(0, 1200), 0, i === bs.length - 1 && typeof r.model === 'string' ? { model: r.model.slice(0, 40), tok: tok || undefined, cost: cost != null ? Math.round(cost * 1e6) / 1e6 : undefined } : null); chatPaint(); }
   } catch (e) {
     CHAT.busy = false;
     say(e.status === 429 ? (/daily limit/.test(e.message) ? "That's all the thinking I can do today. Ask me again tomorrow!" : /Gemini/.test(e.message) ? e.message + '. You can switch to Claude in Settings.' : 'I am a bit busy right now. Try again in a minute.')
