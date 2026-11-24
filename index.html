@@ -659,6 +659,8 @@ button.slogo-btn:hover .slogo { outline: 2px solid var(--accent); outline-offset
   .app[data-tab="overview"] .brandbar { width: calc((100% - 16px) * .43); }
   /* Chart card starts level with the top of the bar (--bb-h is the bar height, set from JS) and ends with the cycle card. */
   .app[data-tab="overview"] .ov > .ov-donut { margin-top: calc(-1 * var(--bb-h, 0px)); }
+  /* The stretched card keeps its content together in the middle instead of spreading rows apart. */
+  .app[data-tab="overview"] .ov > .ov-donut .card-b { align-content: center; row-gap: 18px; }
 }
 
 /* Bud speech bubble: navy cloud with thought dots, same navy as the cycle card */
