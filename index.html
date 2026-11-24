@@ -483,7 +483,11 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 @media (prefers-reduced-motion: reduce) { .bc { animation: none; } }
 .bc-h { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 12px; border-bottom: 1px solid var(--line); }
 .bc-sp { flex: 1; min-width: 0; text-align: center; font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bc-new[hidden] { display: none; }
+.bc-clear[hidden] { display: none; }
+.bc-clear.arm { border-color: var(--crit); color: var(--crit); }
+.bc-h { gap: 6px; } .bc-h .icon-btn { flex: none; }
+.bc-sep { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 12px; margin: 6px 0; }
+.bc-sep::before, .bc-sep::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .bc-menu { position: absolute; top: 58px; left: 10px; right: 10px; z-index: 3; display: grid; gap: 6px; padding: 10px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line-2); box-shadow: 0 14px 40px #0006; }
 .bc-menu[hidden] { display: none; }
 .bc-mh { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); padding: 2px 4px; }
@@ -1265,7 +1269,7 @@ body.dragging-bank { cursor: grabbing; -webkit-user-select: none; user-select: n
 </div></nav>
 <div id="sheet" class="sheet-wrap" hidden><div class="backdrop" data-action="close"></div><div class="sheet" role="dialog" aria-modal="true"><div id="sheetBody"></div></div></div>
 <div id="budchat" class="bc-wrap" hidden><div class="bc-back" data-action="bc-close"></div><section class="bc" role="dialog" aria-modal="true" aria-labelledby="bc-title">
-  <header class="bc-h"><h2 id="bc-title" class="sr">Ask Bud</h2><button type="button" class="btn sm" data-action="style">Style</button><button type="button" class="btn sm" data-action="settings">Settings</button><button type="button" class="btn sm bc-ai" data-action="bc-ai" aria-expanded="false" aria-controls="bcmenu">AI</button><span class="bc-sp"></span><button type="button" class="btn sm bc-new" data-action="bc-new" hidden>New chat</button><button type="button" class="icon-btn" data-action="bc-close" aria-label="Close">
+  <header class="bc-h"><h2 id="bc-title" class="sr">Ask Bud</h2><button type="button" class="btn sm" data-action="bc-new">New chat</button><button type="button" class="btn sm" data-action="style">Style</button><button type="button" class="btn sm bc-ai" data-action="bc-ai" aria-expanded="false" aria-controls="bcmenu">AI</button><button type="button" class="btn sm bc-clear" data-action="bc-clear" hidden>Clear</button><span class="bc-sp"></span><button type="button" class="icon-btn" data-action="settings" aria-label="Settings" title="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button><button type="button" class="icon-btn" data-action="bc-close" aria-label="Close">
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
   <div class="bc-menu" id="bcmenu" hidden></div>
   <div class="bc-log" id="bclog" aria-live="polite"></div>
@@ -6524,7 +6528,12 @@ document.addEventListener('click', async e => {
     case 'bc-ai': bcMenu($('#bcmenu').hidden); break;
     case 'bc-pick': AIUI.res = null; state.settings.aiProvider = a.dataset.p === 'gemini' ? 'gemini' : 'claude'; try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} clearTimeout(timer); timer = setTimeout(flush, 600); bcMenu(true); toast(AI_NAME[aiProv()] + ' answers now'); break;
     case 'bc-keys': bcMenu(false); goSettings('aicard'); break;
-    case 'bc-new': CHAT.msgs = []; chatSave(); chatPaint(); $('#bcq').focus(); break;
+    case 'bc-new': if (chatCurrent().length) { CHAT.msgs.push({ r: 'sep', t: '', at: new Date().toISOString() }); chatSave(); } chatPaint(); $('#bcq').focus(); break;
+    case 'bc-clear': {
+      // Two taps: the first asks, the second erases every message on this phone.
+      if (!a.classList.contains('arm')) { a.classList.add('arm'); a.textContent = 'Tap to confirm'; clearTimeout(a._t); a._t = setTimeout(() => { a.classList.remove('arm'); a.textContent = 'Clear'; }, 3000); break; }
+      clearTimeout(a._t); a.classList.remove('arm'); a.textContent = 'Clear'; CHAT.msgs = []; chatSave(); chatPaint(); toast('Chat cleared'); break;
+    }
     case 'bc-ask': budAsk(a.dataset.q); break;
     case 'settings': goSettings(); break;
     case 'hat-color': setHat({ color: a.dataset.c }); break;
@@ -6775,20 +6784,22 @@ function aiCard() {
 // Tap Bud: a chat window under the logo. Questions go to the BudTracks server (/ask) with a compact summary built here
 // (totals, trends, upcoming, recent lines), never the raw data. The chat lives only in this browser (not in backups).
 const CHATLS = 'budtrack.chat';
-const CHAT = { msgs: (() => { try { const v = JSON.parse(localStorage.getItem(CHATLS) || '[]'); return Array.isArray(v) ? v.filter(m => m && (m.r === 'me' || m.r === 'bud') && typeof m.t === 'string').slice(-60) : []; } catch (e) { return []; } })(), busy: false };
+const CHAT = { msgs: (() => { try { const v = JSON.parse(localStorage.getItem(CHATLS) || '[]'); return Array.isArray(v) ? v.filter(m => m && (m.r === 'me' || m.r === 'bud' || m.r === 'sep') && typeof m.t === 'string').slice(-60) : []; } catch (e) { return []; } })(), busy: false };
 function chatSave() { CHAT.msgs = CHAT.msgs.slice(-60); try { localStorage.setItem(CHATLS, JSON.stringify(CHAT.msgs)); } catch (e) {} }
 const BC_SUGGEST = ['How am I doing this pay cycle?', 'What changed from last cycle?', 'Where can I cut back?', "What's due before payday?"];
 function chatPaint() {
   const log = $('#bclog'); if (!log) return;
   const name = String(state.settings.displayName || '').trim().split(/\s+/)[0];
   const av = `<span class="bc-av" aria-hidden="true">${headSVG(hat(), 'mini')}</span>`;
-  const row = m => m.r === 'me' ? `<div class="bc-m me"><p>${esc(m.t)}</p></div>` : `<div class="bc-m bot${m.err ? ' err' : ''}">${av}<p>${esc(m.t)}</p></div>`;
+  // "New chat" leaves earlier messages on screen above a divider; Bud only reads what comes after it.
+  const row = m => m.r === 'sep' ? `<div class="bc-sep" role="separator"><span>New chat</span></div>` : m.r === 'me' ? `<div class="bc-m me"><p>${esc(m.t)}</p></div>` : `<div class="bc-m bot${m.err ? ' err' : ''}">${av}<p>${esc(m.t)}</p></div>`;
   let html = `<div class="bc-m bot">${av}<p>Hi${name ? ' ' + esc(name) : ''}! I'm Bud. Ask me anything about your money: trends, what's due, where it's going.</p></div>`;
-  if (!CHAT.msgs.length) html += `<div class="bc-sug">${BC_SUGGEST.map(q => `<button type="button" class="chip" data-action="bc-ask" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>`;
-  html += CHAT.msgs.map(row).join('');
+  const fresh = chatCurrent();
+  if (!fresh.length) html += CHAT.msgs.map(row).join('') + `<div class="bc-sug">${BC_SUGGEST.map(q => `<button type="button" class="chip" data-action="bc-ask" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>`;
+  else html += CHAT.msgs.map(row).join('');
   if (CHAT.busy) html += `<div class="bc-m bot typing">${av}<p aria-label="Bud is thinking"><i></i><i></i><i></i></p></div>`;
   log.innerHTML = html; log.scrollTop = log.scrollHeight;
-  const nb = document.querySelector('.bc-new'); if (nb) nb.hidden = !CHAT.msgs.length;
+  const cb = document.querySelector('.bc-clear'); if (cb) cb.hidden = !CHAT.msgs.some(m => m.r !== 'sep');
   const mn = $('#bcmenu'); if (mn && !mn.hidden) mn.innerHTML = bcMenuHTML();
 }
 // Sits right under the brand header (or the top of the screen when it is scrolled away) and above the keyboard.
@@ -6849,9 +6860,11 @@ function goSettings(id) {
   setTimeout(() => { const el = $('#' + (id || 'settings')); if (el) el.scrollIntoView({ block: 'start' }); }, 120);
 }
 // Earlier questions and answers, newest last, for follow-ups ("and last month?").
+// Messages since the last "New chat".
+function chatCurrent() { let i = CHAT.msgs.length; while (i > 0 && CHAT.msgs[i - 1].r !== 'sep') i--; return CHAT.msgs.slice(i); }
 function chatHistory() {
   const out = []; let q = null, a = [];
-  CHAT.msgs.forEach(m => { if (m.err) return; if (m.r === 'me') { if (q && a.length) out.push({ q, a: a.join('\n\n') }); q = m.t; a = []; } else if (q) a.push(m.t); });
+  chatCurrent().forEach(m => { if (m.err) return; if (m.r === 'me') { if (q && a.length) out.push({ q, a: a.join('\n\n') }); q = m.t; a = []; } else if (q) a.push(m.t); });
   if (q && a.length) out.push({ q, a: a.join('\n\n') });
   return out.slice(-6);
 }

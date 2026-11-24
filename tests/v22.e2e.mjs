@@ -213,7 +213,7 @@ for (const [w, h, dark] of [[390, 844, true], [951, 669, false]]) {
     assert.ok(g.top >= g.bbBottom && g.top - g.bbBottom < 20, 'under the logo ' + JSON.stringify(g));
     assert.ok(g.right <= g.vw && g.left >= 0 && g.bottom <= g.vh, 'inside the screen ' + JSON.stringify(g));
     assert.equal(await page.locator('.bc-h [data-action="style"]').innerText(), 'Style');
-    assert.equal(await page.locator('.bc-h [data-action="settings"]').innerText(), 'Settings');
+    assert.equal(await page.getAttribute('.bc-h [data-action="settings"]', 'aria-label'), 'Settings');
     assert.match(await txt(page, '.bc-m.bot'), /I'm Bud/);
     assert.equal(await page.locator('.bc-sug .chip').count(), 4);
     await noHScroll(page, tag + ' chat');
@@ -260,12 +260,34 @@ for (const [w, h, dark] of [[390, 844, true], [951, 669, false]]) {
     await page.keyboard.press('Escape'); await page.waitForSelector('#sheet', { state: 'hidden' });
     assert.equal(await page.locator('#budchat').isHidden(), false);
   });
-  await step(`${tag}: the chat is kept after a reload; New chat clears it`, async () => {
+  await step(`${tag}: header order is New chat, Style, AI, Clear, then the settings icon (close at the edge)`, async () => {
+    const acts = await page.$$eval('.bc-h button', bs => bs.map(b => b.dataset.action));
+    assert.deepEqual(acts, ['bc-new', 'style', 'bc-ai', 'bc-clear', 'settings', 'bc-close']);
+    assert.equal(await page.getAttribute('.bc-h [data-action="settings"]', 'aria-label'), 'Settings');
+    assert.equal((await page.locator('.bc-h [data-action="settings"]').innerText()).trim(), '', 'icon only');
+    await page.screenshot({ path: SHOTS + '/v22-chat-header-390.png', clip: { x: 0, y: 200, width: 390, height: 120 } });
+  });
+  await step(`${tag}: the chat is kept after a reload; New chat starts fresh below a divider (Bud forgets the earlier part)`, async () => {
     await page.reload({ waitUntil: 'load' }); await quiet(page);
     await page.locator('#brandbar svg.hd').dispatchEvent('click'); await page.waitForSelector('#budchat:not([hidden])');
-    assert.ok((await page.locator('.bc-m.me').count()) >= 2);
+    const before = await page.locator('.bc-m.me').count(); assert.ok(before >= 2);
     await page.click('[data-action="bc-new"]');
-    assert.equal(await page.locator('.bc-m.me').count(), 0); assert.equal(await page.locator('.bc-sug .chip').count(), 4);
+    assert.equal(await page.locator('.bc-sep').count(), 1); assert.equal(await page.locator('.bc-m.me').count(), before, 'earlier messages stay on screen');
+    assert.equal(await page.locator('.bc-sug .chip').count(), 4);
+    await page.click('[data-action="bc-new"]'); assert.equal(await page.locator('.bc-sep').count(), 1, 'no second divider on an empty chat');
+    mock.ask = { bubbles: ['Fresh answer.'] };
+    await page.fill('#bcq', 'Fresh question'); await page.press('#bcq', 'Enter');
+    await page.waitForFunction(() => [...document.querySelectorAll('.bc-m.bot p')].some(p => /Fresh answer/.test(p.textContent)));
+    assert.deepEqual(mock.asks.at(-1).history, [], 'Bud does not see the earlier part');
+  });
+  await step(`${tag}: Clear asks for a second tap, then erases the whole chat`, async () => {
+    await page.click('[data-action="bc-clear"]');
+    assert.equal(await page.locator('[data-action="bc-clear"]').innerText(), 'Tap to confirm');
+    assert.ok((await page.locator('.bc-m.me').count()) > 0, 'nothing erased yet');
+    await page.click('[data-action="bc-clear"]');
+    assert.equal(await page.locator('.bc-m.me').count(), 0); assert.equal(await page.locator('.bc-sep').count(), 0);
+    assert.equal(await page.locator('[data-action="bc-clear"]').isHidden(), true);
+    assert.equal(await page.evaluate(() => localStorage.getItem('budtrack.chat')), '[]');
   });
   await step(`${tag}: Settings goes to the Income tab, scrolled to the settings below the income part`, async () => {
     await page.click('.bc-h [data-action="settings"]');
