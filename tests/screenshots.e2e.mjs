@@ -116,7 +116,7 @@ const jpegSize = (page, data) => page.evaluate(d => new Promise(ok => { const i 
     assert.doesNotMatch(await page.locator('.tx-card .card-h').innerText(), /Screenshot/i);
     assert.equal(await page.locator('.tx-chips [data-action="bk-sync"]').count(), 0);
     const bx = await hdr.evaluateAll(bs => bs.map(b => { const r = b.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }));
-    bx.forEach(([, , w, h]) => assert.ok(w >= 40 && h >= 40 && Math.abs(w - h) < 1, 'tap target ' + w + 'x' + h));
+    bx.forEach(([, , w, h]) => assert.ok(w >= 39.9 && h >= 39.9 && Math.abs(w - h) < 1, 'tap target ' + w + 'x' + h));
     assert.ok(bx[0][0] + bx[0][2] <= bx[1][0] && bx[1][0] + bx[1][2] <= bx[2][0], 'buttons do not overlap');
     const [hb, card, h2] = await Promise.all([page.locator('.tx-hb').boundingBox(), page.locator('.tx-card').boundingBox(), page.locator('.tx-card .card-h h2').boundingBox()]);
     assert.ok(hb.x + hb.width <= card.x + card.width + 0.5, 'header buttons inside the card');

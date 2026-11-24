@@ -23,6 +23,8 @@ jobs:
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.63.0
           npx playwright install --with-deps chromium
+          # Same fallback fonts as the Claude sandbox: tests block web fonts, so text widths come from these.
+          sudo apt-get install -y fonts-inter fonts-dejavu-core
       - name: Every logic and e2e test
         run: node tests/run.mjs --jobs 4 --shots /tmp/shots
       - name: Keep screenshots when something failed
