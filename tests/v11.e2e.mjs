@@ -2,20 +2,11 @@
 // centered under the ladder columns, the greeting line (default, edit, reload, backup), the "Pay cycle" label,
 // the Transactions "Sync now" spinner + toast, the Auto/Light/Dark appearance setting, and light-mode contrast.
 // Run: node tests/v11.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
-const require = createRequire(import.meta.url);
-let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = process.env.BT_URL || 'http://localhost:8765/';
+import { pw, SHOTS, BASE, API, iso, addD, step, finish, prep, synced } from './lib.mjs';
 // v19: the period switcher is a button + menu inside the header
 const pickView = async (page, v) => { await page.click('#periodBtn'); await page.click('#periodMenu [data-view="' + v + '"]'); };
-const API = 'https://worker.test';
-let failed = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', String(e.message).split('\n').slice(0, 14).join('\n    ')); } };
 
-const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const addD = (s, n) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
 const TODAY = iso(new Date()), PAY = addD(TODAY, -1), dayOf = n => +addD(TODAY, n).slice(8);
 const SANT = { id: 'sa1', name: 'Checking', last4: '6429', institution: 'Santander', type: 'depository' };
 const CITI = { id: 'ci1', name: 'Checking', last4: '4417', institution: 'Citizens', type: 'depository' };
@@ -53,12 +44,10 @@ const b = await pw.chromium.launch();
 async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.dark ? 'dark' : 'light', deviceScaleFactor: 1 });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const errs = [], calls = [], mock = { txns: SPLIT, balances: BAL(), syncDelay: 0, fail: false };
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.route('**/worker.test/**', async route => {
     const req = route.request(), u = new URL(req.url()), p = u.pathname, m = req.method();
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
@@ -84,7 +73,7 @@ async function newPage(w, h, o) {
   }, [JSON.stringify(fixture()), o.settings]);
   await page.reload({ waitUntil: 'load' });
   // The first (automatic) sync brings the split paycheck and the live balances.
-  await page.waitForFunction(() => { const b = JSON.parse(localStorage.getItem('budtrack.v1')).bank; return b.lastSync && b.balances && b.balances.items.length; });
+  await synced(page, true);
   await page.waitForTimeout(250);
   return { ctx, page, errs, calls, mock };
 }
@@ -379,5 +368,4 @@ for (const [w, h] of SIZES) {
 }
 
 await b.close();
-console.log(failed ? failed + ' step(s) FAILED' : 'all steps passed');
-process.exit(failed ? 1 : 0);
+finish();

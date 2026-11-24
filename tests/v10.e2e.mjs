@@ -2,19 +2,11 @@
 // the income trend chart (last 2, this, next 3 with deltas and estimates), the snapshot POST after a sync for the
 // morning email, and the "Send test email" button.
 // Run: node tests/v10.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
-const require = createRequire(import.meta.url);
-let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = process.env.BT_URL || 'http://localhost:8765/';
+import { pw, SHOTS, BASE, iso, addD, step, finish, prep } from './lib.mjs';
 // v19: the period switcher is a button + menu inside the header
 const pickView = async (page, v) => { await page.click('#periodBtn'); await page.click('#periodMenu [data-view="' + v + '"]'); };
-let failed = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', String(e.message).split('\n').slice(0, 14).join('\n    ')); } };
 
-const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const addD = (s, n) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
 const TODAY = iso(new Date()), PAY = addD(TODAY, -2), dayOf = n => +addD(TODAY, n).slice(8);
 const num = t => +String(t).replace(/[^0-9.\-]/g, '');
 const acct = { id: 'a1', name: 'Checking', last4: '6429', institution: 'Santander', type: 'depository' };
@@ -43,12 +35,10 @@ const b = await pw.chromium.launch();
 async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.dark ? 'dark' : 'light' });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const errs = [], calls = [], mock = { alerts: 404 };
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.route('**/worker.test/**', async route => {
     const req = route.request(), u = new URL(req.url()), p = u.pathname, m = req.method();
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
@@ -264,5 +254,4 @@ for (const [w, h] of [[390, 844], [951, 669]]) {
   await ctx.close();
 }
 await b.close();
-console.log(failed ? failed + ' step(s) FAILED' : 'all steps passed');
-process.exit(failed ? 1 : 0);
+finish();

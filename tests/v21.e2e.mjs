@@ -2,18 +2,9 @@
 // with Accepted / Matched / Skipped chips, PayPal / Venmo double-count guard, screenshot entries without "waiting", centered Plans switch,
 // collapsible Service logos with "Add a logo".
 // Run: node tests/v21.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
-const require = createRequire(import.meta.url);
-let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = process.env.BT_URL || 'http://localhost:8765/';
-const API = 'https://worker.test';
-let failed = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', String(e.message).split('\n').slice(0, 14).join('\n    ')); } };
+import { pw, SHOTS, BASE, API, iso, addD, step, finish, prep, R, synced } from './lib.mjs';
 
-const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const addD = (s, n) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
 const TODAY = iso(new Date()), PAY = addD(TODAY, -4);
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const md = s => MON[+s.slice(5, 7) - 1] + ' ' + +s.slice(8);
@@ -44,12 +35,10 @@ const b = await pw.chromium.launch();
 async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.dark ? 'dark' : 'light', deviceScaleFactor: 1 });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const errs = [], calls = [], mock = { txns: o.txns || [], offline: false };
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.route('**/worker.test/**', async route => {
     const req = route.request(), u = new URL(req.url()), p = u.pathname, m = req.method();
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
@@ -70,7 +59,7 @@ async function newPage(w, h, o) {
     localStorage.setItem('budtrack.v1', JSON.stringify(s)); localStorage.setItem('budtrack.bankkey', 'secret-device-key-123');
   }, [JSON.stringify(o.fixture || fixture()), o.settings]);
   await page.goto(BASE + (o.hash || '#transactions'), { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
-  if (!o.noSync) await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
+  if (!o.noSync) await synced(page);
   await page.waitForTimeout(300);
   return { ctx, page, errs, mock, calls };
 }
@@ -509,5 +498,4 @@ for (const [w, h, dark] of [[390, 844, true], [669, 951, false], [951, 669, true
 }
 
 await b.close();
-console.log(failed ? `${failed} failed` : 'all ok');
-process.exit(failed ? 1 : 0);
+finish();

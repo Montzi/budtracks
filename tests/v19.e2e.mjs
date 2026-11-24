@@ -1,14 +1,7 @@
 // v19: header fixed in place on every tab (period button inside it), Bud names the tab, new-data badges on tabs.
 // Run: node tests/v19.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
-const require = createRequire(import.meta.url);
-let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = process.env.BT_URL || 'http://localhost:8765/';
-const API = 'https://worker.test';
-let failed = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', String(e.message).split('\n').slice(0, 14).join('\n    ')); } };
+import { pw, SHOTS, BASE, API, step, finish, prep } from './lib.mjs';
 const TABS = ['overview', 'transactions', 'bills', 'plans', 'income'];
 const SIZES = process.env.BT_ONE ? [[390, 844]] : [[390, 844], [430, 932], [669, 951], [951, 669], [1000, 703]];
 const b = await pw.chromium.launch();
@@ -32,8 +25,7 @@ const fixture = () => ({
 async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.scheme || 'dark', reducedMotion: o.reduce ? 'reduce' : 'no-preference', deviceScaleFactor: 1 });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const errs = [], mock = { txns: o.txns || [], seq: 0 };
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   await page.addInitScript(() => { window.__badge = []; navigator.setAppBadge = n => { window.__badge.push(n); return Promise.resolve(); }; navigator.clearAppBadge = () => { window.__badge.push(0); return Promise.resolve(); }; });
@@ -47,7 +39,6 @@ async function newPage(w, h, o) {
     if (p === '/sync') return json({ txns: mock.txns, removed: [], errors: [], syncToken: 'tok-' + (++mock.seq), syncedAt: new Date().toISOString() });
     return json({ error: 'nope' }, 404);
   });
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.goto(BASE, { waitUntil: 'load' });
   await page.evaluate(([fx, st, theme]) => {
     const s = JSON.parse(localStorage.getItem('budtrack.v1') || '{}'), f = JSON.parse(fx);
@@ -309,5 +300,4 @@ await step('no horizontal scroll with badges on at 390 / 430, both themes', asyn
 });
 
 await b.close();
-console.log(failed ? `\n${failed} FAILED` : '\nall ok');
-process.exit(failed ? 1 : 0);
+finish();

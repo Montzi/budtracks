@@ -1,17 +1,8 @@
 // v14: Sync chip in the Transactions filter row, short "Updated … ago" line, "Spent this pay cycle" summary with Cycle | Month,
 // screenshot notes shown under rows (before and after the bank copy links), and the Appearance control in the hat sheet.
 // Run: node tests/v14.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
-const require = createRequire(import.meta.url);
-let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = process.env.BT_URL || 'http://localhost:8765/';
-const API = 'https://worker.test';
-let failed = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', String(e.message).split('\n').slice(0, 14).join('\n    ')); } };
-const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const addD = (s, n) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
+import { pw, SHOTS, BASE, API, iso, addD, step, finish, prep } from './lib.mjs';
 const TODAY = iso(new Date()), PAY = addD(TODAY, -6), MSTART = TODAY.slice(0, 8) + '01';
 const CYCLE_START = PAY;
 const CHASE = { id: 'chk', name: 'Checking', last4: '1284', institution: 'Chase', type: 'depository' };
@@ -35,13 +26,11 @@ const b = await pw.chromium.launch();
 async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.dark ? 'dark' : 'light', deviceScaleFactor: 1 });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const errs = [];
   const mock = { txns: [], syncDelay: 0, scan: null };
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.route('**/worker.test/**', async route => {
     const req = route.request(), u = new URL(req.url()), p = u.pathname, m = req.method();
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
@@ -230,5 +219,4 @@ for (const [w, h, dark] of [[390, 844, true], [390, 844, false], [669, 951, true
   await ctx.close();
 }
 await b.close();
-console.log(failed ? failed + ' step(s) failed' : 'all steps passed');
-process.exit(failed ? 1 : 0);
+finish();

@@ -1,17 +1,8 @@
 // v17: big due dates on plan cards, brand logos (icon probing, brand-colored letters) for services and merchants.
 // Run: node tests/v17.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
+import { pw, SHOTS, BASE, API, iso, addD, step, finish, prep } from './lib.mjs';
 import zlib from 'node:zlib';
-const require = createRequire(import.meta.url);
-let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = process.env.BT_URL || 'http://localhost:8765/';
-const API = 'https://worker.test';
-let failed = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', String(e.message).split('\n').slice(0, 14).join('\n    ')); } };
-const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const addD = (s, n) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const dws = s => { const d = new Date(s + 'T12:00:00'); return DOW[d.getDay()] + ' ' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + '/' + d.getFullYear(); };
 const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -47,12 +38,10 @@ const b = await pw.chromium.launch();
 async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.dark ? 'dark' : 'light', deviceScaleFactor: 1, acceptDownloads: true });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const errs = [], hits = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   // Every src given to an image (the page probes icons with detached Images). Playwright cannot intercept bare favicon.ico requests, so these are the only record of them.
   await page.addInitScript(() => { window.__probed = []; const d = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src'); Object.defineProperty(HTMLImageElement.prototype, 'src', { configurable: true, get() { return d.get.call(this); }, set(v) { window.__probed.push(String(v)); d.set.call(this, v); } }); });
   // Icon hosts: 404 unless the test gives that URL a body. Every request is recorded.
@@ -232,5 +221,4 @@ await step('setting off: letters only, no icon requests; own upload wins; settin
 /* 4. Tab logo: superseded in v18 by the shared brand header (tests/v18.e2e.mjs). */
 
 await b.close();
-console.log(failed ? `\n${failed} FAILED` : '\nall ok');
-process.exit(failed ? 1 : 0);
+finish();

@@ -1,18 +1,9 @@
 // v16: clearer plan cards (Due/Past due/Paid off, "2 of 4", Purchased/Ends/left rows), the logo centered on every tab,
 // service logos (own upload > the service's own icon > letter) with a privacy setting.
 // Run: node tests/v16.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
+import { pw, SHOTS, BASE, API, iso, addD, step, finish, prep } from './lib.mjs';
 import zlib from 'node:zlib';
-const require = createRequire(import.meta.url);
-let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = process.env.BT_URL || 'http://localhost:8765/';
-const API = 'https://worker.test';
-let failed = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', String(e.message).split('\n').slice(0, 14).join('\n    ')); } };
-const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const addD = (s, n) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const dws = s => { const d = new Date(s + 'T12:00:00'); return DOW[d.getDay()] + ' ' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + '/' + d.getFullYear(); };
 const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -42,12 +33,10 @@ const b = await pw.chromium.launch();
 async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.dark ? 'dark' : 'light', deviceScaleFactor: 1, acceptDownloads: true });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const errs = [], hits = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   // Every icon URL the page ever puts in an <img> (headless Chromium never sends a bare /favicon.ico to the network, so the first try is read here).
   await page.addInitScript(() => { window.__srcs = []; const seen = n => { if (n.nodeType === 1) { if (n.matches('.slogo img')) window.__srcs.push(n.getAttribute('src')); n.querySelectorAll('.slogo img').forEach(i => window.__srcs.push(i.getAttribute('src'))); } };
     new MutationObserver(ms => ms.forEach(m => { m.addedNodes.forEach(seen); if (m.type === 'attributes' && m.target.matches('.slogo img')) window.__srcs.push(m.target.getAttribute('src')); })).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] }); });
@@ -228,5 +217,4 @@ await step('email logo script output exists and is a transparent PNG', async () 
 });
 
 await b.close();
-console.log(failed ? `\n${failed} FAILED` : '\nall ok');
-process.exit(failed ? 1 : 0);
+finish();

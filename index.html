@@ -6806,7 +6806,7 @@ async function aiCfgLoad() {
   try { const c = await bankFetch('/config', { auth: false }); AIUI.ai = c && c.ai && typeof c.ai === 'object' ? c.ai : { claude: true, gemini: false }; } catch (e) {}
   if (bankReady()) { try { AIUI.st = await bankFetch('/ai'); } catch (e) {} }
   AIUI.loading = false;
-  if (currentTab() === 'income' && AIUI.ai) { const el = $('#aicard'); if (el) el.outerHTML = aiCard(); }
+  if (currentTab() === 'income' && AIUI.ai) { const el = $('#aicard'); if (el) el.outerHTML = aiCard(); scrollKept(); }
 }
 // The key for the chosen AI: saved here (encrypted on your server) instead of a GitHub secret pasted on a phone.
 function aiKeyBox(p) {
@@ -6927,8 +6927,9 @@ window.addEventListener('resize', chatPlace);
 if (window.visualViewport) { visualViewport.addEventListener('resize', chatPlace); visualViewport.addEventListener('scroll', chatPlace); }
 function goSettings(id) {
   budChatClose(); if (!$('#sheet').hidden) closeSheet();
-  if (currentTab() !== 'income') location.hash = '#income';
-  setTimeout(() => { const el = $('#' + (id || 'settings')); if (el) el.scrollIntoView({ block: 'start' }); }, 120);
+  // The tab switch scrolls to the top, so the scroll waits for it: the hashchange handler applies SCROLLTO.
+  if (currentTab() !== 'income') { SCROLLTO = id || 'settings'; location.hash = '#income'; return; }
+  requestAnimationFrame(() => scrollKeep(id || 'settings'));
 }
 // Earlier questions and answers, newest last, for follow-ups ("and last month?").
 // Messages since the last "New chat".
@@ -7101,10 +7102,16 @@ function render() {
   initCatScroll();
   watchFit();
   markTabSeen(tab); paintBadges();
+  scrollKept();
   if (tab === 'transactions' && TXUI.toReview) { TXUI.toReview = false; setTimeout(() => { const el = $('#txreview'); if (el && currentTab() === 'transactions') el.scrollIntoView({ block: 'start' }); }, 80); }
 }
 let lastTab = null;
-window.addEventListener('hashchange', () => { closePeriod(false); render(); window.scrollTo(0, 0); requestAnimationFrame(() => budSay(TABNAME[currentTab()], 10000)); });
+let SCROLLTO = '', SCROLLKEEP = null;
+// Scrolls to a card on the Income tab. Content that loads late above it (the bank list, the AI card) would push it down,
+// so for 2 s each redraw scrolls to it again, unless you scrolled yourself.
+function scrollKeep(id) { const el = $('#' + id); if (!el) return; el.scrollIntoView({ block: 'start' }); SCROLLKEEP = { id, until: Date.now() + 2000, y: scrollY }; }
+function scrollKept() { const k = SCROLLKEEP; if (!k) return; if (Date.now() > k.until || currentTab() !== 'income' || Math.abs(scrollY - k.y) > 2) { SCROLLKEEP = null; return; } scrollKeep(k.id); }
+window.addEventListener('hashchange', () => { closePeriod(false); render(); window.scrollTo(0, 0); if (SCROLLTO) { const id = SCROLLTO; SCROLLTO = ''; if (currentTab() === 'income') scrollKeep(id); } requestAnimationFrame(() => budSay(TABNAME[currentTab()], 10000)); });
 // Tapping the tab you are already on has no hash change: Bud still says its name and the page returns to the top.
 document.addEventListener('click', e => { const a = e.target.closest('.tabs a'); if (a && a.getAttribute('href') === '#' + currentTab()) { window.scrollTo(0, 0); requestAnimationFrame(() => budSay(TABNAME[currentTab()], 10000)); } });
 render();

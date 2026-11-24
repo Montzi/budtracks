@@ -1,0 +1,34 @@
+name: Tests
+# The full suite runs here after every push, so a Claude session only runs the fast lane before release.
+# It does not block the Pages deploy. A red run here means: fix it in the next release.
+on:
+  push:
+    branches: ['**']
+    paths-ignore: ['**.md']
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Every logic and e2e test
+        run: node tests/run.mjs --jobs 4 --shots /tmp/shots
+      - name: Keep screenshots when something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: /tmp/shots
+          retention-days: 7

@@ -1,13 +1,7 @@
 // End-to-end check of the bank sync UI against a mocked Worker.
 // Run: python3 -m http.server 8765 (in the repo root), then: node tests/banksync.e2e.mjs [screenshotDir]
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
-const require = createRequire(import.meta.url);
-let chromium;
-try { ({ chromium } = require('playwright')); } catch (e) { ({ chromium } = require('/opt/node-tools/node_modules/playwright')); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = process.env.BT_URL || 'http://localhost:8765/';
-const API = 'https://worker.test';
+import { chromium, SHOTS, BASE, API, step, finish, prep, go, synced } from './lib.mjs';
 const TODAY = '2026-11-20';
 
 const acct = { id: 'acc1', name: 'Everyday Checking', last4: '1234', institution: 'Chime', type: 'depository' };
@@ -33,14 +27,11 @@ const fixtureState = s => Object.assign(s, {
   account: { balance: 3000, asOf: '2026-10-01', adj: [], auto: true }
 });
 
-let failures = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok   ' + name); } catch (e) { failures++; console.log('FAIL ' + name + '\n     ' + String(e.message).split('\n').slice(0, 25).join('\n     ')); } };
 
 const browser = await chromium.launch();
 async function newPage(w, h) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block' });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const errs = [], calls = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
@@ -68,7 +59,6 @@ async function newPage(w, h) {
     contentType: 'application/javascript',
     body: `window.__plaid = []; window.Plaid = { create(o) { window.__plaid.push({ token: o.token, redirect: o.receivedRedirectUri || null }); return { open() { o.onSuccess('public-xyz', { institution: { name: 'Citizens' } }); } }; } };`
   }));
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   return { ctx, page, errs, calls, mock };
 }
 const seed = async (page, extra) => {
@@ -184,7 +174,7 @@ const prepared = async (w, h, extraBank) => {
   const { page, errs, calls, mock } = await prepared(390, 844);
   await page.goto(BASE + '#income', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
   await step('auto-sync on load runs once and applies sure matches', async () => {
-    await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
+    await synced(page);
     const sc = calls.filter(c => c.p === '/sync'); assert.equal(sc.length, 1);
     assert.equal(sc[0].q, '?since=2026-10-01&acks='); assert.equal(sc[0].auth, 'Bearer secret-device-key-123');
     const s = await getState(page);
@@ -371,7 +361,7 @@ const prepared = async (w, h, extraBank) => {
     await page.waitForFunction(() => document.querySelector('[data-action="bk-sync"]') && !document.querySelector('[data-action="bk-sync"]').disabled);
   };
   await page.goto(BASE + '#income', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
+  await synced(page);
   await step('removed ids drop inbox rows and undo applied ones', async () => {
     let s = await getState(page);
     assert.equal(s.bank.seen['pl:klarna'].res, 'match'); assert.ok(s.bank.inbox.some(x => x.txn.id === 'pl:dd'));
@@ -421,7 +411,7 @@ for (const [w, h] of [[390, 844], [951, 669]]) {
   };
   const ids = a => a.map(x => (x.txn || x).id).sort();
   await page.goto(BASE + '#income', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
+  await synced(page);
   await step(`${w}: first sync asks since=historyFrom and splits history / automatic / ignored`, async () => {
     assert.match(calls.find(c => c.p === '/sync').q, /since=2026-11-01/);
     const s = await getState(page);
@@ -525,7 +515,7 @@ const splitSeed = async page => page.evaluate(() => {
   mock.txns = SPLIT;
   await splitSeed(page);
   await page.goto(BASE + '#overview', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
+  await synced(page);
   await step('split paycheck: three deposits apply as ONE paycheck of 2,273.31; Zelle from John stays in the inbox', async () => {
     const s = await getState(page);
     assert.equal(s.income[0].perCycle['2026-11-20'], 2273.31);
@@ -892,7 +882,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
   await splitSeed(page);
   await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.income[0].perCycle['2026-11-06'] = 1500; localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
   await page.goto(BASE + '#income', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
+  await synced(page);
   await step('an unrelated $280 deposit on payday does not join the paycheck', async () => {
     const s = await getState(page);
     assert.equal(s.income[0].perCycle['2026-11-20'], 2273.31); assert.ok(!('pl:odd' in s.bank.seen));
@@ -1255,7 +1245,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     await page.goto(BASE + '#income', { waitUntil: 'load' });
     await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.bank = Object.assign(s.bank, { seen: {}, inbox: [], txns: {}, notes: {}, history: [], lastSync: null, syncToken: null }); s.spends = []; s.occ = {}; localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
     await page.reload({ waitUntil: 'load' });
-    await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
+    await synced(page);
     await page.goto(BASE + '#transactions'); await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.tx');
   };
   const inboxHas = async id => (await getState(page)).bank.inbox.some(x => (x.parts || [x.txn]).some(t => t.id === id || t.pendingOf === id));
@@ -1328,7 +1318,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
   const { page, errs, calls, mock } = await prepared(390, 844);
   mock.enrollments.push({ id: 'enr_2', institution: 'Citizens', needsReconnect: false, accounts: [{ id: 'acc3', name: 'Everyday', type: 'depository', subtype: 'checking', last_four: '4417', enabled: true }] });
   await page.goto(BASE + '#income', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync); await page.waitForSelector('.bk-enr');
+  await synced(page); await page.waitForSelector('.bk-enr');
   const exp = k => page.getAttribute('.coll-h[data-k="' + k + '"]', 'aria-expanded');
   await step('Paid via and Categories are collapsed by default and expand to their content', async () => {
     assert.equal(await exp('via'), 'false'); assert.equal(await exp('cat'), 'false');
@@ -1650,5 +1640,4 @@ const BT_round = n => Math.round(n * 100) / 100;
 }
 
 await browser.close();
-console.log(failures ? failures + ' step(s) FAILED' : 'all steps passed');
-process.exit(failures ? 1 : 0);
+finish();

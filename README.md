@@ -4,7 +4,7 @@ Pay-cycle budget tracker for one person. Installable web app (PWA) on GitHub Pag
 
 - App: https://montzi.github.io/budtracks/
 - Worker: https://budtracks-worker.atsdsc27.workers.dev
-- Current release: `budtracks-v46` (see `sw.js`)
+- Current release: `budtracks-v47` (see `sw.js`)
 - History: [CHANGELOG.md](CHANGELOG.md). How updates are made: [CLAUDE.md](CLAUDE.md). Worker details: [worker/README.md](worker/README.md).
 
 ## What is in the repo
@@ -46,18 +46,8 @@ Pay-cycle budget tracker for one person. Installable web app (PWA) on GitHub Pag
 
 ## Testing
 ```bash
-python3 -m http.server 8765
+node tests/run.mjs                    # everything, in parallel
+node tests/run.mjs quick v46 bank     # logic tests + e2e files whose names contain v46 or bank
+cd worker && npm install && npm test  # Worker
 ```
-```bash
-node --test tests/*.test.mjs
-```
-```bash
-for f in tests/*.e2e.mjs; do node "$f" /tmp/shots || echo "FAILED $f"; done
-```
-```bash
-cd worker && npm install && npm test
-```
-The e2e scripts mock the Worker at `https://worker.test` and need the local server on port 8765.
-
-## Releasing
-See [CLAUDE.md](CLAUDE.md). In short: work on a branch, bump `VERSION` in `sw.js`, run every suite, fast-forward `main`, push, and check the live `sw.js` shows the new version.
+The runner starts a local server on port 8765. The e2e scripts mock the Worker at `https://worker.test`. Shared setup lives in `tests/lib.mjs`. GitHub runs the full suite after every push in the `Tests` workflow.

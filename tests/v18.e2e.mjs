@@ -1,24 +1,16 @@
 // v18: one persistent brand header (Bud, laptop, wordmark, glow, Saved pill) shared by every tab.
 // Run: node tests/v18.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
-const require = createRequire(import.meta.url);
-let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = process.env.BT_URL || 'http://localhost:8765/';
-let failed = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', String(e.message).split('\n').slice(0, 14).join('\n    ')); } };
+import { pw, SHOTS, BASE, step, finish, prep } from './lib.mjs';
 const TABS = ['overview', 'transactions', 'bills', 'plans', 'income'];
 const SIZES = [[390, 844], [430, 932], [669, 951], [951, 669], [1000, 703]];
 const b = await pw.chromium.launch();
 async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.scheme || 'dark', deviceScaleFactor: 1 });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const errs = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.goto(BASE, { waitUntil: 'load' });
   if (o.theme) { await page.evaluate(t => { const s = JSON.parse(localStorage.getItem('budtrack.v1') || '{}'); s.settings = Object.assign(s.settings || {}, { theme: t }); localStorage.setItem('budtrack.v1', JSON.stringify(s)); }, o.theme); }
   await page.goto(BASE + '#overview', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
@@ -126,5 +118,4 @@ await step('party rainbow turns on the header from any tab and Bud speaks', asyn
 });
 
 await b.close();
-console.log(failed ? `\n${failed} FAILED` : '\nall ok');
-process.exit(failed ? 1 : 0);
+finish();

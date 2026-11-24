@@ -1,14 +1,8 @@
 // Checks for: Insurance under Transportation, Subscriptions as its own chart slice (Apple inside),
 // the Cycle | Month chart switch, and "Spent so far" counting every expense incl. bank lines to review.
 // Run: node tests/v9.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
-const require = createRequire(import.meta.url);
-let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = 'http://localhost:8765/';
-let failed = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', e.message); } };
+import { pw, SHOTS, BASE, iso, step, finish } from './lib.mjs';
 
 const b = await pw.chromium.launch();
 for (const [w, h] of [[390, 844], [951, 669]]) {
@@ -83,5 +77,4 @@ for (const [w, h] of [[390, 844], [951, 669]]) {
   await ctx.close();
 }
 await b.close();
-console.log(failed ? failed + ' step(s) FAILED' : 'all steps passed');
-process.exit(failed ? 1 : 0);
+finish();

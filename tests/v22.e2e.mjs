@@ -1,17 +1,8 @@
 // v22: Logo field in the spending form (picked per merchant), backup file for a new phone, Ask Bud chat with Style and Settings.
 // Run: node tests/v22.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
-const require = createRequire(import.meta.url);
-let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = process.env.BT_URL || 'http://localhost:8765/';
-const API = 'https://worker.test';
-let failed = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', String(e.message).split('\n').slice(0, 14).join('\n    ')); } };
+import { pw, SHOTS, BASE, API, iso, addD, step, finish, prep, go, synced } from './lib.mjs';
 
-const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const addD = (s, n) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
 const TODAY = iso(new Date()), PAY = addD(TODAY, -4);
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const md = s => MON[+s.slice(5, 7) - 1] + ' ' + +s.slice(8);
@@ -42,12 +33,10 @@ const b = await pw.chromium.launch();
 async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.dark ? 'dark' : 'light', deviceScaleFactor: 1 });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const errs = [], calls = [], mock = { txns: o.txns || [], offline: false };
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.route(u => !/localhost|worker\.test/.test(u.host), route => route.abort());
   await page.route('**/worker.test/**', async route => {
     const req = route.request(), u = new URL(req.url()), p = u.pathname, m = req.method();
@@ -73,7 +62,7 @@ async function newPage(w, h, o) {
     localStorage.setItem('budtrack.v1', JSON.stringify(s)); localStorage.setItem('budtrack.bankkey', 'secret-device-key-123');
   }, [JSON.stringify(o.fixture || fixture()), o.settings]);
   await page.goto(BASE + (o.hash || '#transactions'), { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
-  if (!o.noSync) await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
+  if (!o.noSync) await synced(page);
   await page.waitForTimeout(300);
   return { ctx, page, errs, mock, calls };
 }
@@ -175,7 +164,7 @@ const LOGO_TXNS = () => [T('sr1', TODAY, 'SHOPRITE 123', 41.2), T('sr2', addD(TO
   await ctx.close();
   // A new phone: empty data, no pairing key.
   const ctx2 = await b.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', deviceScaleFactor: 1 });
-  const p2 = await ctx2.newPage(); p2.setDefaultTimeout(6000); const errs2 = []; p2.on('pageerror', e => errs2.push(e.message));
+  const p2 = await ctx2.newPage(); await prep(p2); const errs2 = []; p2.on('pageerror', e => errs2.push(e.message));
   await p2.route(u => !/localhost/.test(u.host), route => route.abort());
   await p2.goto(BASE + '#income', { waitUntil: 'load' });
   await step('390 new phone: Restore from file shows what is in the file, then brings back data, logos, picks and the bank connection', async () => {
@@ -294,7 +283,8 @@ for (const [w, h, dark] of [[390, 844, true], [951, 669, false]]) {
   await step(`${tag}: Settings goes to the Income tab, scrolled to the settings below the income part`, async () => {
     await page.click('.bc-h [data-action="settings"]');
     await page.waitForFunction(() => location.hash === '#income');
-    await page.waitForTimeout(400);
+    // Wait for the scroll to settle instead of a fixed pause: parallel runs are slower.
+    await page.waitForFunction(() => { const e = document.querySelector('#settings'); if (!e) return false; const t = e.getBoundingClientRect().top; return t >= -2 && t < 60; }).catch(() => {});
     assert.equal(await page.locator('#budchat').isHidden(), true);
     const top = await page.evaluate(() => document.querySelector('#settings').getBoundingClientRect().top);
     assert.ok(top >= -2 && top < 60, 'settings at the top: ' + top);
@@ -412,7 +402,8 @@ for (const [w, h] of [[763, 390], [667, 375]]) {
     assert.match(t, /Last answer: Claude Haiku 5\.5 · 9,500 tokens · about \$0\.000[34]/); assert.match(t, /\$0\.000[34] for 1 answer/);
     await page.screenshot({ path: SHOTS + '/v22-ai-menu-390.png' });
     await page.click('#bcmenu [data-action="bc-keys"]');
-    await page.waitForFunction(() => location.hash === '#income'); await page.waitForTimeout(400);
+    await page.waitForFunction(() => location.hash === '#income');
+    await page.waitForFunction(() => { const e = document.querySelector('#aicard'); if (!e) return false; const t = e.getBoundingClientRect().top; return t > -10 && t < 80; }).catch(() => {});
     const top = await page.evaluate(() => document.querySelector('#aicard').getBoundingClientRect().top); assert.ok(top > -10 && top < 80, 'Ask Bud card at top: ' + top);
     assert.deepEqual(errs, []);
   });
@@ -464,4 +455,5 @@ for (const [w, h] of [[763, 390], [667, 375]]) {
   });
   await ctx.close();
 }
-await b.close(); console.log(failed ? failed + " FAILED" : "all ok"); process.exit(failed ? 1 : 0);
+await b.close();
+finish();

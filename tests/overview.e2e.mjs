@@ -1,17 +1,10 @@
 // End-to-end checks for the bank-v8 changes: grouped chart legend, Electronics Repair, savings only when on,
 // skip + one-time vs permanent amounts, bank card labels, Subscriptions nesting, Bills chips.
 // Run: python3 -m http.server 8765 (repo root), then: node tests/overview.e2e.mjs [screenshotDir]
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
-const require = createRequire(import.meta.url);
-let chromium;
-try { ({ chromium } = require('playwright')); } catch (e) { ({ chromium } = require('/opt/node-tools/node_modules/playwright')); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = process.env.BT_URL || 'http://localhost:8765/';
+import { chromium, SHOTS, BASE, iso, addD, step, finish, prep } from './lib.mjs';
 const LSK = 'budtrack.v1';
 
-const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const addD = (s, n) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
 const TODAY = iso(new Date());
 const PAY = addD(TODAY, -2), dayOf = n => +addD(TODAY, n).slice(8);
 const acct = { institution: 'Chime', name: 'Checking', last4: '1234' };
@@ -39,17 +32,13 @@ const fixture = () => ({
 // Food = Groceries budget 150 (nothing spent in Groceries) + 25 + 4 + 6 + 10
 const FOOD = 195;
 
-let failures = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok   ' + name); } catch (e) { failures++; console.log('FAIL ' + name + '\n     ' + String(e.message).split('\n').slice(0, 20).join('\n     ')); } };
 const browser = await chromium.launch();
 async function newPage(w, h, patch) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block' });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const errs = [], calls = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.route('**/worker.test/**', async route => {
     const u = new URL(route.request().url()), p = u.pathname, cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
     if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
@@ -334,5 +323,4 @@ async function sheetShot(page, f) { await page.locator('#sheet .sheet').screensh
 }
 
 await browser.close();
-console.log(failures ? failures + ' step(s) FAILED' : 'all steps passed');
-process.exit(failures ? 1 : 0);
+finish();

@@ -2,18 +2,9 @@
 // cursors only together with the batch they belong to, a re-delivered batch creates no duplicates, and the "Turn on instant
 // updates" button plus the status sheet's "Instant updates" / "Last webhook received" rows.
 // Run: node tests/webhooks.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
-const require = createRequire(import.meta.url);
-let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = process.env.BT_URL || 'http://localhost:8765/';
-const API = 'https://worker.test';
-let failed = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', String(e.message).split('\n').slice(0, 14).join('\n    ')); } };
+import { pw, SHOTS, BASE, API, iso, addD, step, finish, prep, synced } from './lib.mjs';
 
-const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const addD = (s, n) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
 const TODAY = iso(new Date());
 const SAN = { id: 'sa1', name: 'Checking', last4: '6429', institution: 'Santander', type: 'depository' };
 const CHI = { id: 'ch1', name: 'Checking', last4: '1111', institution: 'Chime', type: 'depository' };
@@ -23,8 +14,7 @@ const HOOK_AT = new Date(Date.now() - 12 * 60000).toISOString();
 const b = await pw.chromium.launch();
 async function newPage(w, h) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block' });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const errs = [], calls = [];
   // A per-bank change log like the Worker's sync objects: rows {seq, txn}; acks drop rows up to the acked seq.
   const mock = {
@@ -37,7 +27,6 @@ async function newPage(w, h) {
   mock.add('enr_c', T('c1', TODAY, 'BODEGA 7', 6.25, CHI));
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.route('**/worker.test/**', async route => {
     const req = route.request(), u = new URL(req.url()), p = u.pathname, m = req.method();
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
@@ -86,7 +75,7 @@ async function newPage(w, h) {
     };
   });
   await page.goto(BASE + '#income', { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).bank.lastSync);
+  await synced(page);
   await page.waitForTimeout(250);
   return { ctx, page, errs, mock, calls };
 }
@@ -176,10 +165,8 @@ for (const [w, h] of [[390, 844], [1280, 900]]) {
 // A Worker deployed before this app (no cursors, only syncToken) still works: the token is acked next time.
 {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const calls = []; let n = 0;
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.route('**/worker.test/**', async route => {
     const req = route.request(), u = new URL(req.url()), p = u.pathname;
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
@@ -206,5 +193,4 @@ for (const [w, h] of [[390, 844], [1280, 900]]) {
 }
 
 await b.close();
-console.log(failed ? failed + ' step(s) failed' : 'all steps passed');
-process.exit(failed ? 1 : 0);
+finish();

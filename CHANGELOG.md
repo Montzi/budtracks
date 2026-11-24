@@ -3,6 +3,7 @@
 Versions match `VERSION` in `sw.js`. Newest first.
 
 ## 2026-11-24
+- **v47** Settings and AI key links from Ask Bud land on the right card even on a slow phone. Tests: shared setup in `tests/lib.mjs`, one parallel runner `tests/run.mjs` with a fast lane, full suite on GitHub after each push, `scripts/deploy-status.sh`.
 - **v46** Income tab: the pay cycle note is gone. Bank connections sits right under Add income and opens and closes like the other sections. Refresh all stays in its header.
 - **v45** Transactions: Rename on every bank line, whatever its status. Your name wins over the bank's and over a match. It survives syncs and reloads. Use bank name puts it back.
 - **v44** Messages: bank news (matched, to review, updated, sync errors) stays until closed with ✕. Every other message shows at least 10 seconds. Undo messages 10 s. Bud's speech bubbles 10 s, still hide on scroll. Only ✕ and Undo take taps.

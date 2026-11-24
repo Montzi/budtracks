@@ -1,13 +1,7 @@
 // v20: Pay later: cycle total on top, + icon, bank CSV import lives in Income, postpone a payment.
 // Run: node tests/v20.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
-const require = createRequire(import.meta.url);
-let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = process.env.BT_URL || 'http://localhost:8765/';
-let failed = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', String(e.message).split('\n').slice(0, 14).join('\n    ')); } };
+import { pw, SHOTS, BASE, step, finish, prep } from './lib.mjs';
 const b = await pw.chromium.launch();
 const day = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const short = s => { const d = new Date(s + 'T12:00:00'); return ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][d.getMonth()] + ' ' + d.getDate(); };
@@ -29,11 +23,9 @@ const fixture = () => ({
 async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.scheme || 'dark', deviceScaleFactor: 1 });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const errs = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.goto(BASE, { waitUntil: 'load' });
   await page.evaluate(([fx, st, theme]) => {
     const s = JSON.parse(localStorage.getItem('budtrack.v1') || '{}'), f = JSON.parse(fx);
@@ -221,5 +213,4 @@ for (const scheme of ['dark', 'light']) {
   await ctx.close();
 }
 await b.close();
-console.log(failed ? `${failed} failed` : 'all ok');
-process.exit(failed ? 1 : 0);
+finish();

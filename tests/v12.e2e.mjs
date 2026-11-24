@@ -3,18 +3,9 @@
 // inside the sums (no separate row), shorter Transactions labels (Review / Skipped) on one line, and savings accounts:
 // marked in the In account sheet, out of the spendable total, shown as savings, transfers to them not in Review.
 // Run: node tests/v12.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
-import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
-const require = createRequire(import.meta.url);
-let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node-tools/node_modules/playwright'); }
-const SHOTS = process.argv[2] || '/tmp';
-const BASE = process.env.BT_URL || 'http://localhost:8765/';
-const API = 'https://worker.test';
-let failed = 0;
-const step = async (name, fn) => { try { await fn(); console.log('ok  ', name); } catch (e) { failed++; console.log('FAIL', name, '\n   ', String(e.message).split('\n').slice(0, 14).join('\n    ')); } };
+import { pw, SHOTS, BASE, API, iso, addD, step, finish, prep, R, synced } from './lib.mjs';
 
-const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const addD = (s, n) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return iso(d); };
 const TODAY = iso(new Date()), PAY = addD(TODAY, -1), dayOf = n => +addD(TODAY, n).slice(8);
 const CHK = { id: 'ch1', name: 'Checking', last4: '1111', institution: 'Chime', type: 'depository' };
 const SAV = { id: 'ch2', name: 'Savings', last4: '2222', institution: 'Chime', type: 'depository' };
@@ -53,13 +44,11 @@ const b = await pw.chromium.launch();
 async function newPage(w, h, o) {
   o = o || {};
   const ctx = await b.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', colorScheme: o.dark ? 'dark' : 'light', deviceScaleFactor: 1 });
-  const page = await ctx.newPage(); page.setDefaultTimeout(6000);
-  await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); }); // v46: Bank connections opens and closes
+  const page = await ctx.newPage(); await prep(page);
   const errs = [], mock = { txns: o.txns || TXNS(), balances: BAL() };
   if (o.savBal != null) { const a = mock.balances[0].accounts[1]; a.available = a.current = o.savBal; }
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push('console: ' + m.text()); });
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   await page.route('**/worker.test/**', async route => {
     const req = route.request(), p = new URL(req.url()).pathname, m = req.method();
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
@@ -79,7 +68,7 @@ async function newPage(w, h, o) {
     localStorage.setItem('budtrack.v1', JSON.stringify(s)); localStorage.setItem('budtrack.bankkey', 'secret-device-key-123');
   }, [JSON.stringify(Object.assign(fixture('svAccts' in o ? o.svAccts : {}), o.fx || {})), o.settings]);
   await page.goto(BASE + (o.hash || ''), { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
-  await page.waitForFunction(() => { const b = JSON.parse(localStorage.getItem('budtrack.v1')).bank; return b.lastSync && b.balances && b.balances.items.length; });
+  await synced(page, true);
   await page.waitForTimeout(250);
   return { ctx, page, errs, mock };
 }
@@ -432,5 +421,4 @@ for (const [w, h] of [[669, 951], [951, 669]]) {
 }
 
 await b.close();
-console.log(failed ? failed + ' step(s) FAILED' : 'all steps passed');
-process.exit(failed ? 1 : 0);
+finish();
