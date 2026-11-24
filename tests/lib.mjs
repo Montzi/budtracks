@@ -41,4 +41,9 @@ export const near = (a, b, d, msg) => assert.ok(Math.abs(a - b) <= d, msg + ': '
 export const go = async (page, tab) => { await page.evaluate(t => { location.hash = '#' + t; }, tab); await page.waitForFunction(t => document.querySelector('.app').dataset.tab === t, tab); await page.waitForTimeout(400); };
 
 // Waits for the app's first bank sync. Up to 20 s: a big sync is slow when tests run in parallel.
-export const synced = (page, more) => page.waitForFunction(m => { const b = JSON.parse(localStorage.getItem('budtrack.v1')).bank; return !!b.lastSync && (!m || !!(b.balances && b.balances.items.length)); }, !!more, { timeout: 20000 });
+// On a timeout it prints what the app saw, so a failure on GitHub can be read from the log.
+export const synced = (page, more) => page.waitForFunction(m => { const b = JSON.parse(localStorage.getItem('budtrack.v1')).bank; return !!b.lastSync && (!m || !!(b.balances && b.balances.items.length)); }, !!more, { timeout: 20000 })
+  .catch(async e => {
+    const why = await page.evaluate(() => { const b = JSON.parse(localStorage.getItem('budtrack.v1')).bank; return { lastSync: b.lastSync, balances: b.balances && b.balances.items.length, syncErr: typeof BANKUI !== 'undefined' ? BANKUI.syncErr : '?', toast: (document.querySelector('#toast') || {}).textContent, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, now: new Date().toString() }; }).catch(x => 'page gone: ' + x.message);
+    console.log('SYNC WAIT TIMED OUT', JSON.stringify(why)); throw e;
+  });

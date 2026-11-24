@@ -61,7 +61,7 @@ async function worker() {
 await Promise.all(Array.from({ length: Math.min(JOBS, e2e.length) }, worker));
 
 const bad = Object.entries(results).filter(([, r]) => r.code);
-for (const [f, r] of bad) console.log(`\n--- ${f}\n` + r.out.split('\n').filter(l => /^FAIL|^ {3,}|Error|TIMEOUT|at file/.test(l)).slice(0, 40).join('\n'));
+for (const [f, r] of bad) console.log(`\n--- ${f}\n` + r.out.split('\n').filter(l => /^FAIL|^ {3,}|Error|TIMEOUT|at file|SYNC WAIT/.test(l)).slice(0, 40).join('\n'));
 const flaky = Object.entries(results).filter(([, r]) => r.retried && !r.code).map(([f]) => f);
 for (const f of flaky) console.log(`\n--- ${f} first try\n` + results[f].first.out.split('\n').filter(l => /^FAIL|^ {3,}|Error|TIMEOUT/.test(l)).slice(0, 12).join('\n'));
 if (flaky.length) console.log('\nPassed on retry: ' + flaky.join(', '));
