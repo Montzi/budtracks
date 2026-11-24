@@ -1277,7 +1277,7 @@ async function scan(env, req) {
 // answers and data go to the Anthropic API only; nothing is stored or logged here except counts.
 // Claude Haiku 5.5 (Anthropic's cheapest), or Gemini 3.8 Flash (free tier on Google's side) when the app asks for it.
 const ASK_MODEL = 'claude-haiku-5-5';
-const GEMINI_MODEL = 'gemini-3.8-flash';
+const GEMINI_MODEL = 'gemini-3.8-flash';   // key: GEMINI_API_KEY repo secret, set on each deploy
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/interactions';
 const ASK_MAX_BODY = 160 * 1024, ASK_MAX_CTX = 120 * 1024, ASK_TTL = 2 * 86400;
 const askLimit = (env) => { const n = Number(env.ASK_DAILY_LIMIT); return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 80; };
