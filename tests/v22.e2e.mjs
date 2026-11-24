@@ -343,7 +343,7 @@ for (const [w, h] of [[763, 390], [667, 375]]) {
   await step('390: the Ask Bud card shows where the key comes from, its length and last 4; a pasted key is saved and tested', async () => {
     await page.waitForSelector('#aikeyform');
     assert.match(await txt(page, '#aikeyform .meta'), /From the GitHub secret · 53 characters, ends zRQQ/);
-    assert.equal(await page.getAttribute('#aikey', 'type'), 'password');
+    assert.equal(await page.getAttribute('#aikey', 'type'), 'text'); assert.equal(await page.$eval('#aikey', e => getComputedStyle(e).webkitTextSecurity), 'disc');
     mock.aiTest = { ok: false, error: "Gemini's key is invalid (400 INVALID_ARGUMENT API_KEY_INVALID, key 53 characters ending zRQQ)" };
     await page.click('[data-action="ai-test"]');
     await page.waitForSelector('#aikeyform .note.warn[role=status]');

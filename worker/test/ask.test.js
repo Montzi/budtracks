@@ -142,7 +142,7 @@ test('ask gemini: not set up, rate limit (after one retry), bad key, rejected re
   let { env, key } = await paired({ GEMINI_FETCH: g });
   let r = await call(env, ok({ provider: 'gemini' }), { key }); assert.equal(r.status, 503); assert.match((await r.json()).error, /Gemini isn't set up/);
   assert.equal(g.calls.length, 0);
-  const cases = [[429, 429, 2], [403, 503, 1], [400, 502, 1], [500, 502, 2]];
+  const cases = [[429, 429, 2], [403, 503, 1], [400, 502, 1], [500, 502, 6]];   // 5xx: two tries on each of the three free models
   for (const [st, want, n] of cases) {
     g = fakeGemini(() => ({ status: st, json: { error: { code: st, message: 'quoted input SHOPRITE' } } }));
     ({ env, key } = await paired({ GEMINI_FETCH: g, GEMINI_API_KEY: 'k' }));
@@ -210,10 +210,27 @@ test('AI key test: a tiny call reports ok, or the reason with the key hint; not 
   g = fakeGemini(() => ({ status: 403, json: { error: { code: 403, status: 'PERMISSION_DENIED', message: 'x' } } }));
   ({ env, key } = await paired({ GEMINI_FETCH: g, GEMINI_API_KEY: 'AQ.bad-key-value-1234567' }));
   j = await (await req(env, 'POST', '/ai/test', { provider: 'gemini' }, key)).json();
-  assert.equal(j.ok, false); assert.equal(j.error, "Gemini's key is invalid (403 PERMISSION_DENIED, key 24 characters ending 4567)");
+  assert.equal(j.ok, false); assert.equal(j.error, "Gemini's key is invalid (403 PERMISSION_DENIED, key 24 characters ending 4567): x");
   ({ env, key } = await paired({ ANTHROPIC_FETCH: fakeApi(), ANTHROPIC_API_KEY: 'sk-ant-test-key-abcdefgh' }));
   j = await (await req(env, 'POST', '/ai/test', { provider: 'claude' }, key)).json();
   assert.equal(j.ok, true); assert.equal(j.ends, 'efgh');
   j = await (await req(env, 'POST', '/ai/test', { provider: 'gemini' }, key)).json();
   assert.deepEqual(j, { ok: false, error: 'No Gemini key yet' });
+});
+
+test('ask gemini: an overloaded 3.8 Flash (503) falls back to 3.6 Flash, then 3.5 Flash-Lite; a key test shows Google\'s words', async () => {
+  let g = fakeGemini((n) => n <= 2 ? { status: 503, json: { error: { code: 503, message: 'The model is overloaded.', status: 'UNAVAILABLE' } } } : { status: 200, json: gReply(['Hi.'], { model: 'gemini-3.6-flash' }) });
+  let { env, key } = await paired({ GEMINI_FETCH: g, GEMINI_API_KEY: 'AQ.key-value-123456789' });
+  let j = await (await req(env, 'POST', '/ask', ok({ provider: 'gemini' }), key)).json();
+  assert.deepEqual(g.calls.map((c) => c.body.model), ['gemini-3.8-flash', 'gemini-3.8-flash', 'gemini-3.6-flash']);
+  assert.equal(j.model, 'gemini-3.6-flash'); assert.deepEqual(j.bubbles, ['Hi.']);
+  g = fakeGemini(() => ({ status: 503, json: { error: { code: 503, message: 'The model is overloaded.', status: 'UNAVAILABLE' } } }));
+  ({ env, key } = await paired({ GEMINI_FETCH: g, GEMINI_API_KEY: 'AQ.key-value-123456789' }));
+  j = await (await req(env, 'POST', '/ai/test', { provider: 'gemini' }, key)).json();
+  assert.equal(g.calls.length, 6); assert.deepEqual([...new Set(g.calls.map((c) => c.body.model))], ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite']);
+  assert.equal(j.ok, false); assert.equal(j.error, 'Gemini had a problem (503 UNAVAILABLE), try again: The model is overloaded.');
+  g = fakeGemini(() => ({ status: 403, json: { error: { code: 403, message: 'denied', status: 'PERMISSION_DENIED' } } }));
+  ({ env, key } = await paired({ GEMINI_FETCH: g, GEMINI_API_KEY: 'AQ.key-value-123456789' }));
+  await req(env, 'POST', '/ai/test', { provider: 'gemini' }, key);
+  assert.equal(g.calls.length, 1, 'a key problem does not try other models');
 });

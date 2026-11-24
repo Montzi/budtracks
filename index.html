@@ -487,6 +487,7 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .note.warn { color: var(--warn, #b7791f); }
 .note.good { color: var(--good); }
 .ai-key { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
+.ai-key-r input.masked { -webkit-text-security: disc; text-security: disc; }
 .ai-key-r { display: flex; gap: 8px; flex-wrap: wrap; }
 .ai-key-r input { flex: 1; min-width: 0; height: 40px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink); padding: 0 12px; font-size: 16px; }
 .bc-log { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 14px 12px 6px; display: flex; flex-direction: column; gap: 8px; }
@@ -6717,10 +6718,11 @@ async function aiCfgLoad() {
 function aiKeyBox(p) {
   const st = AIUI.st && AIUI.st[p], who = p === 'gemini' ? 'Gemini' : 'Anthropic', res = AIUI.res && AIUI.res.p === p ? AIUI.res : null;
   const now = st ? `${st.from === 'app' ? 'Saved from this app' : 'From the GitHub secret'} · ${st.length} characters, ends <b>${esc(st.ends)}</b>` : 'No key yet';
+  // A plain text field drawn as dots: a password field makes iOS offer to save it as a password.
   return `<form class="ai-key" id="aikeyform" data-prov="${p}" autocomplete="off">
       <div class="meta">${who} key: ${now}</div>
       <label class="sr" for="aikey">${who} API key</label>
-      <div class="ai-key-r"><input id="aikey" type="password" placeholder="Paste a new ${who} key" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done"><button type="submit" class="btn sm primary"${AIUI.busy ? ' disabled' : ''}>Save</button></div>
+      <div class="ai-key-r"><input id="aikey" type="text" class="masked" name="bt-ai-key-field" data-lpignore="true" data-1p-ignore placeholder="Paste a new ${who} key" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done"><button type="submit" class="btn sm primary"${AIUI.busy ? ' disabled' : ''}>Save</button></div>
       <div class="ai-key-r"><button type="button" class="btn sm" data-action="ai-test"${!st || AIUI.busy ? ' disabled' : ''}>${AIUI.busy === 'test' ? 'Testing…' : 'Test key'}</button>${st && st.from === 'app' ? `<button type="button" class="btn sm" data-action="ai-forget">Use the GitHub secret instead</button>` : ''}</div>
       ${res ? `<p class="note${res.ok ? ' good' : ' warn'}" style="margin:0" role="status">${esc(res.msg)}</p>` : ''}
       <p class="note" style="margin:0">Compare the length and last 4 characters with the key list on ${p === 'gemini' ? 'AI Studio' : 'the Anthropic console'}. The key is stored encrypted on your server and never shown again.</p>
@@ -6738,7 +6740,7 @@ async function aiKeySave(form) {
 }
 async function aiKeyTest(p) {
   AIUI.busy = 'test'; AIUI.res = null; aiRepaint();
-  try { const r = await bankFetch('/ai/test', { method: 'POST', body: { provider: p }, timeout: 60000 }); AIUI.res = { p, ok: !!r.ok, msg: r.ok ? 'The key works. Bud is ready.' : r.error || 'The key did not work.' }; }
+  try { const r = await bankFetch('/ai/test', { method: 'POST', body: { provider: p }, timeout: 60000 }); AIUI.res = { p, ok: !!r.ok, msg: r.ok ? 'The key works. Bud is ready' + (r.model && r.model !== 'gemini-3.8-flash' ? ' (Gemini 3.8 Flash is busy right now, so ' + r.model + ' answered).' : '.') : r.error || 'The key did not work.' }; }
   catch (e) { AIUI.res = { p, ok: false, msg: e.message }; }
   AIUI.busy = ''; aiRepaint();
 }

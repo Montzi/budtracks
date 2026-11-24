@@ -1277,7 +1277,9 @@ async function scan(env, req) {
 // answers and data go to the Anthropic API only; nothing is stored or logged here except counts.
 // Claude Haiku 5.5 (Anthropic's cheapest), or Gemini 3.8 Flash (free tier on Google's side) when the app asks for it.
 const ASK_MODEL = 'claude-haiku-5-5';
-const GEMINI_MODEL = 'gemini-3.8-flash';   // key: GEMINI_API_KEY repo secret, set on each deploy
+const GEMINI_MODEL = 'gemini-3.8-flash';
+// When Google's newest Flash is overloaded (5xx), the next free models answer instead.
+const GEMINI_FALLBACKS = ['gemini-3.6-flash', 'gemini-3.5-flash-lite'];   // key: GEMINI_API_KEY repo secret, set on each deploy
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/interactions';
 // API keys pasted on a phone: iOS Smart Punctuation turns "--" into a long dash, and copies can carry spaces or line breaks.
 export const cleanKey = (k) => String(k || '').replace(/[\u2014\u2013]/g, '--').replace(/\s+/g, '');
@@ -1415,6 +1417,18 @@ async function geminiCall(env, key, body) {
   if (!r.ok) console.error('ask: gemini error', code);
   return { r, j, code };
 }
+// Tries the free models in order; only an overloaded or failing server (5xx or no answer) moves on to the next one.
+async function geminiTry(env, key, body) {
+  let res;
+  for (const model of [GEMINI_MODEL, ...GEMINI_FALLBACKS]) {
+    res = await geminiCall(env, key, { ...body, model });
+    res.model = model;
+    if (res.r && (res.r.ok || res.r.status < 500)) break;
+  }
+  return res;
+}
+// Google's own error text, for the key test only (its input is a fixed prompt, never your data).
+const geminiMsg = (j) => { const m = j && j.error && j.error.message; return typeof m === 'string' ? m.replace(/\s+/g, ' ').slice(0, 200) : ''; };
 // Maps a failed Gemini call to a plain error. Key problems include the key's length and last 4 characters to compare.
 function geminiFail({ r, code }, key) {
   const hint = key ? `, key ${key.length} characters ending ${key.slice(-4)}` : '';
@@ -1430,8 +1444,8 @@ const geminiText = (j) => (Array.isArray(j?.steps) ? j.steps : []).filter((s) =>
 // Gemini through the Interactions API: one stateless call (store: false), the same prompt and data as Claude.
 async function askGemini(env, key, { ctx, past, q, today, limit, used }) {
   if (!keyOk(key)) { console.error('ask: gemini key has characters a key cannot have'); throw new HttpError(503, "Gemini's key is invalid (it has a character a key can't have; paste it again)"); }
-  const res = await geminiCall(env, key, {
-    model: GEMINI_MODEL, store: false, system_instruction: ASK_SYSTEM,
+  const res = await geminiTry(env, key, {
+    store: false, system_instruction: ASK_SYSTEM,
     input: `<budget_data>\n${ctx}\n</budget_data>\n\n${past}Today is ${today}.\n\n${q}`,
     generation_config: { thinking_level: 'low', max_output_tokens: 8000 },
   });
@@ -1440,7 +1454,7 @@ async function askGemini(env, key, { ctx, past, q, today, limit, used }) {
   if (j?.status === 'failed' || !bubbles.length) { console.error('ask: gemini empty reply', j?.status); throw new HttpError(502, 'Bud lost his train of thought, try again'); }
   console.log('ask: gemini ok', bubbles.length, 'bubbles');
   const u = j.usage || {};
-  return { bubbles, provider: 'gemini', model: j.model || GEMINI_MODEL, usage: { input_tokens: u.total_input_tokens ?? 0, output_tokens: (u.total_output_tokens ?? 0) + (u.total_thought_tokens ?? 0), cache_read_input_tokens: u.total_cached_tokens ?? 0 }, left: Math.max(0, limit - used - 1) };
+  return { bubbles, provider: 'gemini', model: j.model || res.model, usage: { input_tokens: u.total_input_tokens ?? 0, output_tokens: (u.total_output_tokens ?? 0) + (u.total_thought_tokens ?? 0), cache_read_input_tokens: u.total_cached_tokens ?? 0 }, left: Math.max(0, limit - used - 1) };
 }
 // POST /ai/test {provider}: a tiny call that checks the key works. Not counted toward the daily limit.
 async function aiTest(env, b) {
@@ -1451,8 +1465,9 @@ async function aiTest(env, b) {
   try {
     if (p === 'gemini') {
       if (!keyOk(k.key)) throw new HttpError(503, "Gemini's key has a character a key can't have; paste it again");
-      const res = await geminiCall(env, k.key, { model: GEMINI_MODEL, store: false, input: 'Reply with the single word OK.', generation_config: { thinking_level: 'low', max_output_tokens: 200 } });
-      if (!res.r || !res.r.ok) throw geminiFail(res, k.key);
+      const res = await geminiTry(env, k.key, { store: false, input: 'Reply with the single word OK.', generation_config: { thinking_level: 'low', max_output_tokens: 200 } });
+      if (!res.r || !res.r.ok) { const e = geminiFail(res, k.key), d = geminiMsg(res.j); return { ok: false, error: e.message + (d ? ': ' + d : ''), ...keyHint(k.key), from: k.from }; }
+      return { ok: true, model: res.model, ...keyHint(k.key), from: k.from };
     } else {
       const client = new Anthropic({ apiKey: k.key, maxRetries: 1, timeout: 30_000, fetch: typeof env.ANTHROPIC_FETCH === 'function' ? env.ANTHROPIC_FETCH : (u, i) => fetch(u, i), logLevel: 'off' });
       try { await client.messages.create({ model: ASK_MODEL, max_tokens: 200, output_config: { effort: 'low' }, messages: [{ role: 'user', content: 'Reply with the single word OK.' }] }); }
