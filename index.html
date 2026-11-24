@@ -485,6 +485,10 @@ li.open > .sw-btn .chev { transform: rotate(90deg); }
 .bc-sp { flex: 1; min-width: 0; text-align: center; font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bc-new[hidden] { display: none; }
 .note.warn { color: var(--warn, #b7791f); }
+.note.good { color: var(--good); }
+.ai-key { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
+.ai-key-r { display: flex; gap: 8px; flex-wrap: wrap; }
+.ai-key-r input { flex: 1; min-width: 0; height: 40px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink); padding: 0 12px; font-size: 16px; }
 .bc-log { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 14px 12px 6px; display: flex; flex-direction: column; gap: 8px; }
 .bc-m { display: flex; align-items: flex-end; gap: 8px; max-width: 88%; }
 .bc-m p { margin: 0; padding: 9px 13px; border-radius: 18px; font-size: 15px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -6500,7 +6504,9 @@ document.addEventListener('click', async e => {
     case 'pick-icon': iconSheet(a.dataset.cat); break;
     case 'hat': case 'style': hatSheet(); break;
     case 'bud': budChatOpen(); break;
-    case 'ai-prov': state.settings.aiProvider = a.dataset.p === 'gemini' ? 'gemini' : 'claude'; commit(AI_NAME[aiProv()] + ' answers now'); break;
+    case 'ai-test': aiKeyTest(aiProv()); break;
+    case 'ai-forget': bankFetch('/ai/key?provider=' + aiProv(), { method: 'DELETE' }).then(() => { AIUI.ai = null; AIUI.st = null; AIUI.res = null; aiCfgLoad(); }, e => toast(e.message)); break;
+    case 'ai-prov': AIUI.res = null; state.settings.aiProvider = a.dataset.p === 'gemini' ? 'gemini' : 'claude'; commit(AI_NAME[aiProv()] + ' answers now'); break;
     case 'bc-close': budChatClose(); break;
     case 'bc-new': CHAT.msgs = []; chatSave(); chatPaint(); $('#bcq').focus(); break;
     case 'bc-ask': budAsk(a.dataset.q); break;
@@ -6590,6 +6596,7 @@ document.addEventListener('submit', e => {
   e.preventDefault();
   if (e.target.id === 'form') saveForm(e.target);
   if (e.target.id === 'bcform') budAsk();
+  if (e.target.id === 'aikeyform') aiKeySave(e.target);
   if (e.target.id === 'occform') saveOcc(e.target);
   if (e.target.id === 'postform') savePostpone(e.target);
   if (e.target.id === 'bankplan') saveBankPlan(e.target);
@@ -6695,15 +6702,45 @@ window.addEventListener('scroll', () => { if (!budHover) $('#bud').classList.rem
 
 /* ---------- Ask Bud ---------- */
 // Which AI answers: Claude Haiku 5.5 (Anthropic) or Gemini 3.8 Flash (Google's free tier). The server says which keys it has.
-const AIUI = { ai: null, loading: false };
+const AIUI = { ai: null, loading: false, st: null, busy: '', res: null };
 const aiProv = () => state.settings.aiProvider === 'gemini' ? 'gemini' : 'claude';
 const AI_NAME = { claude: 'Claude Haiku', gemini: 'Gemini Flash' };
 async function aiCfgLoad() {
   if (!bankApi() || AIUI.ai || AIUI.loading) return;
   AIUI.loading = true;
   try { const c = await bankFetch('/config', { auth: false }); AIUI.ai = c && c.ai && typeof c.ai === 'object' ? c.ai : { claude: true, gemini: false }; } catch (e) {}
+  if (bankReady()) { try { AIUI.st = await bankFetch('/ai'); } catch (e) {} }
   AIUI.loading = false;
   if (currentTab() === 'income' && AIUI.ai) { const el = $('#aicard'); if (el) el.outerHTML = aiCard(); }
+}
+// The key for the chosen AI: saved here (encrypted on your server) instead of a GitHub secret pasted on a phone.
+function aiKeyBox(p) {
+  const st = AIUI.st && AIUI.st[p], who = p === 'gemini' ? 'Gemini' : 'Anthropic', res = AIUI.res && AIUI.res.p === p ? AIUI.res : null;
+  const now = st ? `${st.from === 'app' ? 'Saved from this app' : 'From the GitHub secret'} · ${st.length} characters, ends <b>${esc(st.ends)}</b>` : 'No key yet';
+  return `<form class="ai-key" id="aikeyform" data-prov="${p}" autocomplete="off">
+      <div class="meta">${who} key: ${now}</div>
+      <label class="sr" for="aikey">${who} API key</label>
+      <div class="ai-key-r"><input id="aikey" type="password" placeholder="Paste a new ${who} key" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done"><button type="submit" class="btn sm primary"${AIUI.busy ? ' disabled' : ''}>Save</button></div>
+      <div class="ai-key-r"><button type="button" class="btn sm" data-action="ai-test"${!st || AIUI.busy ? ' disabled' : ''}>${AIUI.busy === 'test' ? 'Testing…' : 'Test key'}</button>${st && st.from === 'app' ? `<button type="button" class="btn sm" data-action="ai-forget">Use the GitHub secret instead</button>` : ''}</div>
+      ${res ? `<p class="note${res.ok ? ' good' : ' warn'}" style="margin:0" role="status">${esc(res.msg)}</p>` : ''}
+      <p class="note" style="margin:0">Compare the length and last 4 characters with the key list on ${p === 'gemini' ? 'AI Studio' : 'the Anthropic console'}. The key is stored encrypted on your server and never shown again.</p>
+    </form>`;
+}
+function aiRepaint() { if (currentTab() === 'income') { const el = $('#aicard'); if (el) el.outerHTML = aiCard(); } }
+async function aiKeySave(form) {
+  const p = form.dataset.prov, v = $("#aikey").value; if (!v || !v.trim()) { $('#aikey').focus(); return; }
+  AIUI.busy = 'save'; AIUI.res = null; aiRepaint();
+  try {
+    const r = await bankFetch('/ai/key', { method: 'POST', body: { provider: p, key: v } });
+    AIUI.st = Object.assign({}, AIUI.st, { [p]: { from: 'app', length: r.length, ends: r.ends } }); AIUI.ai = Object.assign({}, AIUI.ai, { [p]: true });
+    AIUI.busy = ''; aiRepaint(); await aiKeyTest(p);
+  } catch (e) { AIUI.busy = ''; AIUI.res = { p, ok: false, msg: e.message }; aiRepaint(); }
+}
+async function aiKeyTest(p) {
+  AIUI.busy = 'test'; AIUI.res = null; aiRepaint();
+  try { const r = await bankFetch('/ai/test', { method: 'POST', body: { provider: p }, timeout: 60000 }); AIUI.res = { p, ok: !!r.ok, msg: r.ok ? 'The key works. Bud is ready.' : r.error || 'The key did not work.' }; }
+  catch (e) { AIUI.res = { p, ok: false, msg: e.message }; }
+  AIUI.busy = ''; aiRepaint();
 }
 function aiCard() {
   const p = aiProv(), ai = AIUI.ai, off = ai && !ai[p];
@@ -6714,7 +6751,8 @@ function aiCard() {
     <div class="card-b" style="display:grid;gap:10px">
       <div class="seg kind-seg" role="group" aria-label="AI for Ask Bud"><button type="button" data-action="ai-prov" data-p="claude" aria-pressed="${p === 'claude'}">Claude Haiku</button><button type="button" data-action="ai-prov" data-p="gemini" aria-pressed="${p === 'gemini'}">Gemini Flash</button></div>
       <p class="note" style="margin:0">${note}</p>
-      ${off ? `<p class="note warn" style="margin:0">Not set up on your server yet: add ${p === 'gemini' ? 'GEMINI_API_KEY' : 'ANTHROPIC_API_KEY'} to the GitHub repository secrets. Bud picks it up after the next server update.</p>` : ''}
+      ${off ? `<p class="note warn" style="margin:0">No ${p === 'gemini' ? 'Gemini' : 'Anthropic'} key on your server yet. Paste one below.</p>` : ''}
+      ${bankReady() ? aiKeyBox(p) : ''}
     </div></section>`;
 }
 // Tap Bud: a chat window under the logo. Questions go to the BudTracks server (/ask) with a compact summary built here
@@ -6789,7 +6827,7 @@ async function budAsk(text) {
   } catch (e) {
     CHAT.busy = false;
     say(e.status === 429 ? (/daily limit/.test(e.message) ? "That's all the thinking I can do today. Ask me again tomorrow!" : /Gemini/.test(e.message) ? e.message + '. You can switch to Claude in Settings.' : 'I am a bit busy right now. Try again in a minute.')
-      : e.status === 503 && /key is invalid/.test(e.message) ? e.message + '. Check the ' + (/Gemini/.test(e.message) ? 'GEMINI_API_KEY' : 'ANTHROPIC_API_KEY') + ' secret, or switch AI in Settings.'
+      : e.status === 503 && /key is invalid/.test(e.message) ? e.message + '. Paste a new key in Settings under Ask Bud, or switch AI there.'
       : e.status === 503 ? (/Gemini/.test(e.message) ? "Gemini isn't connected yet. Add its key on the server, or switch back to Claude in Settings." : "I'm not switched on yet: the server needs its Anthropic key.") : e.status === 404 ? 'The server is out of date. It updates itself shortly, then ask me again.'
       : e.offline ? "I can't reach the server. Check your connection and try again." : e.message || 'Something went wrong. Try again?', 1);
     chatPaint();

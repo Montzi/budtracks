@@ -59,6 +59,9 @@ async function newPage(w, h, o) {
     if (p === '/sync') return json({ txns: mock.txns, removed: mock.removed || [], errors: [], syncToken: 'tok', syncedAt: new Date().toISOString() });
     if (p === '/status') return json({ items: [], refresh: { supported: false, reason: 'no' }, balance: { supported: false, reason: 'no' }, env: 'production', at: new Date().toISOString() });
     if (p === '/snapshot') return json({ ok: true });
+    if (p === '/ai') return json(mock.aiSt || { claude: { from: 'secret', length: 108, ends: 'wxyz' }, gemini: { from: 'secret', length: 53, ends: 'zRQQ' } });
+    if (p === '/ai/key') { if (m === 'DELETE') return json({ ok: true }); const bd = JSON.parse(req.postData() || '{}'); mock.savedKey = bd; const k = bd.key.trim().replace('\u2014', '--'); return json({ ok: true, provider: bd.provider, length: k.length, ends: k.slice(-4) }); }
+    if (p === '/ai/test') return json(mock.aiTest || { ok: true, from: 'app', length: 54, ends: 'zRQQ' });
     if (p === '/ask') { mock.asks = mock.asks || []; mock.asks.push(JSON.parse(req.postData() || '{}')); if (mock.askDelay) await new Promise(ok => setTimeout(ok, mock.askDelay)); return mock.askErr ? json({ error: mock.askErr[1] }, mock.askErr[0]) : json(mock.ask || { bubbles: ['You have $412 left this cycle after bills.', 'Groceries are $40 higher than last cycle, mostly Shoprite.', 'Rent is due in 6 days.'] }); }
     return json({ error: 'nope' }, 404);
   });
@@ -326,10 +329,36 @@ for (const [w, h] of [[763, 390], [667, 375]]) {
   });
   await step('390: when the server has no Gemini key, the card says what to add', async () => {
     mock.ai = { claude: true, gemini: false }; await page.reload({ waitUntil: 'load' }); await page.waitForSelector('#aicard .note.warn');
-    assert.match(await txt(page, '#aicard .note.warn'), /GEMINI_API_KEY/);
+    assert.match(await txt(page, '#aicard .note.warn'), /No Gemini key/);
     await page.click('#aicard [data-p="claude"]'); assert.equal(await page.locator('#aicard .note.warn').count(), 0);
     assert.equal((await getState(page)).settings.aiProvider, 'claude');
     assert.deepEqual(errs, []);
+  });
+  await ctx.close();
+}
+
+/* ---------- 6. AI key from the app ---------- */
+{
+  const { ctx, page, errs, mock } = await newPage(390, 844, { dark: true, hash: '#income', noSync: true, settings: { aiProvider: 'gemini' } });
+  await step('390: the Ask Bud card shows where the key comes from, its length and last 4; a pasted key is saved and tested', async () => {
+    await page.waitForSelector('#aikeyform');
+    assert.match(await txt(page, '#aikeyform .meta'), /From the GitHub secret · 53 characters, ends zRQQ/);
+    assert.equal(await page.getAttribute('#aikey', 'type'), 'password');
+    mock.aiTest = { ok: false, error: "Gemini's key is invalid (400 INVALID_ARGUMENT API_KEY_INVALID, key 53 characters ending zRQQ)" };
+    await page.click('[data-action="ai-test"]');
+    await page.waitForSelector('#aikeyform .note.warn[role=status]');
+    assert.match(await txt(page, '#aikeyform [role=status]'), /53 characters ending zRQQ/);
+    mock.aiTest = null;
+    await page.fill('#aikey', 'AQ.Ab8RN6L75o3Q_mXrolldgrjoe7a6jbVvIt-R3czzme79-qRzRQQ'); await page.press('#aikey', 'Enter');
+    await page.waitForSelector('#aikeyform .note.good');
+    assert.equal(mock.savedKey.provider, 'gemini'); assert.equal(mock.savedKey.key, 'AQ.Ab8RN6L75o3Q_mXrolldgrjoe7a6jbVvIt-R3czzme79-qRzRQQ');
+    assert.match(await txt(page, '#aikeyform .meta'), /Saved from this app · 54 characters, ends zRQQ/);
+    assert.match(await txt(page, '#aikeyform .note.good'), /The key works/);
+    assert.equal(await page.inputValue('#aikey').catch(() => ''), '');
+    assert.equal(await page.locator('[data-action="ai-forget"]').count(), 1);
+    await quiet(page); await page.locator('#aicard').screenshot({ path: SHOTS + '/v22-ai-key-390.png' });
+    assert.ok(!(await page.evaluate(() => localStorage.getItem('budtrack.v1'))).includes('Ab8RN6L75o3Q'), 'key not kept on the phone');
+    await noHScroll(page, 'ai key'); assert.deepEqual(errs, []);
   });
   await ctx.close();
 }

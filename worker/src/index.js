@@ -1323,7 +1323,8 @@ async function ask(env, req) {
   let body;
   try { body = JSON.parse(raw); } catch { throw new HttpError(400, 'invalid JSON'); }
   const { q, ctx, history, today, provider } = validateAsk(body);
-  if (provider === 'gemini' ? !env.GEMINI_API_KEY : !env.ANTHROPIC_API_KEY) throw new HttpError(503, provider === 'gemini' ? "Gemini isn't set up yet" : "Bud isn't set up yet");
+  const ak = await aiKey(env, provider);
+  if (!ak) throw new HttpError(503, provider === 'gemini' ? "Gemini isn't set up yet" : "Bud isn't set up yet");
   const ck = 'ask:' + utcDay(), used = Number((await env.BT_KV.get(ck)) || 0) || 0, limit = askLimit(env);
   if (used + 1 > limit) throw new HttpError(429, 'daily limit');
   await env.BT_KV.put(ck, String(used + 1), { expirationTtl: ASK_TTL });
@@ -1331,8 +1332,8 @@ async function ask(env, req) {
   // One request per question. Earlier turns go in as quoted text, so no assistant turn (or its thinking) is replayed.
   // The budget data comes first with a cache breakpoint: follow-up questions read it from the cache.
   const past = history.length ? '<earlier_chat>\n' + history.map((h) => `Me: ${h.q}\nBud: ${h.a}`).join('\n\n') + '\n</earlier_chat>\n\n' : '';
-  if (provider === 'gemini') return askGemini(env, { ctx, past, q, today, limit, used });
-  const client = new Anthropic({ apiKey: cleanKey(env.ANTHROPIC_API_KEY), maxRetries: 2, timeout: 90_000, fetch: typeof env.ANTHROPIC_FETCH === 'function' ? env.ANTHROPIC_FETCH : (u, i) => fetch(u, i), logLevel: 'off' });
+  if (provider === 'gemini') return askGemini(env, ak.key, { ctx, past, q, today, limit, used });
+  const client = new Anthropic({ apiKey: ak.key, maxRetries: 2, timeout: 90_000, fetch: typeof env.ANTHROPIC_FETCH === 'function' ? env.ANTHROPIC_FETCH : (u, i) => fetch(u, i), logLevel: 'off' });
   let msg;
   try {
     msg = await client.messages.create({
@@ -1363,43 +1364,102 @@ async function ask(env, req) {
   return { bubbles, provider: 'claude', model: msg.model || ASK_MODEL, usage: { input_tokens: u.input_tokens ?? 0, output_tokens: u.output_tokens ?? 0, cache_read_input_tokens: u.cache_read_input_tokens ?? 0 }, left: Math.max(0, limit - used - 1) };
 }
 
-// Gemini through the Interactions API: one stateless call (store: false), the same prompt and data as Claude.
-async function askGemini(env, { ctx, past, q, today, limit, used }) {
-  const f = typeof env.GEMINI_FETCH === 'function' ? env.GEMINI_FETCH : (u, i) => fetch(u, i), gkey = cleanKey(env.GEMINI_API_KEY);
-  if (!keyOk(gkey)) { console.error('ask: gemini key has characters a key cannot have'); throw new HttpError(503, "Gemini's key is invalid (it has a character a key can't have; paste it again)"); }
-  const body = {
-    model: GEMINI_MODEL, store: false, system_instruction: ASK_SYSTEM,
-    input: `<budget_data>\n${ctx}\n</budget_data>\n\n${past}Today is ${today}.\n\n${q}`,
-    generation_config: { thinking_level: 'low', max_output_tokens: 8000 },
-  };
-  let r, j = null;
+// The AI keys: one saved from the app (encrypted in KV, so no GitHub paste on a phone) wins over the repo secret.
+const AIKEY_KV = { gemini: 'aikey:gemini', claude: 'aikey:claude' };
+async function aiKey(env, p) {
+  const blob = await env.BT_KV.get(AIKEY_KV[p]);
+  if (blob) { try { return { key: cleanKey(await decrypt(env, blob)), from: 'app' }; } catch { console.error('ai key: stored key unreadable'); } }
+  const k = cleanKey(p === 'gemini' ? env.GEMINI_API_KEY : env.ANTHROPIC_API_KEY);
+  return k ? { key: k, from: 'secret' } : null;
+}
+// Enough to compare with the key list in AI Studio or the Anthropic console, never the key itself.
+const keyHint = (k) => ({ length: k.length, ends: k.slice(-4) });
+// POST /ai/key {provider, key}: saves an AI key from the app. DELETE /ai/key?provider=: forgets it (the repo secret applies again).
+async function setAiKey(env, b) {
+  const p = b && (b.provider === 'gemini' || b.provider === 'claude') ? b.provider : null;
+  if (!p) throw new HttpError(400, 'provider must be gemini or claude');
+  const k = cleanKey(b.key);
+  if (k.length < 20 || k.length > 300 || !keyOk(k)) throw new HttpError(400, "That doesn't look like an API key. Copy it again from the provider's site.");
+  await env.BT_KV.put(AIKEY_KV[p], await encrypt(env, k));
+  console.log('ai key: saved', p);
+  return { ok: true, provider: p, ...keyHint(k) };
+}
+async function delAiKey(env, p) {
+  if (!AIKEY_KV[p]) throw new HttpError(400, 'provider must be gemini or claude');
+  await env.BT_KV.delete(AIKEY_KV[p]);
+  return { ok: true };
+}
+async function aiStatus(env) {
+  const out = {};
+  for (const p of ['claude', 'gemini']) { const k = await aiKey(env, p); out[p] = k ? { from: k.from, ...keyHint(k.key) } : null; }
+  return out;
+}
+
+// One Gemini Interactions call, retried once on busy or server errors. Returns the reply and Google's error codes (never its message).
+async function geminiCall(env, key, body) {
+  const f = typeof env.GEMINI_FETCH === 'function' ? env.GEMINI_FETCH : (u, i) => fetch(u, i);
+  let r = null, j = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 90_000);
     try {
-      r = await f(GEMINI_URL, { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': gkey, 'Api-Revision': '2026-05-20' }, body: JSON.stringify(body) });
+      r = await f(GEMINI_URL, { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key, 'Api-Revision': '2026-05-20' }, body: JSON.stringify(body) });
       try { j = await r.json(); } catch { j = null; }
     } catch (e) { console.error('ask: gemini connection failed', e?.name); r = null; }
     finally { clearTimeout(t); }
     if (r && (r.ok || ![429, 500, 502, 503, 504].includes(r.status))) break;
   }
-  // Only the status and Google's error codes are logged, never the question, the data or Google's message (it can quote the input).
-  if (!r) throw new HttpError(502, "Couldn't reach Gemini, try again");
+  if (!r) return { r: null, j: null, code: '' };
   const ge = (j && j.error) || {}, gst = typeof ge.status === 'string' ? ge.status.replace(/[^A-Z_]/g, '').slice(0, 40) : '';
   const grs = (Array.isArray(ge.details) ? ge.details : []).map((d) => d && d.reason).find((x) => typeof x === 'string') || '';
   const code = [r.status, gst, grs.replace(/[^A-Z_]/g, '').slice(0, 40)].filter(Boolean).join(' ');
   if (!r.ok) console.error('ask: gemini error', code);
-  if (/API_KEY_INVALID|API_KEY_EXPIRED|PERMISSION_DENIED|UNAUTHENTICATED/.test(code)) throw new HttpError(503, "Gemini's key is invalid (" + code + ')');
-  if (r.status === 429) { console.error('ask: gemini rate limited'); throw new HttpError(429, 'Gemini is busy or its free limit is used up for now, try again later'); }
-  if (r.status === 401 || r.status === 403) { console.error('ask: gemini key rejected', r.status); throw new HttpError(503, "Gemini's key is invalid"); }
-  if (r.status === 400 || r.status === 404) throw new HttpError(502, 'Gemini rejected the request (' + code + ')');
-  if (!r.ok) throw new HttpError(502, 'Gemini had a problem (' + code + '), try again');
-  const text = (Array.isArray(j?.steps) ? j.steps : []).filter((s) => s && s.type === 'model_output')
-    .flatMap((s) => (Array.isArray(s.content) ? s.content : [])).filter((c) => c && c.type === 'text' && typeof c.text === 'string').map((c) => c.text).join('\n\n');
-  const bubbles = askBubbles(text);
+  return { r, j, code };
+}
+// Maps a failed Gemini call to a plain error. Key problems include the key's length and last 4 characters to compare.
+function geminiFail({ r, code }, key) {
+  const hint = key ? `, key ${key.length} characters ending ${key.slice(-4)}` : '';
+  if (!r) return new HttpError(502, "Couldn't reach Gemini, try again");
+  if (r.status === 401 || r.status === 403 || /API_KEY|PERMISSION_DENIED|UNAUTHENTICATED/.test(code)) return new HttpError(503, `Gemini's key is invalid (${code}${hint})`);
+  if (r.status === 429) return new HttpError(429, 'Gemini is busy or its free limit is used up for now, try again later');
+  if (r.status === 400 || r.status === 404) return new HttpError(502, 'Gemini rejected the request (' + code + ')');
+  return new HttpError(502, 'Gemini had a problem (' + code + '), try again');
+}
+const geminiText = (j) => (Array.isArray(j?.steps) ? j.steps : []).filter((s) => s && s.type === 'model_output')
+  .flatMap((s) => (Array.isArray(s.content) ? s.content : [])).filter((c) => c && c.type === 'text' && typeof c.text === 'string').map((c) => c.text).join('\n\n');
+
+// Gemini through the Interactions API: one stateless call (store: false), the same prompt and data as Claude.
+async function askGemini(env, key, { ctx, past, q, today, limit, used }) {
+  if (!keyOk(key)) { console.error('ask: gemini key has characters a key cannot have'); throw new HttpError(503, "Gemini's key is invalid (it has a character a key can't have; paste it again)"); }
+  const res = await geminiCall(env, key, {
+    model: GEMINI_MODEL, store: false, system_instruction: ASK_SYSTEM,
+    input: `<budget_data>\n${ctx}\n</budget_data>\n\n${past}Today is ${today}.\n\n${q}`,
+    generation_config: { thinking_level: 'low', max_output_tokens: 8000 },
+  });
+  if (!res.r || !res.r.ok) throw geminiFail(res, key);
+  const j = res.j, bubbles = askBubbles(geminiText(j));
   if (j?.status === 'failed' || !bubbles.length) { console.error('ask: gemini empty reply', j?.status); throw new HttpError(502, 'Bud lost his train of thought, try again'); }
   console.log('ask: gemini ok', bubbles.length, 'bubbles');
   const u = j.usage || {};
   return { bubbles, provider: 'gemini', model: j.model || GEMINI_MODEL, usage: { input_tokens: u.total_input_tokens ?? 0, output_tokens: (u.total_output_tokens ?? 0) + (u.total_thought_tokens ?? 0), cache_read_input_tokens: u.total_cached_tokens ?? 0 }, left: Math.max(0, limit - used - 1) };
+}
+// POST /ai/test {provider}: a tiny call that checks the key works. Not counted toward the daily limit.
+async function aiTest(env, b) {
+  const p = b && b.provider === 'gemini' ? 'gemini' : b && b.provider === 'claude' ? 'claude' : null;
+  if (!p) throw new HttpError(400, 'provider must be gemini or claude');
+  const k = await aiKey(env, p);
+  if (!k) return { ok: false, error: p === 'gemini' ? 'No Gemini key yet' : 'No Anthropic key yet' };
+  try {
+    if (p === 'gemini') {
+      if (!keyOk(k.key)) throw new HttpError(503, "Gemini's key has a character a key can't have; paste it again");
+      const res = await geminiCall(env, k.key, { model: GEMINI_MODEL, store: false, input: 'Reply with the single word OK.', generation_config: { thinking_level: 'low', max_output_tokens: 200 } });
+      if (!res.r || !res.r.ok) throw geminiFail(res, k.key);
+    } else {
+      const client = new Anthropic({ apiKey: k.key, maxRetries: 1, timeout: 30_000, fetch: typeof env.ANTHROPIC_FETCH === 'function' ? env.ANTHROPIC_FETCH : (u, i) => fetch(u, i), logLevel: 'off' });
+      try { await client.messages.create({ model: ASK_MODEL, max_tokens: 200, output_config: { effort: 'low' }, messages: [{ role: 'user', content: 'Reply with the single word OK.' }] }); }
+      catch (e) { if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) throw new HttpError(503, `Anthropic's key is invalid (${e.status}, key ${k.key.length} characters ending ${k.key.slice(-4)})`); throw new HttpError(502, 'Claude had a problem (' + (e?.status || e?.name) + ')'); }
+    }
+  } catch (e) { if (e instanceof HttpError) return { ok: false, error: e.message, ...keyHint(k.key), from: k.from }; throw e; }
+  return { ok: true, ...keyHint(k.key), from: k.from };
 }
 
 // ---------- entry point ----------
@@ -1427,7 +1487,7 @@ export default {
       const url = new URL(req.url), path = url.pathname, m = req.method;
       let out;
       if (m === 'GET' && path === '/config') {
-        out = { provider: 'plaid', env: plaidEnv(env), paired: !!(await env.BT_KV.get('key_hash')), ai: { claude: !!env.ANTHROPIC_API_KEY, gemini: !!env.GEMINI_API_KEY } };
+        out = { provider: 'plaid', env: plaidEnv(env), paired: !!(await env.BT_KV.get('key_hash')), ai: { claude: !!(await aiKey(env, 'claude')), gemini: !!(await aiKey(env, 'gemini')) } };
       } else if (m === 'POST' && path === '/pair') {
         out = await pair(env);
       } else {
@@ -1454,6 +1514,10 @@ export default {
         else if (m === 'GET' && path === '/alerts/test') out = await alertsTest(env);
         else if (m === 'POST' && path === '/scan') out = await scan(env, req);
         else if (m === 'POST' && path === '/ask') out = await ask(env, req);
+        else if (m === 'GET' && path === '/ai') out = await aiStatus(env);
+        else if (m === 'POST' && path === '/ai/key') out = await setAiKey(env, await readJson(req));
+        else if (m === 'DELETE' && path === '/ai/key') out = await delAiKey(env, url.searchParams.get('provider') || '');
+        else if (m === 'POST' && path === '/ai/test') out = await aiTest(env, await readJson(req));
         else throw new HttpError(404, 'not found');
       }
       return json(out, 200, cors);

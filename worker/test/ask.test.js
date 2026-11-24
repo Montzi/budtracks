@@ -164,7 +164,7 @@ test('ask gemini: an invalid key (Google answers 400 API_KEY_INVALID) says so, w
   const g = fakeGemini(() => ({ status: 400, json: { error: { code: 400, message: 'API key not valid. SHOPRITE', status: 'INVALID_ARGUMENT', details: [{ '@type': 'type.googleapis.com/google.rpc.ErrorInfo', reason: 'API_KEY_INVALID' }] } } }));
   const { env, key } = await paired({ GEMINI_FETCH: g, GEMINI_API_KEY: 'bad' });
   let r, j; const out = await logs(async () => { r = await call(env, ok({ provider: 'gemini' }), { key }); j = await r.json(); });
-  assert.equal(r.status, 503); assert.equal(j.error, "Gemini's key is invalid (400 INVALID_ARGUMENT API_KEY_INVALID)");
+  assert.equal(r.status, 503); assert.equal(j.error, "Gemini's key is invalid (400 INVALID_ARGUMENT API_KEY_INVALID, key 3 characters ending bad)");
   assert.match(out, /ask: gemini error 400 INVALID_ARGUMENT API_KEY_INVALID/); assert.equal(/SHOPRITE|not valid/.test(out), false);
 });
 
@@ -177,4 +177,43 @@ test('keys pasted on a phone: a long dash from Smart Punctuation becomes "--" ag
   assert.equal(g.calls[0].headers.get('x-goog-api-key'), 'AIzaSyAbc--T-K8');
   const { env: e2, key: k2 } = await paired({ GEMINI_FETCH: g, GEMINI_API_KEY: 'AIzaébad' });
   const r = await call(e2, ok({ provider: 'gemini' }), { key: k2 }); assert.equal(r.status, 503); assert.match((await r.json()).error, /paste it again/);
+});
+
+const req = (env, m, path, body, key) => worker.fetch(new Request('https://w.test' + path, { method: m, body: body ? JSON.stringify(body) : undefined, headers: { Origin: ORIGIN, 'Content-Type': 'application/json', ...(key ? { Authorization: 'Bearer ' + key } : {}) } }), env);
+
+test('AI key saved from the app: encrypted in KV, wins over the repo secret, shown only as length and last 4', async () => {
+  const g = fakeGemini();
+  const { env, key } = await paired({ GEMINI_FETCH: g, GEMINI_API_KEY: 'AQ.old-secret-key-value-1234' });
+  assert.equal((await req(env, 'POST', '/ai/key', { provider: 'gemini', key: 'AQ.new' })).status, 401, 'needs the device key');
+  assert.equal((await req(env, 'POST', '/ai/key', { provider: 'gemini', key: 'short' }, key)).status, 400);
+  const NEW = 'AQ.Ab8RN6L75o3Q_mXrolldgrjoe7a6jbVvIt-R3czzme79-qRzRQQ';
+  let out, r;
+  out = await logs(async () => { r = await req(env, 'POST', '/ai/key', { provider: 'gemini', key: ' ' + NEW.replace('--', '—') + '\n' }, key); });
+  const j = await r.json();
+  assert.equal(r.status, 200); assert.deepEqual(j, { ok: true, provider: 'gemini', length: NEW.length, ends: 'zRQQ' });
+  assert.equal(out.includes(NEW), false);
+  assert.ok(![...env.BT_KV.m.values()].some((v) => String(v).includes(NEW)), 'stored encrypted');
+  assert.deepEqual((await (await req(env, 'GET', '/ai', null, key)).json()).gemini, { from: 'app', length: NEW.length, ends: 'zRQQ' });
+  assert.equal((await req(env, 'POST', '/ask', ok({ provider: 'gemini' }), key)).status, 200);
+  assert.equal(g.calls.at(-1).headers.get('x-goog-api-key'), NEW);
+  assert.equal((await req(env, 'DELETE', '/ai/key?provider=gemini', null, key)).status, 200);
+  await req(env, 'POST', '/ask', ok({ provider: 'gemini' }), key);
+  assert.equal(g.calls.at(-1).headers.get('x-goog-api-key'), 'AQ.old-secret-key-value-1234', 'secret applies again');
+});
+
+test('AI key test: a tiny call reports ok, or the reason with the key hint; not counted toward the daily limit', async () => {
+  let g = fakeGemini(() => ({ status: 200, json: gReply(['OK']) }));
+  let { env, key } = await paired({ GEMINI_FETCH: g, GEMINI_API_KEY: 'AQ.good-key-value-123456' });
+  let j = await (await req(env, 'POST', '/ai/test', { provider: 'gemini' }, key)).json();
+  assert.equal(j.ok, true); assert.equal(j.ends, '3456'); assert.equal(j.from, 'secret');
+  assert.equal(g.calls[0].body.model, 'gemini-3.8-flash'); assert.equal(env.BT_KV.m.get('ask:' + DAY), undefined);
+  g = fakeGemini(() => ({ status: 403, json: { error: { code: 403, status: 'PERMISSION_DENIED', message: 'x' } } }));
+  ({ env, key } = await paired({ GEMINI_FETCH: g, GEMINI_API_KEY: 'AQ.bad-key-value-1234567' }));
+  j = await (await req(env, 'POST', '/ai/test', { provider: 'gemini' }, key)).json();
+  assert.equal(j.ok, false); assert.equal(j.error, "Gemini's key is invalid (403 PERMISSION_DENIED, key 24 characters ending 4567)");
+  ({ env, key } = await paired({ ANTHROPIC_FETCH: fakeApi(), ANTHROPIC_API_KEY: 'sk-ant-test-key-abcdefgh' }));
+  j = await (await req(env, 'POST', '/ai/test', { provider: 'claude' }, key)).json();
+  assert.equal(j.ok, true); assert.equal(j.ends, 'efgh');
+  j = await (await req(env, 'POST', '/ai/test', { provider: 'gemini' }, key)).json();
+  assert.deepEqual(j, { ok: false, error: 'No Gemini key yet' });
 });
