@@ -87,7 +87,7 @@ for (const [w, h] of SIZES) for (const scheme of ['dark', 'light']) {
     assert.equal(bg[0], bg[1]); assert.equal(bg[0], scheme === 'dark' ? 'rgb(24, 36, 63)' : 'rgb(255, 255, 255)');
     const rad = await page.evaluate(() => { const a = getComputedStyle(document.querySelector('#brandbar')), c = getComputedStyle(document.querySelector('.ov > .hero')); return [a.borderBottomLeftRadius, c.borderTopLeftRadius, a.borderTopLeftRadius, c.borderBottomLeftRadius]; });
     assert.deepEqual(rad, ['0px', '0px', '22px', '22px']);
-    if (wide) { const d = await page.evaluate(() => document.querySelector('.ov-donut').getBoundingClientRect().top); assert.ok(Math.abs(d - g.hero.t) <= 1, 'donut aligned with the hero top ' + d + ' vs ' + g.hero.t); }
+    if (wide) { const d = await page.evaluate(() => document.querySelector('.ov-donut').getBoundingClientRect().top); assert.ok(Math.abs(d - g.bar.t) <= 2, 'donut level with the header top (v25) ' + d + ' vs ' + g.bar.t); }
   });
   await step(`${tag}: other tabs: standalone rounded card, content below`, async () => {
     await go(page, 'plans');

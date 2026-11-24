@@ -77,12 +77,14 @@ for (const [w, h] of SIZES) for (const scheme of process.env.BT_ONE ? ['dark'] :
   await step(`${tag}: nothing above the header; same box and wordmark on all five tabs`, async () => {
     assert.equal(await page.locator('.top, #viewSeg').count(), 0, 'old switcher gone');
     assert.equal(await page.evaluate(() => document.querySelector('.app').firstElementChild.id), 'brandbar');
-    let ref = null;
+    // v25: on wide screens Overview keeps the 43% bar over the cycle card; the other tabs share one full-width bar.
+    const refs = {};
     for (const t of [...TABS, 'plans', 'overview', 'income', 'transactions']) {
       await go(page, t);
       const g = await geo(page);
       assert.ok(g.bar.t <= 20, 'header at the top ' + g.bar.t);
-      if (!ref) ref = g;
+      const wideScr = w >= 900 || (w >= 740 && w > h), key = wideScr && t === 'overview' ? 'ov' : 'other';
+      const ref = refs[key] || (refs[key] = g);
       for (const k of ['l', 't', 'w', 'h']) { assert.ok(Math.abs(g.bar[k] - ref.bar[k]) <= .5, `header ${k} ${g.bar[k]} vs ${ref.bar[k]} on ${t}`); assert.ok(Math.abs(g.wm[k] - ref.wm[k]) <= .5, `wordmark ${k} ${g.wm[k]} vs ${ref.wm[k]} on ${t}`); }
       for (const k of ['hd', 'arms', 'per', 'sync']) for (const f of ['l', 't', 'w', 'h']) assert.ok(Math.abs(g[k][f] - ref[k][f]) <= .5, `${k} ${f} moved on ${t}`);
       await noHScroll(page, t);
