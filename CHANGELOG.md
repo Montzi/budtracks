@@ -3,6 +3,7 @@
 Versions match `VERSION` in `sw.js`. Newest first.
 
 ## 2026-11-24
+- **v48** Bank connections show each account's balance. Sync and Disconnect sit in the same spot on every bank; long bank names use a smaller font. Current balance sits beside Latest paycheck, each half opens on its own. Transaction icons without a logo get a solid color that matches the Overview chart.
 - **v47** Settings and AI key links from Ask Bud land on the right card even on a slow phone. Tests: shared setup in `tests/lib.mjs`, one parallel runner `tests/run.mjs` with a fast lane, full suite on GitHub after each push, `scripts/deploy-status.sh`.
 - **v46** Income tab: the pay cycle note is gone. Bank connections sits right under Add income and opens and closes like the other sections. Refresh all stays in its header.
 - **v45** Transactions: Rename on every bank line, whatever its status. Your name wins over the bank's and over a match. It survives syncs and reloads. Use bank name puts it back.

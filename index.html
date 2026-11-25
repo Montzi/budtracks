@@ -580,6 +580,7 @@ body.bc-on { overflow: hidden; }
 /* Service logos: your own upload, else the service's own icon, else a colored letter. The letter is drawn with CSS so it is never page text. */
 .slogo { position: relative; display: inline-grid; place-items: center; flex: none; width: var(--s, 22px); height: var(--s, 22px); border-radius: calc(var(--s, 22px) * .28); background: var(--bg, hsl(var(--h, 200) 42% 40%)); color: var(--fg, #fff); font: 700 calc(var(--s, 22px) * var(--fk, .5)) / 1 var(--body); overflow: hidden; vertical-align: middle; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 16%, transparent); }
 .slogo-cat { background: var(--surface-2); color: var(--ink-2); }
+.slogo-cat[style*="--cc"] { background: color-mix(in srgb, var(--cc) 86%, #000); color: #fff; border-color: transparent; }
 .slogo-cat svg { width: 58%; height: 58%; }
 .row .nm .slogo, .bm-d .slogo, .shot-r1 .slogo { margin-right: 7px; }
 .bm-d b { display: inline-flex; align-items: center; }
@@ -921,8 +922,14 @@ h3 > .icon-pick { display: inline-grid; vertical-align: middle; width: 38px; hei
 .ps-dl dd small { display: block; color: var(--ink-3); font-size: 12px; }
 .ps-note { margin: 4px 0 12px; }
 .bk-enr { border: 1px solid var(--line-2); border-radius: 14px; padding: 10px 12px; display: grid; gap: 6px; min-width: 0; }
-.bk-eh { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
-.bk-eh b { font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+.bk-eh { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 8px; min-width: 0; }
+.bk-eh b { font-weight: 600; min-width: 0; line-height: 1.2; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.bk-eh b.long { font-size: 13px; }
+.bk-eh .btn { min-width: 64px; justify-content: center; }
+.bk-rc { justify-self: start; }
+.bk-bal { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 14px; white-space: nowrap; flex: none; text-align: right; }
+.bk-bal small { display: block; font-family: var(--body); font-size: 11px; color: var(--ink-3); }
+.bk-bal.neg { color: var(--crit); }
 .bk-sp { flex: 1; }
 .bk-acc { list-style: none; margin: 0; padding: 0; }
 .bk-acc li { display: flex; align-items: center; gap: 10px; padding: 8px 0; min-width: 0; }
@@ -1162,6 +1169,16 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 .coll-body[hidden] { display: none; }
 .coll-body { padding-bottom: 4px; }
 .pc-card .pc-top { padding: 0 16px 14px; }
+.pc-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.pc-col { min-width: 0; }
+.pc-col + .pc-col { border-left: 1px solid var(--line); }
+.pc-cols .pc-big { font-size: clamp(26px, 8.4vw, 40px); white-space: nowrap; }
+.pc-cols .pc-big.neg { color: var(--crit); }
+.pc-cols .pc-date { overflow-wrap: anywhere; }
+.pc-cols .card-h.pc-h0 { padding: 12px 16px; }
+.pc-cols .card-h.pc-h0 h2 { font-size: 15px; font-weight: 600; margin: 0; }
+.pc-nx { padding-bottom: 12px; }
+.pc-accts li { padding: 8px 0; }
 .pc-card.open .pc-top { padding-bottom: 4px; }
 .pc-more { display: grid; gap: 12px; padding: 8px 16px 0; }
 .pc-more .pc-old { margin: 0 -16px; }
@@ -2550,7 +2567,21 @@ const logoLive = k => !!(k && ((state.logos && state.logos[k]) || svcRow(k)));
 function pickedLogo(nm) { const v = state.logoFor && state.logoFor[mKey(nm)]; return v && logoLive(v.k) ? v.k : ''; }
 // A logo for a typed name (bill, spend, screenshot line), only when it is a known brand or has your upload; otherwise nothing.
 function nameLogo(name, size) { const nm = String(name || '').trim(); if (!nm) return ''; const pk = pickedLogo(nm); if (pk) return svcBadge(pk, logoTitle(pk), size); const k = svcKey(nm), own = ownLogoKey(nm); return svcRow(k) || own ? svcBadge(own || k, svcRow(k) ? svcRow(k)[6] : nm, size) : ''; }
-// Transaction rows: the merchant's logo, your own upload, or a neutral category icon.
+// The color of a category's group in this pay cycle's Overview chart, so a row's icon matches its slice.
+// A group that is not in the chart yet gets a steady color from the same palette.
+let CATCOL = null;
+function catColor(c) {
+  if (!CATCOL) {
+    CATCOL = {};
+    try { const r = BT.periodRange(state, state.settings.view, 0, TODAY); byCategory(BT.summary(state, r, TODAY).items, r).forEach(g => { CATCOL[g.label] = g.color; }); } catch (e) {}
+  }
+  const g = chartParent(c);
+  if (CATCOL[g]) return CATCOL[g];
+  let h = 0; for (const ch of String(g)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const pal = [1, 2, 3, 4, 5, 6, 8, 10, 11, 12];
+  return 'var(--s' + pal[h % pal.length] + ')';
+}
+// Transaction rows: the merchant's logo, your own upload, or a category icon on its chart color.
 function merchLogo(t, size, knownOnly) {
   const k = merchKey(t), nm = cleanMerchant(t), own = ownLogoKey(nm), pk = pickedLogo(nm);
   if (pk) return svcBadge(pk, logoTitle(pk), size);
@@ -2558,7 +2589,8 @@ function merchLogo(t, size, knownOnly) {
   if (own) return svcBadge(own, nm, size);
   if (knownOnly) return '';
   let c = ''; try { const r = state.bank.seen[t.id], x = r && r.spendId && state.spends.find(z => z.id === r.spendId); c = t.amount < 0 ? '' : (x && x.category) || BT.guessCategory(state, t).category || ''; } catch (e) {}
-  return `<span class="slogo slogo-cat" style="--s:${size || 28}px" aria-hidden="true">${t.amount < 0 ? iconSVG('cash') : catIcon(c || 'Other')}</span>`;
+  const col = t.amount < 0 ? 'var(--s3)' : catColor(c || 'Other');
+  return `<span class="slogo slogo-cat" style="--s:${size || 28}px;--cc:${col}" aria-hidden="true">${t.amount < 0 ? iconSVG('cash') : catIcon(c || 'Other')}</span>`;
 }
 // Your own logo: cropped square, 96x96 PNG, kept small enough (about 20KB) to live in the saved data and backups.
 async function logoFromFile(file) {
@@ -4954,9 +4986,9 @@ function bankCard() {
     <p class="bk-err" role="alert">${esc(BANKUI.err)}</p></div></div></section>`;
   const enr = BANKUI.enr;
   const list = enr === null ? (BANKUI.loadErr ? `<p class="bk-err" role="alert">${esc(BANKUI.loadErr)}</p>` : '<p class="bk-ok">Loading your banks…</p>')
-    : enr.length ? orderBanks(enr, e => e.id).map(e => `<div class="bk-enr"><div class="bk-eh">${svcLogo(e.institution || 'Bank', 22)}<b>${esc(e.institution || 'Bank')}</b>${e.needsReconnect ? '<span class="pill soft warn">Needs reconnect</span>' : ''}<span class="bk-sp"></span>${e.needsReconnect ? `<button class="btn sm" data-action="bk-reconnect" data-id="${esc(e.id)}">Reconnect</button>` : `<button class="btn sm" data-action="bk-item-sync" data-id="${esc(e.id)}" aria-label="Sync ${esc(e.institution || 'bank')}"${BANKUI.syncing || BANKUI.now || BANKUI.rowBusy ? ' disabled' : ''}${BANKUI.rowBusy === e.id ? ' aria-busy="true"' : ''}>${BANKUI.rowBusy === e.id ? '<span class="spin" aria-hidden="true"></span>Syncing…' : 'Sync'}</button>`}<button class="btn sm danger" data-action="bk-disc" data-id="${esc(e.id)}">Disconnect</button></div>
+    : enr.length ? orderBanks(enr, e => e.id).map(e => `<div class="bk-enr"><div class="bk-eh">${svcLogo(e.institution || 'Bank', 22)}<b class="${String(e.institution || 'Bank').length > 14 ? 'long' : ''}">${esc(e.institution || 'Bank')}</b>${e.needsReconnect ? `<button class="btn sm" data-action="bk-reconnect" data-id="${esc(e.id)}">Reconnect</button>` : `<button class="btn sm" data-action="bk-item-sync" data-id="${esc(e.id)}" aria-label="Sync ${esc(e.institution || 'bank')}"${BANKUI.syncing || BANKUI.now || BANKUI.rowBusy ? ' disabled' : ''}${BANKUI.rowBusy === e.id ? ' aria-busy="true"' : ''}>${BANKUI.rowBusy === e.id ? '<span class="spin" aria-hidden="true"></span>' : ''}Sync</button>`}<button class="btn sm danger" data-action="bk-disc" data-id="${esc(e.id)}">Disconnect</button></div>${e.needsReconnect ? '<span class="pill soft warn bk-rc">Needs reconnect</span>' : ''}
       ${plaidLine(e.id)}<ul class="bk-acc">${(e.accounts || []).map(a => `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}</div><div class="sub">${esc([a.subtype || a.type, a.last_four ? '··' + a.last_four : ''].filter(Boolean).join(' · '))}</div></div>
-        <label class="tgl"><input type="checkbox" data-action="bk-toggle" data-id="${esc(a.id)}" data-eid="${esc(e.id)}"${a.enabled ? ' checked' : ''} aria-label="Sync ${esc(a.name || 'account')}"><span aria-hidden="true"></span></label></li>`).join('') || '<li><div class="sub">No accounts found.</div></li>'}</ul></div>`).join('')
+        ${acctBalHTML(a.id)}<label class="tgl"><input type="checkbox" data-action="bk-toggle" data-id="${esc(a.id)}" data-eid="${esc(e.id)}"${a.enabled ? ' checked' : ''} aria-label="Sync ${esc(a.name || 'account')}"><span aria-hidden="true"></span></label></li>`).join('') || '<li><div class="sub">No accounts found.</div></li>'}</ul></div>`).join('')
     : '<p class="bk-ok">No banks connected yet. Tap Connect a bank.</p>';
   return `<section class="card" id="bankcard">${head}<div class="coll-body" id="coll-bank"${o ? '' : ' hidden'}><div class="card-b bk">${sub}${list}
     <div class="bk-btns"><button class="btn primary" data-action="bk-connect"${BANKUI.busy ? ' disabled' : ''}>Connect a bank</button>${n ? `<button class="btn" data-action="tx-review">Review ${n} new</button>` : ''}<button class="btn" data-action="ix-open">Recently synced</button><button class="btn" data-action="hx-open">Earlier transactions · ${hn}</button></div>
@@ -4967,6 +4999,13 @@ function bankCard() {
     <p class="note" style="margin:0">From the automatic date on, matching bills, paychecks and Klarna, Afterpay and PayPal payments are applied for you, and anything unsure waits in your review list. Earlier ones are yours to add by hand. <button class="linkbtn" style="color:var(--ink-3)" data-action="bk-forget">Remove pairing from this phone</button></p></div></div></section>`;
 }
 // Under each bank: when Plaid last got new data from it, and a badge when Plaid reports an error on the connection.
+// The live balance of a bank account, as the In account list shows it. Cards and loans show what is owed.
+function acctBalHTML(id) {
+  const hit = bankAccts().find(([, a]) => a.id === id); if (!hit) return '';
+  const a = hit[1], owed = OWED_TYPES.includes(a.type), v = owed ? (typeof a.current === 'number' ? a.current : null) : balOf(a);
+  if (v === null) return '';
+  return `<span class="bk-bal${!owed && v < 0 ? ' neg' : ''}">${owed ? '<small>Owed</small>' : ''}${hm(v)}</span>`;
+}
 function plaidLine(id) {
   const st = statusOf(id); if (!st) return '';
   const err = st.error && st.error.code ? `<span class="pill soft warn" title="${esc(st.error.message || '')}">Plaid error · ${esc(st.error.code)}</span>` : '';
@@ -6439,23 +6478,39 @@ function partRow(p, removable) {
   const t = p.t, bank = acctDots(t) || p.r.acct || 'Bank';
   return `<li class="pc-part"><div class="main"><div class="nm">${esc(cleanMerchant(t))}</div><div class="sub">${esc(bank)} · Posted ${md(t.date)}</div>${noteOfTxn(t) ? `<div class="nlabel">${esc(noteOfTxn(t))}</div>` : ''}</div><span class="amt in">+${fmt(Math.abs(p.r.amount))}</span>${removable ? `<button class="linkbtn pc-out" data-action="pc-out" data-id="${esc(p.id)}">Not part of paycheck</button>` : ''}</li>`;
 }
+// Right half of the Latest paycheck card: what is in your accounts now, the same number as In account on Overview.
+// It opens and closes on its own; its list sits under the card, after the paycheck details.
+function balHalf() {
+  const bt = bankTotal(), v = bt !== null ? bt : BT.accountBalance(state, TODAY), o = incOpen('bal');
+  const at = bt !== null && state.bank.balances && state.bank.balances.at, d = at ? BT.iso(new Date(at)) : '';
+  const sub = bt !== null ? 'Updated ' + (d === TODAY ? clockTime(at) : d === BT.addDays(TODAY, -1) ? 'yesterday' : d ? md(d) : 'now') : v === null ? 'Not set yet' : 'Set by hand';
+  const col = `<div class="pc-col pc-bal"><header class="card-h coll"><h2><button type="button" class="coll-h" data-action="inc-toggle" data-k="bal" aria-expanded="${o}" aria-controls="coll-bal"><span class="coll-t">Current balance</span><span class="chev" aria-hidden="true">›</span></button></h2></header>
+    <div class="pc-top"><div class="pc-big${v !== null && v < 0 ? ' neg' : ''}">${v === null ? 'Set' : hm(v)}</div><div class="pc-date">${sub}</div></div></div>`;
+  const list = bt !== null ? bankAccts().filter(([, a]) => countedAcct(a) && balOf(a) !== null) : [];
+  const body = `<div class="coll-body" id="coll-bal"${o ? '' : ' hidden'}><div class="pc-more">
+    <div class="subhead pc-h"><span>Current balance</span></div>
+    ${list.length ? `<ul class="bk-acc pc-accts">${list.map(([it, a]) => `<li><div class="main"><div class="nm">${esc(a.name || 'Account')}</div><div class="sub">${esc([it.institution || 'Bank', a.mask ? '••' + a.mask : ''].filter(Boolean).join(' '))}</div></div><span class="bk-bal${balOf(a) < 0 ? ' neg' : ''}">${hm(balOf(a))}</span></li>`).join('')}</ul>` : `<p class="pc-next">${v === null ? 'Add your balance to see what is in your account.' : 'Entered by hand.'}</p>`}
+    <div><button type="button" class="btn sm" data-action="account">${bt !== null ? 'Choose accounts' : 'Set balance'}</button></div>
+  </div></div>`;
+  return { col, body, open: o };
+}
 function latestPaycheckCard() {
   const i = BT.paycheck(state); if (!i) return '';
   const ds = payDatesWithData(i), ready = bankReady();
   let nx = nextPay(i); if (ds[0] && nx <= ds[0]) nx = BT.addDays(nx, i.freq === 'weekly' ? 7 : 14);
   const nextLine = `<p class="pc-next">Next paycheck <b>${lng(nx)}</b> · ${ready ? 'comes in automatically from your bank' : 'enter it when it arrives'}</p>`;
-  if (!ds.length) return `<section class="card pc-card" id="latestpay"><header class="card-h"><h2>Latest paycheck</h2></header><div class="card-b"><div class="empty" style="padding:6px 0 10px">No paycheck recorded yet.</div>${nextLine}</div></section>`;
+  const bal = balHalf();
+  if (!ds.length) return `<section class="card pc-card${bal.open ? ' open' : ''}" id="latestpay"><div class="pc-cols"><div class="pc-col"><header class="card-h pc-h0"><h2>Latest paycheck</h2></header><div class="pc-top"><div class="pc-date">No paycheck recorded yet.</div></div></div>${bal.col}</div><div class="pc-more pc-nx">${nextLine}</div>${bal.body}</section>`;
   const cur = payInfo(i, ds[0]), editing = INCUI.edit === cur.date, open = incOpen('pay') || editing;
   const old = ds.slice(1, 7).map(d => payInfo(i, d));
-  const src = `<span class="pill soft">${cur.bank ? 'From your bank' : 'Entered by hand'}</span>`;
-  return `<section class="card pc-card${open ? ' open' : ''}" id="latestpay"><header class="card-h coll"><h2><button type="button" class="coll-h" data-action="inc-toggle" data-k="pay" aria-expanded="${open}" aria-controls="coll-pay"><span class="coll-t">Latest paycheck</span>${src}<span class="chev" aria-hidden="true">›</span></button></h2></header>
-    <div class="pc-top"><div class="pc-big">${fmt(cur.total)}</div><div class="pc-date">${esc(i.name)} · ${lng(cur.date)}${cur.manual && cur.bank ? ' · total edited by hand' : ''}</div></div>
+  return `<section class="card pc-card${open || bal.open ? ' open' : ''}" id="latestpay"><div class="pc-cols"><div class="pc-col"><header class="card-h coll"><h2><button type="button" class="coll-h" data-action="inc-toggle" data-k="pay" aria-expanded="${open}" aria-controls="coll-pay"><span class="coll-t">Latest paycheck</span><span class="chev" aria-hidden="true">›</span></button></h2></header>
+    <div class="pc-top"><div class="pc-big">${fmt(cur.total)}</div><div class="pc-date">${esc(i.name)} · ${lng(cur.date)} · ${cur.bank ? (cur.manual ? 'edited by hand' : 'from your bank') : 'by hand'}</div></div></div>${bal.col}</div>
     <div class="coll-body" id="coll-pay"${open ? '' : ' hidden'}><div class="pc-more">
       ${cur.parts.length ? `<ul class="pc-parts">${cur.parts.map(p => partRow(p, true)).join('')}</ul>` : ''}
       ${editing ? `<div class="pc-edit"><span class="money-in"><i>$</i><input id="pcamt" type="text" inputmode="decimal" autocomplete="off" value="${cur.total.toFixed(2)}" aria-label="Paycheck total"></span><button class="btn primary sm" data-action="pc-save" data-date="${cur.date}">Save</button><button class="btn sm" data-action="pc-cancel">Cancel</button></div>` : `<div class="pc-acts"><button class="btn sm" data-action="pc-edit" data-date="${cur.date}">Edit total</button><button class="linkbtn pc-set" data-action="edit" data-type="income" data-id="${i.id}">Paycheck settings</button></div>`}
       ${nextLine}
       ${old.length ? `<div class="subhead pc-h"><span>Earlier paychecks</span></div><ul class="rows pc-old">${old.map(o => { const op = INCUI.open.has(o.date); return `<li class="pc-o"><button class="pc-o-h" data-action="pc-toggle" data-date="${o.date}" aria-expanded="${op}"><span class="main"><span class="nm">${lng(o.date)}</span><span class="sub">${o.bank ? o.parts.length + (o.parts.length === 1 ? ' deposit · bank' : ' deposits · bank') : 'Entered by hand'}</span></span><span class="amt">${fmt(o.total)}</span><span class="chev" aria-hidden="true">›</span></button>${op ? (o.parts.length ? `<ul class="pc-parts">${o.parts.map(p => partRow(p, true)).join('')}</ul>` : '<p class="note" style="margin:4px 0 8px 8px">No bank deposits for this one.</p>') : ''}</li>`; }).join('')}</ul>` : ''}
-    </div></div>
+    </div></div>${bal.body}
   </section>`;
 }
 // A deposit that is not part of the paycheck: reverse it and send it back to review as a refund or transfer.
@@ -7080,6 +7135,7 @@ document.addEventListener('keydown', e => {
 const TABS = { overview: viewOverview, transactions: viewTransactions, bills: viewBills, plans: viewPlansTab, income: viewIncome };
 function currentTab() { const h = location.hash.slice(1); return h === 'cards' ? 'plans' : TABS[h] ? h : 'overview'; }
 function render() {
+  CATCOL = null;
   LIKELY = null;
   applyTheme();
   if (location.hash === '#cards') { state.settings.plansView = 'cards'; try { history.replaceState(null, '', '#plans'); localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} }

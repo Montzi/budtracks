@@ -230,7 +230,7 @@ for (const [w, h] of SIZES) {
     await page.waitForFunction(() => location.hash === '#income' && document.querySelector('#latestpay'));
     assert.equal(await page.locator('#sheet').isHidden(), true);
     assert.equal(await page.locator('#coll-pay').isHidden(), false, 'expanded after the first visit');
-    assert.equal(await page.locator('#latestpay .coll-h').getAttribute('aria-expanded'), 'true');
+    assert.equal(await page.locator('#latestpay .coll-h[data-k="pay"]').getAttribute('aria-expanded'), 'true');
     assert.equal(await page.locator('#latestpay [data-action="pc-edit"]').count(), 1);
     // Going there again keeps it open (it does not toggle shut).
     await page.goto(BASE + '#overview'); await page.click('.lad.l1'); await page.waitForSelector('#sheet [data-action="pay-to-income"]');

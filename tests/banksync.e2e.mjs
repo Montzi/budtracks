@@ -891,11 +891,11 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
   await step('Latest paycheck card: total, date, every part, source tag, next date', async () => {
     const c = page.locator('#latestpay');
     const t0 = await c.innerText();
-    assert.equal(await c.locator('.coll-h').getAttribute('aria-expanded'), 'false', 'collapsed by default');
+    assert.equal(await c.locator('.coll-h[data-k="pay"]').getAttribute('aria-expanded'), 'false', 'collapsed by default');
     assert.match(t0, /\$2,273\.31/); assert.match(t0, /Fri, Nov 20/); assert.match(t0, /from your bank/i);
     assert.ok(!(await c.locator('.pc-parts').first().isVisible()), 'deposit parts hidden while collapsed'); assert.ok(!/Earlier paychecks|Next paycheck|Edit total/.test(t0));
     await page.screenshot({ path: SHOTS + '/income-collapsed-390.png' });
-    await c.locator('.coll-h').click(); assert.equal(await c.locator('.coll-h').getAttribute('aria-expanded'), 'true');
+    await c.locator('.coll-h[data-k="pay"]').click(); assert.equal(await c.locator('.coll-h[data-k="pay"]').getAttribute('aria-expanded'), 'true');
     const t = await c.innerText();
     assert.match(t, /\$2,273\.31/); assert.match(t, /Fri, Nov 20/); assert.match(t, /from your bank/i); assert.equal(await c.locator('.pc-parts').first().locator('li').count(), 3);
     assert.match(t, /Citizens ••4417/); assert.match(t, /Santander ••6429/); assert.match(t, /Posted Nov 19/); assert.match(t, /\+\$1,873\.31/);
@@ -908,7 +908,7 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     assert.match(t, /Paycheck settings/);
     await c.locator('[data-action="edit"][data-type="income"]').click(); await page.waitForSelector('#form'); assert.match(await page.locator('#sheet').innerText(), /Payroll|Stat Delivery|Income/i); await page.keyboard.press('Escape');
     await page.reload({ waitUntil: 'load' }); await page.waitForSelector('#latestpay');
-    assert.equal(await page.locator('#latestpay .coll-h').getAttribute('aria-expanded'), 'true', 'expanded state remembered');
+    assert.equal(await page.locator('#latestpay .coll-h[data-k="pay"]').getAttribute('aria-expanded'), 'true', 'expanded state remembered');
   });
   await step('Not part of paycheck: total drops, txn returns to review as refund/transfer, and stays out after Sync now', async () => {
     await page.locator('#latestpay .pc-part', { hasText: '$300.00' }).locator('[data-action="pc-out"]').click();
