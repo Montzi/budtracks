@@ -3,6 +3,7 @@
 Versions match `VERSION` in `sw.js`. Newest first.
 
 ## 2026-11-25
+- **v53** Match to a bill also lists bills you already marked paid and ones up to two months back. Matching a paid bill merges it with your entry, so the payment counts once.
 - **v52** Phones show one Cycle button that switches to Month; landscape keeps the two-part switch. Entries added with + list under Added by you, next to screenshot entries, with their logo or a colored icon. Edit one and tap Match to a bill to mark that bill paid with it. Test page loads may take 20 s on GitHub.
 - **v51** New Home Screen icon: the Bt monogram polished, coral serif on a deep navy gradient with a glowing gold underline. Icon URLs carry `?v=51` so Safari fetches the new files. Remove and re-add the app to see it; back up first.
 - **v50** Pull down from the top of Transactions to refresh. Cycle/Month switch matches the icon buttons. "Spent this cycle" fits on one line. Overview: Due today and Next cycle needs share one line. Ask Bud on the Income tab opens and closes.

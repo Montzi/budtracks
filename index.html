@@ -6363,22 +6363,27 @@ function pkListHTML() {
 // date and, for a bill, your amount. The entry then is that payment, so it leaves spending and is not counted twice.
 function spMatchSheet(sid) {
   const sp = (state.spends || []).find(z => z.id === sid); if (!sp) return;
-  const r = { start: BT.addDays(sp.date, -21), end: BT.addDays(sp.date, 22), view: state.settings.view };
-  const list = BT.occurrences(state, r, TODAY).filter(x => ['bill', 'card', 'plan'].includes(x.kind) && !x.paid)
-    .sort((a, b) => (Math.abs(a.amount - sp.amount) - Math.abs(b.amount - sp.amount)) || (Math.abs(BT.diffDays(a.due, sp.date)) - Math.abs(BT.diffDays(b.due, sp.date))));
-  list.forEach(x => SEL.set(x.key, x));
+  // About two months back and three weeks ahead. Bills you already marked paid are listed too: matching one
+  // to this entry merges the two, so the payment is not counted twice.
+  const r = { start: BT.addDays(sp.date, -62), end: BT.addDays(sp.date, 22), view: state.settings.view };
+  const near = (a, b) => (Math.abs(a.amount - sp.amount) - Math.abs(b.amount - sp.amount)) || (Math.abs(BT.diffDays(a.due, sp.date)) - Math.abs(BT.diffDays(b.due, sp.date)));
+  const all = BT.occurrences(state, r, TODAY).filter(x => ['bill', 'card', 'plan'].includes(x.kind)).sort(near);
+  all.forEach(x => SEL.set(x.key, x));
   const t = { amount: sp.amount, date: sp.date };
+  const opt = x => pkOpt(x, t).replace('data-action="pk-pick"', `data-action="spm-pick" data-id="${esc(sid)}"`);
+  const sec = (title, l) => l.length ? `<div class="pk-sec">${title}</div><div class="pk-grp">${l.map(opt).join('')}</div>` : '';
+  const unpaid = all.filter(x => !x.paid), paid = all.filter(x => x.paid);
   openSheet(`<div class="sheet-h"><div><h3>Match to a bill</h3><p class="lede">${esc(sp.desc || sp.category)} · ${fmt(sp.amount)} · ${md(sp.date)}</p></div>${closeBtn}</div>
-    <div class="pk-list">${list.length ? `<div class="pk-grp">${list.map(x => pkOpt(x, t).replace('data-action="pk-pick"', `data-action="spm-pick" data-id="${esc(sid)}"`)).join('')}</div>` : '<p class="note">No unpaid bills, card payments or plans within three weeks of this date.</p>'}</div>`);
+    <div class="pk-list">${all.length ? sec('Not paid yet', unpaid) + sec('Already marked paid', paid) : '<p class="note">No bills, card payments or plans in the two months around this date.</p>'}</div>`);
 }
 function spMatch(sid, key) {
   const i = (state.spends || []).findIndex(z => z.id === sid), x = SEL.get(key); if (i < 0 || !x) return;
   const sp = state.spends[i], before = JSON.stringify({ spends: state.spends, marks: state.marks, occ: state.occ });
-  setPaid(key, true, !!x.auto, sp.date !== x.due ? sp.date : '', false);
+  setPaid(key, true, !!x.auto, sp.date !== x.due ? sp.date : '', !!x.paid);
   if (x.kind === 'bill' && BT.round2(sp.amount) !== BT.round2(x.amount)) (state.occ[key] || (state.occ[key] = {})).amount = BT.round2(sp.amount);
   state.spends.splice(i, 1);
   closeSheet(); commit();
-  toast('Matched to ' + x.name + '. Marked paid', () => { const b = JSON.parse(before); state.spends = b.spends; state.marks = b.marks; state.occ = b.occ; commit('Match undone'); });
+  toast('Matched to ' + x.name + (x.paid ? '. Merged with the payment you marked' : '. Marked paid'), () => { const b = JSON.parse(before); state.spends = b.spends; state.marks = b.marks; state.occ = b.occ; commit('Match undone'); });
 }
 function txMatchSheet(id) {
   const t = txnOf(id); if (!t) return;
