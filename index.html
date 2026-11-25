@@ -114,11 +114,15 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .hero-stats .neg { color: var(--hero-neg); }
 
 .hero-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--hero-line); font-size: 13px; color: var(--hero-ink-2); }
-.hero-due { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 14px; padding: 10px 0 0; border: 0; border-top: 1px solid var(--hero-line); background: transparent; color: inherit; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
-.hero-due + .hero-foot { margin-top: 8px; padding-top: 0; border-top: 0; }
+.hero-due { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; font-size: 13px; text-align: left; cursor: pointer; white-space: nowrap; }
+.hero-foot .hf-next { white-space: nowrap; }
 .hero-due .nbadge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: #d3282b; color: #fff; font: 700 12px/20px var(--body); text-align: center; }
 .hero-due .hd-none { color: var(--hero-ink-2); }
-.hero-due::after { content: "›"; margin-left: auto; opacity: .6; }
+.hero-due::after { content: "›"; opacity: .6; }
+#ptr { position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 50%; z-index: 60; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 4px 14px rgba(0,0,0,.18); color: var(--ink-3); transform: translate(-50%, -50px); opacity: 0; pointer-events: none; transition: opacity .15s; }
+#ptr.on { opacity: 1; }
+#ptr.ready { color: var(--accent, var(--ink)); }
+#ptr svg { width: 18px; height: 18px; }
 .hero-foot b { color: var(--hero-ink); font-family: var(--mono); font-weight: 500; }
 .linkbtn { background: none; border: 0; padding: 0; color: var(--brass); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
 .hero .linkbtn { color: var(--brass-hi); }
@@ -1054,7 +1058,7 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 .tx-sum .tx-hb .icon-btn { width: 40px; height: 40px; border-radius: 12px; }
 .tx-sum .tx-hb .icon-btn svg { width: 18px; height: 18px; }
 .tx-sum .tx-hb .seg { margin-right: 2px; }
-.tx-sum-b span { white-space: normal !important; line-height: 1.2; font-size: 10px !important; letter-spacing: .05em !important; }
+.tx-sum-b span { white-space: nowrap !important; line-height: 1.2; font-size: 11px !important; letter-spacing: 0 !important; text-transform: none !important; }
 .tx-sum-b b.long { font-size: 15.5px !important; }
 .tx-sum-b b::after { margin-left: 3px !important; }
 .tx-sum-b { display: grid; justify-items: start; gap: 1px; min-width: 0; border: 0; background: transparent; padding: 2px 0; color: var(--ink); text-align: left; font: inherit; }
@@ -1065,7 +1069,8 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 .tx-hb .icon-btn svg { width: 20px; height: 20px; }
 .tx-hb .icon-btn.tx-sync { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); }
 .tx-sum .seg { flex: none; }
-.tx-sum .seg button { padding: 4px 6px; font-size: 11px; }
+.tx-sum .seg { height: 40px; border-radius: 12px; padding: 3px; align-items: stretch; }
+.tx-sum .seg button { padding: 0 6px; font-size: 11.5px; border-radius: 9px; }
 .tx-find { display: flex; gap: 8px; min-width: 0; }
 .tx-find input, .tx-find select { min-width: 0; flex: 1 1 0; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
 .tx-find select { flex: 0 1 45%; }
@@ -3066,7 +3071,7 @@ function dueTodayRows() {
 }
 function dueTodayHTML() {
   const n = dueTodayRows().length;
-  return `<button type="button" class="hero-due" data-action="today-list" aria-label="Bills due today: ${n}"><span>Bills due today</span>${n ? `<span class="nbadge">${n}</span>` : '<span class="hd-none">None</span>'}</button>`;
+  return `<button type="button" class="hero-due" data-action="today-list" aria-label="Bills due today: ${n}"><span>Due today</span>${n ? `<span class="nbadge">${n}</span>` : '<span class="hd-none">None</span>'}</button>`;
 }
 function heroListSheet(which, mode) {
   if (which === 'today') {
@@ -3186,8 +3191,7 @@ function viewOverview() {
     </dl>
     ${(() => { const sv = svOn() ? BT.savedIn(state, r) : 0; return sv > 0 ? `<p class="hero-saved">Saved this ${{ weekly: 'week', biweekly: 'cycle', monthly: 'month' }[view]} <b>${hm(sv)}</b></p>` : ''; })()}
     ${payPrompt(r) || (pc && !pc.amount && !pc.askFrom ? `<button class="cta" data-action="edit" data-type="income" data-id="${pc.id}">Add your paycheck amount to see what is left over each ${VIEWNAME[view]}.</button>` : '')}
-    ${dueTodayHTML()}
-    <div class="hero-foot"><span>Next ${VIEWNAME[view]} needs <b>${hm(ns.needed)}</b></span>${isNow ? '' : '<button class="linkbtn" data-action="today">Back to now</button>'}</div>
+    <div class="hero-foot">${dueTodayHTML()}<span class="hf-next">Next cycle needs <b>${hm(ns.needed)}</b></span>${isNow ? '' : '<button class="linkbtn" data-action="today">Back to now</button>'}</div>
   </section>
     <section class="card ov-donut"><header class="card-h"><h2>${chartTitle}</h2><span class="meta">${fmt(chartTotal)}</span></header>
       ${view === 'monthly' ? '' : `<div class="ch-range"><div class="seg" role="group" aria-label="Chart period"><button type="button" data-action="chart-range" data-r="cycle" aria-pressed="${!chartMonth}">${view === 'weekly' ? 'Week' : 'Cycle'}</button><button type="button" data-action="chart-range" data-r="month" aria-pressed="${chartMonth}">Month</button></div></div>`}
@@ -6221,7 +6225,7 @@ function txListHTML() {
 function txSummaryHTML() {
   const view = state.settings.view, mo = view === 'monthly' || state.settings.txRange === 'month';
   const r = BT.periodRange(state, mo ? 'monthly' : view, 0, TODAY), amt = heroNums(r).spentAll;
-  const what = mo ? 'month' : VIEWNAME[view], rg = mo ? 'month' : 'cycle';
+  const what = mo ? 'month' : view === 'weekly' ? 'week' : 'cycle', rg = mo ? 'month' : 'cycle';
   const btn = `<button type="button" class="tx-sum-b" data-action="spent-list" data-r="${rg}" aria-label="Spent this ${what}: ${hid() ? 'amount hidden' : fmt(amt)}. See the list"><span>Spent this ${what}</span><b id="tx-spent" class="${String(hm(amt)).length > 8 ? 'long' : ''}">${hm(amt)}</b></button>`;
   const seg = view === 'monthly' ? '' : `<div class="seg" role="group" aria-label="Spent period"><button type="button" data-action="tx-range" data-r="cycle" aria-pressed="${!mo}">${view === 'weekly' ? 'Week' : 'Cycle'}</button><button type="button" data-action="tx-range" data-r="month" aria-pressed="${mo}">Month</button></div>`;
   return { btn, seg };
@@ -6947,13 +6951,14 @@ function aiCard() {
   const note = p === 'gemini'
     ? 'Gemini 3.8 Flash by Google, on its free tier: free within Google\'s daily limits. On the free tier, Google may use what you send to improve its products.'
     : 'Claude Haiku 5.5 by Anthropic, the cheapest Claude. About a tenth of a cent per question on your Anthropic account. Anthropic does not train on API data.';
-  return `<section class="card" id="aicard"><header class="card-h"><div><h2>Ask Bud</h2><span class="meta">Which AI answers when you tap Bud</span></div></header>
-    <div class="card-b" style="display:grid;gap:10px">
+  const o = incOpen('ai');
+  return `<section class="card" id="aicard"><header class="card-h coll"><h2><button type="button" class="coll-h" data-action="inc-toggle" data-k="ai" aria-expanded="${o}" aria-controls="coll-ai"><span class="coll-t">Ask Bud</span><span class="meta">Which AI answers</span><span class="chev" aria-hidden="true">›</span></button></h2></header>
+    <div class="coll-body" id="coll-ai"${o ? '' : ' hidden'}><div class="card-b" style="display:grid;gap:10px">
       <div class="seg kind-seg" role="group" aria-label="AI for Ask Bud"><button type="button" data-action="ai-prov" data-p="claude" aria-pressed="${p === 'claude'}">Claude Haiku</button><button type="button" data-action="ai-prov" data-p="gemini" aria-pressed="${p === 'gemini'}">Gemini Flash</button></div>
       <p class="note" style="margin:0">${note}</p>
       ${off ? `<p class="note warn" style="margin:0">No ${p === 'gemini' ? 'Gemini' : 'Anthropic'} key on your server yet. Paste one below.</p>` : ''}
       ${bankReady() ? aiKeyBox(p) : ''}
-    </div></section>`;
+    </div></div></section>`;
 }
 // Tap Bud: a chat window under the logo. Questions go to the BudTracks server (/ask) with a compact summary built here
 // (totals, trends, upcoming, recent lines), never the raw data. The chat lives only in this browser (not in backups).
@@ -7031,6 +7036,7 @@ window.addEventListener('resize', chatPlace);
 if (window.visualViewport) { visualViewport.addEventListener('resize', chatPlace); visualViewport.addEventListener('scroll', chatPlace); }
 function goSettings(id) {
   budChatClose(); if (!$('#sheet').hidden) closeSheet();
+  if (id === 'aicard' && !incOpen('ai')) incToggle('ai');
   // The tab switch scrolls to the top, so the scroll waits for it: the hashchange handler applies SCROLLTO.
   if (currentTab() !== 'income') { SCROLLTO = id || 'settings'; location.hash = '#income'; return; }
   requestAnimationFrame(() => scrollKeep(id || 'settings'));
@@ -7211,6 +7217,18 @@ function render() {
   if (tab === 'transactions' && TXUI.toReview) { TXUI.toReview = false; setTimeout(() => { const el = $('#txreview'); if (el && currentTab() === 'transactions') el.scrollIntoView({ block: 'start' }); }, 80); }
 }
 let lastTab = null;
+// Pull down from the very top of Transactions to refresh, like the sync button.
+const PTR = { y0: null, d: 0, el: null };
+function ptrEl() { if (!PTR.el) { PTR.el = document.createElement('div'); PTR.el.id = 'ptr'; PTR.el.setAttribute('aria-hidden', 'true'); PTR.el.innerHTML = `<span class="ptr-i">${ICON.refresh}</span>`; document.body.appendChild(PTR.el); } return PTR.el; }
+function ptrSet(d) { const e = ptrEl(); PTR.d = d; e.style.transform = `translate(-50%, ${Math.min(d, 90) * 0.7 - 50}px) rotate(${d * 3}deg)`; e.classList.toggle('on', d > 0); e.classList.toggle('ready', d >= 70); }
+window.addEventListener('touchstart', e => { PTR.y0 = (currentTab() === 'transactions' && scrollY <= 0 && $('#sheet').hidden && e.touches.length === 1) ? e.touches[0].clientY : null; PTR.d = 0; }, { passive: true });
+window.addEventListener('touchmove', e => { if (PTR.y0 === null) return; const d = e.touches[0].clientY - PTR.y0; if (d <= 0 || scrollY > 0) { if (PTR.d) ptrSet(0); return; } ptrSet(d); }, { passive: true });
+window.addEventListener('touchend', () => {
+  if (PTR.y0 === null) return; const go = PTR.d >= 70; PTR.y0 = null; ptrSet(0);
+  if (!go) return;
+  const b = document.querySelector('.tx-card .card-h [data-action="bk-sync"]:not([disabled])');
+  if (b) b.click(); else toast(bankReady() ? 'Already refreshing' : 'Connect a bank on the Income tab to refresh');
+}, { passive: true });
 let SCROLLTO = '', SCROLLKEEP = null;
 // Scrolls to a card on the Income tab. Content that loads late above it (the bank list, the AI card) would push it down,
 // so for 2 s each redraw scrolls to it again, unless you scrolled yourself.

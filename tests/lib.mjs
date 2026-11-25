@@ -25,11 +25,11 @@ export const failures = () => failed;
 export const finish = () => { console.log(failed ? failed + ' step(s) FAILED' : 'all steps passed'); process.exit(failed ? 1 : 0); };
 
 // Runs on every test page before the app loads. Put new test-wide defaults here.
-// - Bank connections on the Income tab starts open, as most tests expect. prep(page, { bankOpen: false }) keeps the app default.
+// - Bank connections and Ask Bud on the Income tab start open, as most tests expect. prep(page, { bankOpen: false }) keeps the app default.
 // - Web fonts are blocked so pages load fast and offline.
 export async function prep(page, o = {}) {
   page.setDefaultTimeout(6000);
-  if (o.bankOpen !== false) await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true}'); });
+  if (o.bankOpen !== false) await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true,"ai":true}'); });
   await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   return page;
 }

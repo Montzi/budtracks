@@ -108,9 +108,9 @@ for (const [w, h] of [[390, 844], [1000, 703]]) {
   });
   await step(`${w}x${h} Overview shows Bills due today with a count, and its list`, async () => {
     const d = page.locator('.hero-due');
-    assert.match(await d.innerText(), /Bills due today\s*1/);
-    const due = await R(page, '.hero-due'), foot = await R(page, '.hero-foot');
-    assert.ok(due.b <= foot.t + 1, 'above Next cycle needs');
+    assert.match(await d.innerText(), /Due today\s*1/);
+    const due = await R(page, '.hero-due'), foot = await R(page, '.hero-foot .hf-next'); // v50: same line
+    assert.ok(due.r <= foot.l, 'before Next cycle needs');
     await d.click(); await page.waitForSelector('#sheet:not([hidden]) .hl-list');
     assert.match(await page.locator('#sheet').innerText(), /Gym/);
     await page.click('#sheet .sheet-h [data-action="close"]'); await page.waitForSelector('#sheet', { state: 'hidden' });

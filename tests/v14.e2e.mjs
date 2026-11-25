@@ -103,7 +103,7 @@ for (const [w, h, dark] of [[390, 844, true], [390, 844, false], [669, 951, true
 
   await step(`Spent summary equals hero Spent so far (cycle) and the month total (Month); switch persists; list total matches (${tag})`, async () => {
     await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx-sum');
-    assert.match(await page.locator('.tx-sum').innerText(), /Spent this pay cycle/i);
+    assert.match(await page.locator('.tx-sum').innerText(), /Spent this cycle/i);
     const cyc = money(await page.locator('#tx-spent').innerText());
     const hero = await heroSpent(page);
     assert.equal(cyc, hero, 'cycle equals hero');

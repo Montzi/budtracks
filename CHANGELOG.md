@@ -3,6 +3,7 @@
 Versions match `VERSION` in `sw.js`. Newest first.
 
 ## 2026-11-25
+- **v50** Pull down from the top of Transactions to refresh. Cycle/Month switch matches the icon buttons. "Spent this cycle" fits on one line. Overview: Due today and Next cycle needs share one line. Ask Bud on the Income tab opens and closes.
 - **v49** Your data text uses the full card width. No "from your bank" under the paycheck. Current balance lists banks in In account order, with logos and arrows to reorder both. Add to savings has a +. Transactions: Spent this pay cycle replaces the title, Cycle/Month sits before the camera, Updated time moved into the Spent list. Overview: Bills due today with a red count, above Next pay cycle needs.
 
 ## 2026-11-24
