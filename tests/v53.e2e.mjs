@@ -100,7 +100,9 @@ for (const [w, h] of [[390, 844]]) {
     await page.reload({ waitUntil: 'load' }); await page.waitForSelector('.shot-w:has-text("Sahomi Valdez")');
     await page.click('.shot-w:has-text("Sahomi Valdez")'); await page.waitForSelector('#form');
     await page.click('[data-action="sp-match"]'); await page.waitForSelector('.pk-sec');
-    const txt = await page.locator('#sheet .pk-list').innerText(); assert.match(txt, /Already marked paid[\s\S]*Loan bill/i, txt);
+    const txt = await page.locator('#sheet .pk-list').innerText();
+    assert.match(txt, /^Same amount\s+Loan bill/i, 'the paid Loan bill comes first: ' + txt.slice(0, 120));
+    assert.match(txt, /Marked paid/i);
     await page.click('[data-action="spm-pick"]:has-text("Loan bill")'); await page.waitForSelector('#sheet', { state: 'hidden' });
     const s = await page.evaluate(k => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); return { n: s.spends.filter(x => x.desc === 'Sahomi Valdez').length, paid: s.marks[k] === true || !!(s.occ[k] && s.occ[k].checkedOn) }; }, key);
     assert.deepEqual(s, { n: 0, paid: true });

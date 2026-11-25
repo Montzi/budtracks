@@ -3,7 +3,7 @@
 Working rules for anyone (or any Claude session) changing this repo. Keep this file current after every release.
 
 ## Status (2026-11-25)
-- Live release: `budtracks-v53` on https://montzi.github.io/budtracks/
+- Live release: `budtracks-v54` on https://montzi.github.io/budtracks/
 - Worker `budtracks-worker` live on Cloudflare, Plaid **production**.
 - AI: Claude Haiku 5.5 default, Gemini 3.8 Flash optional. Both keys work.
 - Nothing pending.
@@ -68,7 +68,7 @@ Aim: a small change ships in 5 to 8 minutes. The user checks it on the phone and
 - Names: `state.bank.names` maps a bank line id to the name you typed. `cleanMerchant` returns it first. `setTxName` saves it.
 - Income tab: Latest paycheck card has two halves, `pay` and `bal`. `balHalf()` builds Current balance from `bankTotal()`, like In account. `acctBalHTML` shows a balance on bank cards.
 - Overview: `dueTodayHTML()` above the hero foot, `heroListSheet('today')` lists today's unpaid bills. Transactions header is `txSummaryHTML()` returning `{ btn, seg }`; tests read its Updated time with `txUpdated(page)` from `tests/lib.mjs`.
-- Your own entries: `shotWaitHTML()` lists screenshot entries and ones added with + (`mine: true`), with `manualLogo`. `spMatchSheet` / `spMatch` match one to a bill: the bill is marked paid and the entry removed, with Undo. The list covers 62 days back to 22 ahead and includes paid bills. Their actions sit in the main action switch, not `txAct`.
+- Your own entries: `shotWaitHTML()` lists screenshot entries and ones added with + (`mine: true`), with `manualLogo`. `spMatchSheet` / `spMatch` match one to a bill: the bill is marked paid and the entry removed, with Undo. The list covers 62 days back to 22 ahead: Same amount first, paid or not, then Not paid yet, then Already marked paid. Their actions sit in the main action switch, not `txAct`.
 - Range control: `.tx-rg1` one button on phones, `.seg` in landscape. Tests click `[data-action="tx-range"][data-r="month"]:visible`.
 - Pull to refresh: `PTR` touch handlers near `SCROLLTO`. A pull of 70 px from the top of Transactions clicks the header sync button.
 - Ask Bud card is collapsible with key `ai`. `goSettings('aicard')` opens it. `prep(page)` opens `bank` and `ai` for tests.
@@ -85,5 +85,6 @@ Aim: a small change ships in 5 to 8 minutes. The user checks it on the phone and
 - `tests/v12.e2e.mjs` sometimes never gets balances from its first sync. The retry passes. When it fails, the log has a `SYNC WAIT TIMED OUT` line with the app's state. Read that before changing anything.
 - GitHub's test machine needs Inter as its default font, like the sandbox. `tests/fonts-prefer-inter.conf` does that. Without it, text is wider and layout checks fail.
 - iOS never refreshes a Home Screen icon. A new icon needs: new PNGs from `scripts/render-icons.mjs`, a new `?v=` in `index.html`, `manifest.webmanifest` and `sw.js`, then the user removes and re-adds the app after a backup. Removing it can delete its data.
+- Tests run offline: `prep(page)` aborts every request outside localhost, `worker.test` and `cdn.plaid.com`. GitHub's open network let logo services stall page loads.
 - Plaid Trial caps at 10 bank logins and removing one does not free a slot.
 - Teller shut down its API; Plaid replaced it.

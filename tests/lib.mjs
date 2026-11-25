@@ -31,6 +31,9 @@ export async function prep(page, o = {}) {
   page.setDefaultTimeout(6000);
   page.setDefaultNavigationTimeout(20000); // GitHub's machine can take over 6 s to reload under parallel load
   if (o.bankOpen !== false) await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true,"ai":true}'); });
+  // Every other outside request is blocked, like the offline sandbox. On GitHub the network is open and logo
+  // services made page loads hang. Routes a test adds later, for the Worker or Plaid, take priority over this one.
+  await page.route(u => !/^(https?:\/\/localhost[:/]|https:\/\/worker\.test\/|https:\/\/cdn\.plaid\.com\/|data:|blob:)/.test(u.href), route => route.abort());
   await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   return page;
 }

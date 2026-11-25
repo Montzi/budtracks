@@ -6372,9 +6372,11 @@ function spMatchSheet(sid) {
   const t = { amount: sp.amount, date: sp.date };
   const opt = x => pkOpt(x, t).replace('data-action="pk-pick"', `data-action="spm-pick" data-id="${esc(sid)}"`);
   const sec = (title, l) => l.length ? `<div class="pk-sec">${title}</div><div class="pk-grp">${l.map(opt).join('')}</div>` : '';
-  const unpaid = all.filter(x => !x.paid), paid = all.filter(x => x.paid);
+  // Same amount first, paid or not: that is almost always the one. Then the rest, unpaid before paid.
+  const same = x => Math.abs(x.amount - sp.amount) < 0.005, best = all.filter(same), rest = all.filter(x => !same(x));
+  const unpaid = rest.filter(x => !x.paid), paid = rest.filter(x => x.paid);
   openSheet(`<div class="sheet-h"><div><h3>Match to a bill</h3><p class="lede">${esc(sp.desc || sp.category)} · ${fmt(sp.amount)} · ${md(sp.date)}</p></div>${closeBtn}</div>
-    <div class="pk-list">${all.length ? sec('Not paid yet', unpaid) + sec('Already marked paid', paid) : '<p class="note">No bills, card payments or plans in the two months around this date.</p>'}</div>`);
+    <div class="pk-list">${all.length ? sec('Same amount', best) + sec('Not paid yet', unpaid) + sec('Already marked paid', paid) : '<p class="note">No bills, card payments or plans in the two months around this date.</p>'}</div>`);
 }
 function spMatch(sid, key) {
   const i = (state.spends || []).findIndex(z => z.id === sid), x = SEL.get(key); if (i < 0 || !x) return;
