@@ -105,8 +105,8 @@ for (const [w, h] of [[390, 844]]) {
     assert.match(txt, /Marked paid/i);
     await page.click('[data-action="spm-pick"]:has-text("Loan bill")'); await page.waitForSelector('#sheet', { state: 'hidden' });
     const s = await page.evaluate(k => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); return { n: s.spends.filter(x => x.desc === 'Sahomi Valdez').length, paid: s.marks[k] === true || !!(s.occ[k] && s.occ[k].checkedOn) }; }, key);
-    assert.deepEqual(s, { n: 0, paid: true });
-    assert.match(await page.locator('#toast').innerText(), /Merged/);
+    assert.deepEqual(s, { n: 1, paid: true }); // v55: the entry stays
+    assert.match(await page.locator('#toast').innerText(), /counts once/);
   });
   await step('no page errors', async () => { assert.deepEqual(errs, []); });
   await ctx.close();

@@ -80,11 +80,12 @@ const BAL = [{ itemId: 'enr_c', institution: 'Chime', accounts: [BA('ch1', 'Chec
   { itemId: 'enr_p', institution: 'PNC', accounts: [BA('pn1', 'Spend', '3941', -20.25), BA('pnc', 'Visa', '4242', 1500, { type: 'credit', subtype: 'credit card', current: 500 })] }];
 const TX = () => [T('l1', TODAY, 'DURAN LAUNDROMAT', 23.98), T('l2', TODAY, 'EL MESON', 31.5), T('ue', TODAY, 'UBER EATS', 18.2)];
 const b = await pw.chromium.launch();
-const addSpend = async (page, desc, amt, cat) => {
+const addSpend = async (page, desc, amt, cat, logo) => {
   await page.click('.tx-hb [data-action="add"]'); await page.waitForSelector('#form');
   await page.selectOption('#form [name="category"]', cat);
   await page.fill('#form [name="desc"]', desc); await page.fill('#form [name="amount"]', String(amt));
-  await page.click('#form button[type="submit"]'); await page.waitForSelector('#sheet', { state: 'hidden' });
+  if (logo) { await page.click('#form [data-action="lgf-toggle"]'); await page.click(`#form [data-action="lgf-pick"][data-k="${logo}"]`); }
+  await page.click('#form button[type="submit"]'); await page.waitForSelector('#sheet', { state: 'hidden', timeout: 15000 });
 };
 for (const [w, h] of [[390, 844], [1000, 703]]) {
   const fx = fixture({ income: [{ id: 'pay', name: 'Acme', freq: 'biweekly', date: PAY, amount: 2000, perCycle: { [PAY]: 2553.31 } }] });
@@ -103,14 +104,17 @@ for (const [w, h] of [[390, 844], [1000, 703]]) {
     } else assert.ok(await seg.isVisible() && await one.isHidden());
   });
   await step(`${w}x${h} entries added with + show under Added by you, with a logo or a colored icon`, async () => {
-    await addSpend(page, 'Uber Eats', 18.5, 'Groceries');
+    await page.click('.tx-hb [data-action="add"]'); await page.waitForSelector('#form [data-action="lgf-toggle"]');
+    const k = await page.getAttribute('#form [data-action="lgf-pick"]:not([data-k="-"])', 'data-k');
+    await page.click('#form .sheet-h [data-action="close"], #sheet .sheet-h [data-action="close"]'); await page.waitForSelector('#sheet', { state: 'hidden' });
+    await addSpend(page, 'Uber Eats', 18.5, 'Groceries', k);
     await addSpend(page, 'Gym payment', 25, 'Other');
     await page.waitForSelector('.shot-wait');
     assert.match(await page.locator('.shot-wait .tx-day').innerText(), /Added by you/i);
     const rows = await page.$$eval('.shot-wait .shot-w', l => l.map(e => [e.querySelector('b').textContent, !!e.querySelector('.slogo'), e.querySelector('.slogo') ? e.querySelector('.slogo').classList.contains('slogo-cat') : null]));
     assert.deepEqual(rows.map(r => r[0]).sort(), ['Gym payment', 'Uber Eats']);
     assert.ok(rows.every(r => r[1]), 'every row has an icon');
-    assert.equal(rows.find(r => r[0] === 'Uber Eats')[2], false, 'Uber Eats shows its logo');
+    assert.equal(rows.find(r => r[0] === 'Uber Eats')[2], false, 'the logo you picked shows');
     await page.screenshot({ path: `${SHOTS}/v52-tx-${w}.png` });
   });
   await step(`${w}x${h} Match to a bill marks the bill paid and removes the entry, Undo brings both back`, async () => {
@@ -119,8 +123,8 @@ for (const [w, h] of [[390, 844], [1000, 703]]) {
     assert.match(await page.locator('[data-action="spm-pick"]').first().innerText(), /Gym/);
     await page.click('[data-action="spm-pick"]:has-text("Gym")'); await page.waitForSelector('#sheet', { state: 'hidden' });
     const st = () => page.evaluate(() => { const s = JSON.parse(localStorage.getItem('budtrack.v1')); return { n: s.spends.filter(x => x.desc === 'Gym payment').length, paid: Object.entries(s.marks).filter(([k, v]) => k.includes('gym') && v).length }; });
-    assert.deepEqual(await st(), { n: 0, paid: 1 });
-    assert.equal(await page.locator('.shot-w:has-text("Gym payment")').count(), 0);
+    assert.deepEqual(await st(), { n: 1, paid: 1 }); // v55: the entry stays, tagged with the bill
+    assert.match(await page.locator('.shot-w:has-text("Gym payment")').innerText(), /Paid Gym/);
     await page.click('#toast button:not([aria-label="Dismiss"])');
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('budtrack.v1')).spends.some(x => x.desc === 'Gym payment'));
     assert.deepEqual(await st(), { n: 1, paid: 0 });

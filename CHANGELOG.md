@@ -3,6 +3,7 @@
 Versions match `VERSION` in `sw.js`. Newest first.
 
 ## 2026-11-25
+- **v55** Matching your own entry to a bill keeps it in Transactions with a Paid tag; totals count the payment once through the bill. Unmatch in its edit form. When the bank line arrives it links to the entry, for + entries too, not only screenshots.
 - **v54** Match to a bill puts bills with the same amount first, paid or not. Tests block outside requests, so logo services no longer stall GitHub runs.
 - **v53** Match to a bill also lists bills you already marked paid and ones up to two months back. Matching a paid bill merges it with your entry, so the payment counts once.
 - **v52** Phones show one Cycle button that switches to Month; landscape keeps the two-part switch. Entries added with + list under Added by you, next to screenshot entries, with their logo or a colored icon. Edit one and tap Match to a bill to mark that bill paid with it. Test page loads may take 20 s on GitHub.

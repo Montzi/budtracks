@@ -1521,6 +1521,7 @@ const BT = (() => {
     }
     // Unscheduled spending: already spent unless unticked.
     for (const s of (st.spends || [])) {
+      if (s.billKey) continue; // matched to a bill: the bill counts it, once
       const key = 'x:' + s.id;
       out.push({ key, kind: 'extra', ref: s.id, from: s.from || '', via: s.via || '', name: s.desc || s.category, note: s.category + (s.note ? ' · ' + s.note : ''), category: s.category, amount: s.amount, date: s.date, group: 'Spending', paid: key in st.marks ? !!st.marks[key] : true, auto: true });
     }
@@ -2185,7 +2186,7 @@ const BT = (() => {
   function shotCands(st, t) {
     if (!t || !(t.amount > 0) || !t.date) return [];
     const no = ((st.bank && st.bank.notShot) || {})[t.id] || [];
-    return (st.spends || []).filter(x => x && x.shot && !x.bank && x.date && !no.includes(x.id))
+    return (st.spends || []).filter(x => x && (x.shot || x.mine) && !x.bank && x.date && !no.includes(x.id))
       .filter(x => shotNames(x).some(n => txnNames(t).some(d => shotSim(n, d))))
       .map(x => ({ spend: x, diff: round2(t.amount - x.amount), dd: Math.abs(diffDays(x.date, t.date)) }));
   }
@@ -4102,7 +4103,7 @@ function openForm(type, id, extra) {
       ${spec.fields.map(f => fieldHTML(f, item[f.k], isNew)).join('')}
       ${type === 'plan' ? '<div class="preview" id="preview" aria-live="polite"></div>' : ''}
       <div class="form-err" id="ferr" role="alert"></div>
-      <div class="actions">${isNew ? '' : '<button type="button" class="btn danger" data-action="delete">Delete</button>'}${type === 'extra' && !isNew && !item.bank && !inbox && !hist && !txf ? `<button type="button" class="btn" data-action="sp-match" data-id="${esc(id)}">Match to a bill</button>` : ''}
+      <div class="actions">${isNew ? '' : '<button type="button" class="btn danger" data-action="delete">Delete</button>'}${type === 'extra' && !isNew && !item.bank && !inbox && !hist && !txf ? (item.billKey ? `<button type="button" class="btn" data-action="sp-unmatch" data-id="${esc(id)}">Unmatch ${esc(item.billName || 'bill')}</button>` : `<button type="button" class="btn" data-action="sp-match" data-id="${esc(id)}">Match to a bill</button>`) : ''}
         <div class="r"><button type="button" class="btn" data-action="${inbox ? 'ix-open' : hist ? 'hx-open' : 'close'}">Cancel</button><button type="submit" class="btn primary">${isNew ? (type === 'plan' ? 'Save and choose category' : 'Add') : 'Save'}</button></div></div>
     </form>`);
   if (type === 'plan') { const f = $('#form'); f.addEventListener('input', planPreview); planPreview(); }
@@ -5734,12 +5735,12 @@ function unlinkShot(o, id, r) {
 function notShot(o, txnId, spendId) { const l = o.bank.notShot[txnId] || (o.bank.notShot[txnId] = []); if (!l.includes(spendId)) l.push(spendId); }
 // Same amount (±$0.01), within 3 days, similar name: linked without asking. Returns the bank line ids linked.
 function autoLinkShots(o, txns) {
-  if (!o.bank || !o.bank.seen || !(o.spends || []).some(x => x && x.shot && !x.bank)) return [];
+  if (!o.bank || !o.bank.seen || !(o.spends || []).some(x => x && (x.shot || x.mine) && !x.bank)) return [];
   return BT.shotLinks(o, txns).map(({ txn, spend }) => linkShot(o, txn, spend, false, true) && txn.id);
 }
 // A bank line waiting for review that is probably a screenshot entry with a changed amount or date: {spend, diff} or null.
 function shotSuggest(t) {
-  if (!t || state.bank.seen[t.id] || !(state.spends || []).some(x => x && x.shot && !x.bank)) return null;
+  if (!t || state.bank.seen[t.id] || !(state.spends || []).some(x => x && (x.shot || x.mine) && !x.bank)) return null;
   const m = BT.shotMatch(state, t);
   return m ? m : null;
 }
@@ -5933,7 +5934,7 @@ function manualLogo(x, size) {
 function shotWaitHTML() {
   const cut = BT.addDays(TODAY, -60), l = (state.spends || []).filter(x => x && !x.bank && x.note !== 'Bank sync' && (x.shot || x.mine) && x.date >= cut).sort((a, b) => a.date < b.date ? 1 : -1);
   if (!l.length) return '';
-  return `<div class="shot-wait"><div class="tx-day">Added by you</div>${l.map(x => `<button type="button" class="tx-main shot-w" data-action="edit" data-type="extra" data-id="${esc(x.id)}">${manualLogo(x, 28)}<span class="tx-l"><b>${esc(x.desc || x.category)}</b><span class="tx-s">${md(x.date)} · ${esc(x.category)}${x.shot && x.shot.pending ? ' <span class="pill soft">Pending</span>' : ''}</span>${x.note && x.note !== 'Bank sync' ? `<span class="nlabel">${esc(x.note)}</span>` : ''}</span><span class="tx-r"><span class="amt">${fmt(x.amount)}</span>${x.shot ? shotTag('waiting') : ''}</span></button>`).join('')}</div>`;
+  return `<div class="shot-wait"><div class="tx-day">Added by you</div>${l.map(x => `<button type="button" class="tx-main shot-w" data-action="edit" data-type="extra" data-id="${esc(x.id)}">${manualLogo(x, 28)}<span class="tx-l"><b>${esc(x.desc || x.category)}</b><span class="tx-s">${md(x.date)} · ${esc(x.category)}${x.shot && x.shot.pending ? ' <span class="pill soft">Pending</span>' : ''}</span>${x.note && x.note !== 'Bank sync' ? `<span class="nlabel">${esc(x.note)}</span>` : ''}</span><span class="tx-r"><span class="amt">${fmt(x.amount)}</span>${x.billKey ? `<span class="tag shot ok">${ICON.check || ''}Paid ${esc(x.billName || 'bill')}</span>` : x.shot ? shotTag('waiting') : ''}</span></button>`).join('')}</div>`;
 }
 // A transaction that already has a decision (seen) never waits in the review list. Review rows whose pending twin was decided
 // inherit that decision. Runs on load and after every sync; the Transactions chip also prefers seen over the inbox.
@@ -6383,9 +6384,17 @@ function spMatch(sid, key) {
   const sp = state.spends[i], before = JSON.stringify({ spends: state.spends, marks: state.marks, occ: state.occ });
   setPaid(key, true, !!x.auto, sp.date !== x.due ? sp.date : '', !!x.paid);
   if (x.kind === 'bill' && BT.round2(sp.amount) !== BT.round2(x.amount)) (state.occ[key] || (state.occ[key] = {})).amount = BT.round2(sp.amount);
-  state.spends.splice(i, 1);
+  // The entry stays in Transactions, tagged with the bill. Totals skip it, so the payment counts once.
+  // When the bank line arrives it links to this entry like a screenshot does.
+  sp.billKey = key; sp.billName = x.name; if (!x.paid) sp.billMarked = true;
   closeSheet(); commit();
-  toast('Matched to ' + x.name + (x.paid ? '. Merged with the payment you marked' : '. Marked paid'), () => { const b = JSON.parse(before); state.spends = b.spends; state.marks = b.marks; state.occ = b.occ; commit('Match undone'); });
+  toast('Matched to ' + x.name + (x.paid ? '. It counts once' : '. Marked paid'), () => { const b = JSON.parse(before); state.spends = b.spends; state.marks = b.marks; state.occ = b.occ; commit('Match undone'); });
+}
+function spUnmatch(sid) {
+  const sp = (state.spends || []).find(z => z.id === sid); if (!sp || !sp.billKey) return;
+  if (sp.billMarked) setPaid(sp.billKey, false, false, '', true);
+  const name = sp.billName; delete sp.billKey; delete sp.billName; delete sp.billMarked;
+  closeSheet(); commit('No longer matched to ' + (name || 'the bill'));
 }
 function txMatchSheet(id) {
   const t = txnOf(id); if (!t) return;
@@ -6768,6 +6777,7 @@ document.addEventListener('click', async e => {
     case 'edit': openForm(a.dataset.type, a.dataset.id); break;
     case 'sp-match': spMatchSheet(a.dataset.id); break;
     case 'spm-pick': spMatch(a.dataset.id, a.dataset.key); break;
+    case 'sp-unmatch': spUnmatch(a.dataset.id); break;
     case 'close': closeSheet(); break;
     case 'delete': deleteItem(a); break;
     case 'set-cat': setCategory(a.dataset.id, a.dataset.cat); break;
