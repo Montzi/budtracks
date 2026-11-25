@@ -2,6 +2,9 @@
 
 Versions match `VERSION` in `sw.js`. Newest first.
 
+## 2026-11-25
+- **v49** Your data text uses the full card width. No "from your bank" under the paycheck. Current balance lists banks in In account order, with logos and arrows to reorder both. Add to savings has a +. Transactions: Spent this pay cycle replaces the title, Cycle/Month sits before the camera, Updated time moved into the Spent list. Overview: Bills due today with a red count, above Next pay cycle needs.
+
 ## 2026-11-24
 - **v48** Bank connections show each account's balance. Sync and Disconnect sit in the same spot on every bank; long bank names use a smaller font. Current balance sits beside Latest paycheck, each half opens on its own. Transaction icons without a logo get a solid color that matches the Overview chart.
 - **v47** Settings and AI key links from Ask Bud land on the right card even on a slow phone. Tests: shared setup in `tests/lib.mjs`, one parallel runner `tests/run.mjs` with a fast lane, full suite on GitHub after each push, `scripts/deploy-status.sh`.

@@ -47,3 +47,11 @@ export const synced = (page, more) => page.waitForFunction(m => { const b = JSON
     const why = await page.evaluate(() => { const b = JSON.parse(localStorage.getItem('budtrack.v1')).bank; return { lastSync: b.lastSync, balances: b.balances && b.balances.items.length, syncErr: typeof BANKUI !== 'undefined' ? BANKUI.syncErr : '?', toast: (document.querySelector('#toast') || {}).textContent, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, now: new Date().toString() }; }).catch(x => 'page gone: ' + x.message);
     console.log('SYNC WAIT TIMED OUT', JSON.stringify(why)); throw e;
   });
+
+// v49: "Updated ..." for bank sync moved from the Transactions header into the Spent this pay cycle list. Opens it, reads it, closes it.
+export async function txUpdated(page) {
+  await page.click('.tx-sum-b'); await page.waitForSelector('#sheet:not([hidden]) .lede');
+  const t = await page.locator('#sheet .lede').innerText();
+  await page.click('#sheet .sheet-h [data-action="close"]'); await page.waitForSelector('#sheet', { state: 'hidden' });
+  return t;
+}

@@ -2,7 +2,7 @@
 // screenshot notes shown under rows (before and after the bank copy links), and the Appearance control in the hat sheet.
 // Run: node tests/v14.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
 import assert from 'node:assert/strict';
-import { pw, SHOTS, BASE, API, iso, addD, step, finish, prep } from './lib.mjs';
+import { pw, SHOTS, BASE, API, iso, addD, step, finish, prep, txUpdated } from './lib.mjs';
 const TODAY = iso(new Date()), PAY = addD(TODAY, -6), MSTART = TODAY.slice(0, 8) + '01';
 const CYCLE_START = PAY;
 const CHASE = { id: 'chk', name: 'Checking', last4: '1284', institution: 'Chase', type: 'depository' };
@@ -86,9 +86,7 @@ for (const [w, h, dark] of [[390, 844, true], [390, 844, false], [669, 951, true
     const fits = await page.$eval('.tx-chips', el => el.scrollWidth <= el.clientWidth + 1);
     assert.ok(fits, 'chips fit without internal scroll at ' + tag);
     await noHScroll(page, 'transactions ' + tag);
-    assert.match((await page.locator('.tx-card .card-h .meta').innerText()), /^Updated (5 min ago|just now|6 min ago)$/i);
-    const mh = await page.locator('.tx-card .card-h .meta').evaluate(el => [el.getBoundingClientRect().height, parseFloat(getComputedStyle(el).lineHeight) || 20]);
-    assert.ok(mh[0] <= mh[1] * 1.6, 'subline on one line');
+    assert.match(await txUpdated(page), /Updated (5 min ago|just now|6 min ago)/i);
   });
 
   if (w === 390) await step(`Sync icon: spins and is disabled while syncing, then toast (${tag})`, async () => {
@@ -98,7 +96,7 @@ for (const [w, h, dark] of [[390, 844, true], [390, 844, false], [669, 951, true
     await noHScroll(page, 'syncing ' + tag);
     await page.waitForFunction(() => /new transaction/i.test(document.querySelector('#toast').textContent), null, { timeout: 6000 });
     await page.waitForSelector('.tx-card .card-h [data-action="bk-sync"]:not([disabled])');
-    assert.match(await page.locator('.tx-card .meta').innerText(), /Updated just now/i);
+    assert.match(await txUpdated(page), /Updated just now/i);
     mock.syncDelay = 0;
     if (dark) { await quiet(page); await page.screenshot({ path: SHOTS + '/tx-header-v15-390.png' }); } else { await quiet(page); await page.screenshot({ path: SHOTS + '/tx-header-v15-light-390.png' }); }
   });

@@ -3,7 +3,7 @@
 // the Transactions "Sync now" spinner + toast, the Auto/Light/Dark appearance setting, and light-mode contrast.
 // Run: node tests/v11.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
 import assert from 'node:assert/strict';
-import { pw, SHOTS, BASE, API, iso, addD, step, finish, prep, synced } from './lib.mjs';
+import { pw, SHOTS, BASE, API, iso, addD, step, finish, prep, synced, txUpdated } from './lib.mjs';
 // v19: the period switcher is a button + menu inside the header
 const pickView = async (page, v) => { await page.click('#periodBtn'); await page.click('#periodMenu [data-view="' + v + '"]'); };
 
@@ -283,7 +283,7 @@ for (const [w, h] of SIZES) {
     await page.evaluate(() => { window.BT_FOLLOWUP_MS = 600000; const s = JSON.parse(localStorage.getItem('budtrack.v1')); s.bank.lastSync = new Date(Date.now() - 20 * 60e3).toISOString(); localStorage.setItem('budtrack.v1', JSON.stringify(s)); });
     await page.reload({ waitUntil: 'load' }); await page.evaluate(() => { window.BT_FOLLOWUP_MS = 600000; });
     await page.waitForSelector('.tx-card [data-action="bk-sync"]:not([disabled])');
-    assert.match(await page.locator('.tx-card .meta').innerText(), /Updated 20 min ago/);
+    assert.match(await txUpdated(page), /Updated 20 min ago/);
     mock.txns = SPLIT.concat(NEW3); mock.syncDelay = 1200;
     const n = calls.length;
     await page.click('.tx-card [data-action="bk-sync"]');
@@ -292,7 +292,7 @@ for (const [w, h] of SIZES) {
     assert.ok(calls.slice(n).some(c => c.p === '/sync'), 'synced');
     await page.waitForSelector('.tx-card [data-action="bk-sync"]:not([disabled])');
     assert.equal(await page.getAttribute('.tx-card [data-action="bk-sync"]', 'aria-label'), 'Sync');
-    assert.match(await page.locator('.tx-card .meta').innerText(), /Updated just now/);
+    assert.match(await txUpdated(page), /Updated just now/);
     await quiet(page);
     await page.screenshot({ path: SHOTS + '/tx-light-390.png' });
   });
@@ -355,7 +355,7 @@ for (const [w, h] of SIZES) {
     assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');
     await check(['.hero .greet span', '.hero .range', '.hero .hs-k', '.hero .hs-s .fl', '.hero-stats dt', '.hero .hero-foot span', '.ov-bills .card-h .meta', '.ov-bills .row .sub', '.ov-donut .card-h .meta', '.tabs a:not([aria-current])'], 4.5);
     await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx-card');
-    await check(['.tx-card .card-h .meta', '.tx-card .tx-s', '.tx-card .tx-day', '.tx-card .txc'], 4.5);
+    await check(['.tx-card .tx-sum-b span', '.tx-card .tx-s', '.tx-card .tx-day', '.tx-card .txc'], 4.5);
     await page.goto(BASE + '#bills'); await page.waitForSelector('.row');
     await check(['.row .sub', '.card-h .meta'], 4.5);
     await quiet(page);

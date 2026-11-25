@@ -118,9 +118,9 @@ const jpegSize = (page, data) => page.evaluate(d => new Promise(ok => { const i 
     const bx = await hdr.evaluateAll(bs => bs.map(b => { const r = b.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }));
     bx.forEach(([, , w, h]) => assert.ok(w >= 39.9 && h >= 39.9 && Math.abs(w - h) < 1, 'tap target ' + w + 'x' + h));
     assert.ok(bx[0][0] + bx[0][2] <= bx[1][0] && bx[1][0] + bx[1][2] <= bx[2][0], 'buttons do not overlap');
-    const [hb, card, h2] = await Promise.all([page.locator('.tx-hb').boundingBox(), page.locator('.tx-card').boundingBox(), page.locator('.tx-card .card-h h2').boundingBox()]);
+    const [hb, card, h2] = await Promise.all([page.locator('.tx-hb').boundingBox(), page.locator('.tx-card').boundingBox(), page.locator('.tx-card .card-h .tx-sum-b').boundingBox()]); // v49: Spent this pay cycle replaced the title
     assert.ok(hb.x + hb.width <= card.x + card.width + 0.5, 'header buttons inside the card');
-    assert.ok(h2.x + h2.width <= hb.x, 'title clear of the buttons');
+    assert.ok(h2.x + h2.width <= hb.x, 'Spent this pay cycle clear of the buttons');
     await noHScroll(page, 'transactions 390');
   });
   await step('+ opens the one-time spending form', async () => {

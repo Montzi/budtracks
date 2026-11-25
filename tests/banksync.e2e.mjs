@@ -892,12 +892,12 @@ const tabsFit = async (page, label) => assert.ok(await page.evaluate(() => { con
     const c = page.locator('#latestpay');
     const t0 = await c.innerText();
     assert.equal(await c.locator('.coll-h[data-k="pay"]').getAttribute('aria-expanded'), 'false', 'collapsed by default');
-    assert.match(t0, /\$2,273\.31/); assert.match(t0, /Fri, Nov 20/); assert.match(t0, /from your bank/i);
+    assert.match(t0, /\$2,273\.31/); assert.match(t0, /Fri, Nov 20/); assert.doesNotMatch(await c.locator('.pc-date').first().innerText(), /from your bank/i);
     assert.ok(!(await c.locator('.pc-parts').first().isVisible()), 'deposit parts hidden while collapsed'); assert.ok(!/Earlier paychecks|Next paycheck|Edit total/.test(t0));
     await page.screenshot({ path: SHOTS + '/income-collapsed-390.png' });
     await c.locator('.coll-h[data-k="pay"]').click(); assert.equal(await c.locator('.coll-h[data-k="pay"]').getAttribute('aria-expanded'), 'true');
     const t = await c.innerText();
-    assert.match(t, /\$2,273\.31/); assert.match(t, /Fri, Nov 20/); assert.match(t, /from your bank/i); assert.equal(await c.locator('.pc-parts').first().locator('li').count(), 3);
+    assert.match(t, /\$2,273\.31/); assert.match(t, /Fri, Nov 20/); assert.equal(await c.locator('.pc-parts').first().locator('li').count(), 3);
     assert.match(t, /Citizens ••4417/); assert.match(t, /Santander ••6429/); assert.match(t, /Posted Nov 19/); assert.match(t, /\+\$1,873\.31/);
     assert.match(t, /Next paycheck Fri, Dec 4 · comes in automatically from your bank/);
     assert.ok(!/280/.test(t));
