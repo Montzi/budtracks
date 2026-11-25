@@ -91,6 +91,7 @@ for (const [w, h] of [[390, 844], [1000, 703]]) {
   fx.bills.push({ id: 'gym', name: 'Gym', amount: 25, day: dayOf(TODAY), group: 'Fixed', category: 'Other', active: true });
   const { ctx, page, errs, calls } = await newPage(w, h, { txns: TX(), hash: '#transactions', fixture: fx });
   await synced(page, true); await page.waitForSelector('.tx');
+  const RG = w < 700 ? '.tx-sum .tx-rg1' : '.tx-sum .seg'; // v52: one button on phones
   await step(`${w}x${h} a short pull does nothing, a long pull from the top refreshes`, async () => {
     await page.evaluate(() => scrollTo(0, 0));
     let n = calls.filter(c => c.p === '/sync').length;
@@ -102,17 +103,17 @@ for (const [w, h] of [[390, 844], [1000, 703]]) {
     assert.ok(calls.filter(c => c.p === '/sync').length > n, 'long pull synced');
   });
   await step(`${w}x${h} Cycle/Month matches the icon buttons, Spent label on one line`, async () => {
-    const seg = await R(page, '.tx-sum .seg'), ic = await R(page, '.tx-hb .icon-btn');
+    const seg = await R(page, RG), ic = await R(page, '.tx-hb .icon-btn');
     near(seg.h, ic.h, 1, 'same height'); near(seg.t, ic.t, 1, 'same top');
-    const r = await page.$eval('.tx-sum .seg', e => parseFloat(getComputedStyle(e).borderTopLeftRadius)); assert.ok(r <= 14, 'square corners ' + r);
+    const r = await page.$eval(RG, e => parseFloat(getComputedStyle(e).borderTopLeftRadius)); assert.ok(r <= 14, 'square corners ' + r);
     const lab = await page.$eval('.tx-sum-b span', e => [e.textContent, e.getBoundingClientRect().height, parseFloat(getComputedStyle(e).lineHeight)]);
     assert.equal(lab[0], 'Spent this cycle'); assert.ok(lab[1] < lab[2] * 1.5, 'one line');
-    const sg = await R(page, '.tx-sum .seg'); for (const sel of ['.tx-sum-b', '.tx-sum-b span', '#tx-spent']) { const a = await R(page, sel); assert.ok(a.r <= sg.l + 1, sel + ' clear of the switch ' + a.r + ' vs ' + sg.l); }
+    const sg = await R(page, RG); for (const sel of ['.tx-sum-b', '.tx-sum-b span', '#tx-spent']) { const a = await R(page, sel); assert.ok(a.r <= sg.l + 1, sel + ' clear of the switch ' + a.r + ' vs ' + sg.l); }
     assert.ok(await page.$eval('.tx-sum-b span', e => e.scrollWidth <= e.clientWidth + 1), 'label not cut');
-    await page.click('[data-action="tx-range"][data-r="month"]');
+    await page.click('[data-action="tx-range"][data-r="month"]:visible');
     assert.equal(await page.locator('.tx-sum-b span').innerText().then(t => t.toLowerCase()), 'spent this month');
-    { const sg = await R(page, '.tx-sum .seg'), sp = await R(page, '.tx-sum-b span'); assert.ok(sp.r <= sg.l + 1, 'month label clear ' + sp.r + ' vs ' + sg.l); }
-    await page.click('[data-action="tx-range"][data-r="cycle"]');
+    { const sg = await R(page, RG), sp = await R(page, '.tx-sum-b span'); assert.ok(sp.r <= sg.l + 1, 'month label clear ' + sp.r + ' vs ' + sg.l); }
+    await page.click('[data-action="tx-range"][data-r="cycle"]:visible');
     await page.screenshot({ path: `${SHOTS}/v50-tx-${w}.png` });
   });
   await step(`${w}x${h} Due today and Next cycle needs share one line`, async () => {

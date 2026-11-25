@@ -29,6 +29,7 @@ export const finish = () => { console.log(failed ? failed + ' step(s) FAILED' : 
 // - Web fonts are blocked so pages load fast and offline.
 export async function prep(page, o = {}) {
   page.setDefaultTimeout(6000);
+  page.setDefaultNavigationTimeout(20000); // GitHub's machine can take over 6 s to reload under parallel load
   if (o.bankOpen !== false) await page.addInitScript(() => { if (!localStorage.getItem('budtrack.incopen')) localStorage.setItem('budtrack.incopen', '{"bank":true,"ai":true}'); });
   await page.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   return page;

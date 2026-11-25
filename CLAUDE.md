@@ -3,7 +3,7 @@
 Working rules for anyone (or any Claude session) changing this repo. Keep this file current after every release.
 
 ## Status (2026-11-25)
-- Live release: `budtracks-v51` on https://montzi.github.io/budtracks/
+- Live release: `budtracks-v52` on https://montzi.github.io/budtracks/
 - Worker `budtracks-worker` live on Cloudflare, Plaid **production**.
 - AI: Claude Haiku 5.5 default, Gemini 3.8 Flash optional. Both keys work.
 - Nothing pending.
@@ -68,6 +68,8 @@ Aim: a small change ships in 5 to 8 minutes. The user checks it on the phone and
 - Names: `state.bank.names` maps a bank line id to the name you typed. `cleanMerchant` returns it first. `setTxName` saves it.
 - Income tab: Latest paycheck card has two halves, `pay` and `bal`. `balHalf()` builds Current balance from `bankTotal()`, like In account. `acctBalHTML` shows a balance on bank cards.
 - Overview: `dueTodayHTML()` above the hero foot, `heroListSheet('today')` lists today's unpaid bills. Transactions header is `txSummaryHTML()` returning `{ btn, seg }`; tests read its Updated time with `txUpdated(page)` from `tests/lib.mjs`.
+- Your own entries: `shotWaitHTML()` lists screenshot entries and ones added with + (`mine: true`), with `manualLogo`. `spMatchSheet` / `spMatch` match one to a bill: the bill is marked paid and the entry removed, with Undo. Their actions sit in the main action switch, not `txAct`.
+- Range control: `.tx-rg1` one button on phones, `.seg` in landscape. Tests click `[data-action="tx-range"][data-r="month"]:visible`.
 - Pull to refresh: `PTR` touch handlers near `SCROLLTO`. A pull of 70 px from the top of Transactions clicks the header sync button.
 - Ask Bud card is collapsible with key `ai`. `goSettings('aicard')` opens it. `prep(page)` opens `bank` and `ai` for tests.
 - Current balance list reorders banks with `bal-move`, the same `state.bank.order` as In account.

@@ -1069,7 +1069,9 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 .tx-hb .icon-btn svg { width: 20px; height: 20px; }
 .tx-hb .icon-btn.tx-sync { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); }
 .tx-sum .seg { flex: none; }
-.tx-sum .seg { height: 40px; border-radius: 12px; padding: 3px; align-items: stretch; }
+.tx-sum .seg { height: 40px; border-radius: 12px; padding: 3px; align-items: stretch; display: none; }
+.tx-rg1 { height: 40px; min-width: 64px; padding: 0 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 600 13px/1 var(--body); cursor: pointer; flex: none; }
+@media (min-width: 900px), (orientation: landscape) and (min-width: 740px) { .tx-sum .seg { display: inline-flex; } .tx-rg1 { display: none; } }
 .tx-sum .seg button { padding: 0 6px; font-size: 11.5px; border-radius: 9px; }
 .tx-find { display: flex; gap: 8px; min-width: 0; }
 .tx-find input, .tx-find select { min-width: 0; flex: 1 1 0; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
@@ -4100,7 +4102,7 @@ function openForm(type, id, extra) {
       ${spec.fields.map(f => fieldHTML(f, item[f.k], isNew)).join('')}
       ${type === 'plan' ? '<div class="preview" id="preview" aria-live="polite"></div>' : ''}
       <div class="form-err" id="ferr" role="alert"></div>
-      <div class="actions">${isNew ? '' : '<button type="button" class="btn danger" data-action="delete">Delete</button>'}
+      <div class="actions">${isNew ? '' : '<button type="button" class="btn danger" data-action="delete">Delete</button>'}${type === 'extra' && !isNew && !item.bank && !inbox && !hist && !txf ? `<button type="button" class="btn" data-action="sp-match" data-id="${esc(id)}">Match to a bill</button>` : ''}
         <div class="r"><button type="button" class="btn" data-action="${inbox ? 'ix-open' : hist ? 'hx-open' : 'close'}">Cancel</button><button type="submit" class="btn primary">${isNew ? (type === 'plan' ? 'Save and choose category' : 'Add') : 'Save'}</button></div></div>
     </form>`);
   if (type === 'plan') { const f = $('#form'); f.addEventListener('input', planPreview); planPreview(); }
@@ -4206,7 +4208,7 @@ function saveForm(form) {
   }
   delete o.recurring;
   const item = Object.assign({ id: uid(type[0]) }, o);
-  if (type === 'extra') chime();
+  if (type === 'extra') { chime(); if (!form.dataset.inbox && !form.dataset.history && !form.dataset.tx) item.mine = true; } // mine: added with +, listed under Added by you
   if (type === 'plan') item.created = TODAY;
   if (type === 'income' && item.freq !== 'once') { item.askFrom = item.date; item.perCycle = item.amount ? { [item.date]: item.amount } : {}; }
   list.push(item);
@@ -5923,10 +5925,15 @@ const shotIc = `<span class="shot-ic" role="img" aria-label="Added from a screen
 const shotTag = st => st === 'matched' ? `<span class="tag shot ok">${ICON.photos}Matched with bank</span>` : st === 'waiting' ? shotIc : '';
 const shotTagOf = id => { const x = (state.spends || []).find(z => z.id === id); return x && x.shot ? shotTag(x.bank ? 'matched' : 'waiting') : ''; };
 // Screenshot entries the bank has not sent yet, for the Transactions tab.
+// Entries you added yourself, from a screenshot or with +, that no bank line has claimed yet. Bank sync rows are not yours.
+function manualLogo(x, size) {
+  const t = { id: '', counterparty: x.desc || '', description: x.desc || '', amount: x.amount };
+  return merchLogo(t, size, true) || `<span class="slogo slogo-cat" style="--s:${size || 28}px;--cc:${catColor(x.category || 'Other')}" aria-hidden="true">${catIcon(x.category || 'Other')}</span>`;
+}
 function shotWaitHTML() {
-  const cut = BT.addDays(TODAY, -60), l = (state.spends || []).filter(x => x && x.shot && !x.bank && x.date >= cut).sort((a, b) => a.date < b.date ? 1 : -1);
+  const cut = BT.addDays(TODAY, -60), l = (state.spends || []).filter(x => x && !x.bank && x.note !== 'Bank sync' && (x.shot || x.mine) && x.date >= cut).sort((a, b) => a.date < b.date ? 1 : -1);
   if (!l.length) return '';
-  return `<div class="shot-wait"><div class="tx-day">From screenshots</div>${l.map(x => `<button type="button" class="tx-main shot-w" data-action="edit" data-type="extra" data-id="${esc(x.id)}"><span class="tx-l"><b>${esc(x.desc || x.category)}</b><span class="tx-s">${md(x.date)} · ${esc(x.category)}${x.shot.pending ? ' <span class="pill soft">Pending</span>' : ''}</span>${x.note && x.note !== 'Bank sync' ? `<span class="nlabel">${esc(x.note)}</span>` : ''}</span><span class="tx-r"><span class="amt">${fmt(x.amount)}</span>${shotTag('waiting')}</span></button>`).join('')}</div>`;
+  return `<div class="shot-wait"><div class="tx-day">Added by you</div>${l.map(x => `<button type="button" class="tx-main shot-w" data-action="edit" data-type="extra" data-id="${esc(x.id)}">${manualLogo(x, 28)}<span class="tx-l"><b>${esc(x.desc || x.category)}</b><span class="tx-s">${md(x.date)} · ${esc(x.category)}${x.shot && x.shot.pending ? ' <span class="pill soft">Pending</span>' : ''}</span>${x.note && x.note !== 'Bank sync' ? `<span class="nlabel">${esc(x.note)}</span>` : ''}</span><span class="tx-r"><span class="amt">${fmt(x.amount)}</span>${x.shot ? shotTag('waiting') : ''}</span></button>`).join('')}</div>`;
 }
 // A transaction that already has a decision (seen) never waits in the review list. Review rows whose pending twin was decided
 // inherit that decision. Runs on load and after every sync; the Transactions chip also prefers seen over the inbox.
@@ -6227,7 +6234,8 @@ function txSummaryHTML() {
   const r = BT.periodRange(state, mo ? 'monthly' : view, 0, TODAY), amt = heroNums(r).spentAll;
   const what = mo ? 'month' : view === 'weekly' ? 'week' : 'cycle', rg = mo ? 'month' : 'cycle';
   const btn = `<button type="button" class="tx-sum-b" data-action="spent-list" data-r="${rg}" aria-label="Spent this ${what}: ${hid() ? 'amount hidden' : fmt(amt)}. See the list"><span>Spent this ${what}</span><b id="tx-spent" class="${String(hm(amt)).length > 8 ? 'long' : ''}">${hm(amt)}</b></button>`;
-  const seg = view === 'monthly' ? '' : `<div class="seg" role="group" aria-label="Spent period"><button type="button" data-action="tx-range" data-r="cycle" aria-pressed="${!mo}">${view === 'weekly' ? 'Week' : 'Cycle'}</button><button type="button" data-action="tx-range" data-r="month" aria-pressed="${mo}">Month</button></div>`;
+  const one = view === 'monthly' ? '' : `<button type="button" class="tx-rg1" data-action="tx-range" data-r="${mo ? 'cycle' : 'month'}" aria-label="Showing ${mo ? 'month' : view === 'weekly' ? 'week' : 'cycle'}. Switch to ${mo ? (view === 'weekly' ? 'week' : 'cycle') : 'month'}">${mo ? 'Month' : view === 'weekly' ? 'Week' : 'Cycle'}</button>`;
+  const seg = view === 'monthly' ? '' : one + `<div class="seg" role="group" aria-label="Spent period"><button type="button" data-action="tx-range" data-r="cycle" aria-pressed="${!mo}">${view === 'weekly' ? 'Week' : 'Cycle'}</button><button type="button" data-action="tx-range" data-r="month" aria-pressed="${mo}">Month</button></div>`;
   return { btn, seg };
 }
 function viewTransactions() {
@@ -6350,6 +6358,27 @@ function pkListHTML() {
   return (body || `<p class="note" style="margin-top:14px">${q ? 'Nothing matches that search.' : 'Nothing you entered is waiting for a payment around this date.'}</p>`)
     + `<div class="pk-more">${more ? `<button type="button" class="linkbtn" data-action="pk-older">Show older</button>` : ''}<button type="button" class="linkbtn" data-action="pk-paid">${PICK.paid ? 'Hide paid items' : 'Show paid items too'}</button></div>
     <p class="note pk-span">Showing bills, plans and cards from the last ${cycles} pay cycles${cycles > 3 ? ' (older ones are the "Show older" taps)' : ''}.</p>`;
+}
+// Match an entry you added yourself to a scheduled bill, card payment or pay plan. The item is marked paid with your
+// date and, for a bill, your amount. The entry then is that payment, so it leaves spending and is not counted twice.
+function spMatchSheet(sid) {
+  const sp = (state.spends || []).find(z => z.id === sid); if (!sp) return;
+  const r = { start: BT.addDays(sp.date, -21), end: BT.addDays(sp.date, 22), view: state.settings.view };
+  const list = BT.occurrences(state, r, TODAY).filter(x => ['bill', 'card', 'plan'].includes(x.kind) && !x.paid)
+    .sort((a, b) => (Math.abs(a.amount - sp.amount) - Math.abs(b.amount - sp.amount)) || (Math.abs(BT.diffDays(a.due, sp.date)) - Math.abs(BT.diffDays(b.due, sp.date))));
+  list.forEach(x => SEL.set(x.key, x));
+  const t = { amount: sp.amount, date: sp.date };
+  openSheet(`<div class="sheet-h"><div><h3>Match to a bill</h3><p class="lede">${esc(sp.desc || sp.category)} · ${fmt(sp.amount)} · ${md(sp.date)}</p></div>${closeBtn}</div>
+    <div class="pk-list">${list.length ? `<div class="pk-grp">${list.map(x => pkOpt(x, t).replace('data-action="pk-pick"', `data-action="spm-pick" data-id="${esc(sid)}"`)).join('')}</div>` : '<p class="note">No unpaid bills, card payments or plans within three weeks of this date.</p>'}</div>`);
+}
+function spMatch(sid, key) {
+  const i = (state.spends || []).findIndex(z => z.id === sid), x = SEL.get(key); if (i < 0 || !x) return;
+  const sp = state.spends[i], before = JSON.stringify({ spends: state.spends, marks: state.marks, occ: state.occ });
+  setPaid(key, true, !!x.auto, sp.date !== x.due ? sp.date : '', false);
+  if (x.kind === 'bill' && BT.round2(sp.amount) !== BT.round2(x.amount)) (state.occ[key] || (state.occ[key] = {})).amount = BT.round2(sp.amount);
+  state.spends.splice(i, 1);
+  closeSheet(); commit();
+  toast('Matched to ' + x.name + '. Marked paid', () => { const b = JSON.parse(before); state.spends = b.spends; state.marks = b.marks; state.occ = b.occ; commit('Match undone'); });
 }
 function txMatchSheet(id) {
   const t = txnOf(id); if (!t) return;
@@ -6730,6 +6759,8 @@ document.addEventListener('click', async e => {
     }
     case 'add': openForm(a.dataset.type, null, a.dataset.group); break;
     case 'edit': openForm(a.dataset.type, a.dataset.id); break;
+    case 'sp-match': spMatchSheet(a.dataset.id); break;
+    case 'spm-pick': spMatch(a.dataset.id, a.dataset.key); break;
     case 'close': closeSheet(); break;
     case 'delete': deleteItem(a); break;
     case 'set-cat': setCategory(a.dataset.id, a.dataset.cat); break;

@@ -121,7 +121,7 @@ for (const [w, h] of [[390, 844], [1000, 703]]) {
     const hdr = await page.$$eval('.tx-card .card-h > *', l => l.map(e => e.className));
     assert.equal(hdr[0], 'tx-sum-b');
     const kids = await page.$$eval('.tx-card .card-h .tx-hb > *', l => l.map(e => e.className.split(' ')[0] + ':' + (e.dataset.action || '')));
-    assert.deepEqual(kids, ['seg:', 'icon-btn:shot-open', 'icon-btn:add', 'icon-btn:bk-sync']);
+    assert.deepEqual(kids, ['tx-rg1:tx-range', 'seg:', 'icon-btn:shot-open', 'icon-btn:add', 'icon-btn:bk-sync']);
     const a = await R(page, '.tx-sum-b'), hb = await R(page, '.tx-hb');
     near(a.t + a.h / 2, hb.t + hb.h / 2, 12, 'same row'); assert.ok(a.r <= hb.l + 1, 'no overlap');
     await page.click('.tx-sum-b'); await page.waitForSelector('#sheet:not([hidden]) .lede');

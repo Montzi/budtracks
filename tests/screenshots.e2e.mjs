@@ -110,7 +110,7 @@ const jpegSize = (page, data) => page.evaluate(d => new Promise(ok => { const i 
   await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx-card');
 
   await step('Transactions header: camera, + and sync icon buttons (no Screenshot text, no Sync chip), fit at 390', async () => {
-    const hdr = page.locator('.tx-card .card-h .tx-hb > button');
+    const hdr = page.locator('.tx-card .card-h .tx-hb > button.icon-btn');
     assert.deepEqual(await hdr.evaluateAll(bs => bs.map(b => b.dataset.action)), ['shot-open', 'add', 'bk-sync']);
     assert.deepEqual(await hdr.evaluateAll(bs => bs.map(b => b.getAttribute('aria-label'))), ['Add from photo or screenshot', 'Add spending', 'Sync']);
     assert.doesNotMatch(await page.locator('.tx-card .card-h').innerText(), /Screenshot/i);
@@ -135,7 +135,7 @@ const jpegSize = (page, data) => page.evaluate(d => new Promise(ok => { const i 
     m.forEach(x => { assert.ok(Math.abs(x[0] - m[0][0]) <= 1, 'equal width ' + m.map(y => y[0])); assert.equal(Math.round(x[1]), Math.round(m[0][1])); assert.ok(Math.abs(x[2] - m[0][2]) <= 1); });
     const row = await page.$eval('.tx-chips', el => { const r = el.getBoundingClientRect(), p = el.parentElement.getBoundingClientRect(); return [r.width, p.width, el.scrollWidth <= el.clientWidth + 1]; });
     assert.ok(row[0] > row[1] - 24 && row[2], 'fills the width, no inner scroll');
-    const [sb, seg] = await Promise.all([page.locator('.tx-sum-b').boundingBox(), page.locator('.tx-sum .seg').boundingBox()]);
+    const [sb, seg] = await Promise.all([page.locator('.tx-sum-b').boundingBox(), page.locator('.tx-sum .tx-rg1:visible, .tx-sum .seg:visible').boundingBox()]);
     assert.ok(sb.x + sb.width <= seg.x, 'amount and switch do not collide');
   });
 

@@ -396,7 +396,7 @@ for (const [w, h, dark] of [[390, 844, true], [951, 669, false]]) {
   const shotSpend = { id: 'sh1', category: 'Dining Out', desc: 'El Meson', amount: 23.4, date: addD(TODAY, -1), via: '', note: '', shot: { at: new Date().toISOString(), bank: 'Chime', pending: false, rawMerchant: 'SQ *EL MESON R', accountHint: '' } };
   const { ctx, page, errs, mock } = await newPage(w, h, { dark, txns: [T('g1', TODAY, 'SHOPRITE 123', 41.2)], fixture: fixture({ bills: [], perPeriod: [], spends: [shotSpend] }) });
   await step(`${tag}: screenshot entries read "From screenshots", have a small photo icon and no "waiting" wording anywhere`, async () => {
-    assert.match(await txt(page, '.shot-wait .tx-day'), /^From screenshots$/i);
+    assert.match(await txt(page, '.shot-wait .tx-day'), /^Added by you$/i); // v52
     assert.equal(await page.locator('.shot-wait .shot-w .shot-ic svg').count(), 1, 'photo icon');
     assert.equal(await page.locator('.shot-wait .tag.shot').count(), 0, 'no warning-style chip');
     assert.doesNotMatch(await page.locator('#main').innerText(), /waiting/i);

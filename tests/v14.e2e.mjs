@@ -76,7 +76,7 @@ for (const [w, h, dark] of [[390, 844, true], [390, 844, false], [669, 951, true
     const labels = (await page.locator('.tx-chips > button').allInnerTexts()).map(t => t.trim().toLowerCase());
     assert.deepEqual(labels.map(l => l.replace(/ \d+$/, '')), ['all', 'accepted', 'matched', 'skipped']);
     assert.equal(await page.locator('.tx-chips [data-action="bk-sync"], .tx-chips .chip-sync').count(), 0, 'no Sync chip');
-    const hdr = page.locator('.tx-card .card-h .tx-hb > button');
+    const hdr = page.locator('.tx-card .card-h .tx-hb > button.icon-btn');
     assert.deepEqual(await hdr.evaluateAll(bs => bs.map(b => b.dataset.action)), ['shot-open', 'add', 'bk-sync']);
     const hb = await hdr.evaluateAll(bs => bs.map(b => { const r = b.getBoundingClientRect(); return [r.x, r.width, r.height]; }));
     hb.forEach(x => assert.ok(x[1] >= 40 && x[2] >= 40, 'tap target ' + x));
@@ -108,7 +108,7 @@ for (const [w, h, dark] of [[390, 844, true], [390, 844, false], [669, 951, true
     const hero = await heroSpent(page);
     assert.equal(cyc, hero, 'cycle equals hero');
     await page.goto(BASE + '#transactions'); await page.waitForSelector('.tx-sum');
-    await page.click('.tx-sum [data-action="tx-range"][data-r="month"]');
+    await page.click('.tx-sum [data-action="tx-range"][data-r="month"]:visible');
     assert.match(await page.locator('.tx-sum').innerText(), /Spent this month/i);
     const mon = money(await page.locator('#tx-spent').innerText());
     const s = await getState(page);
@@ -125,7 +125,7 @@ for (const [w, h, dark] of [[390, 844, true], [390, 844, false], [669, 951, true
     assert.equal(money(await page.locator('#hl-sum').innerText()), mon, 'list total = month amount');
     assert.match(await page.locator('#sheet .lede').innerText(), /This month/i);
     await page.click('#sheet .icon-btn[data-action="close"]');
-    await page.click('.tx-sum [data-action="tx-range"][data-r="cycle"]');
+    await page.click('.tx-sum [data-action="tx-range"][data-r="cycle"]:visible');
     assert.equal(money(await page.locator('#tx-spent').innerText()), cyc);
     await page.click('.tx-sum .tx-sum-b'); await page.waitForSelector('#hl-sum');
     assert.equal(money(await page.locator('#hl-sum').innerText()), cyc, 'list total = cycle amount');
