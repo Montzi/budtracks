@@ -3,7 +3,7 @@
 Working rules for anyone (or any Claude session) changing this repo. Keep this file current after every release.
 
 ## Status (2026-11-25)
-- Live release: `budtracks-v50` on https://montzi.github.io/budtracks/
+- Live release: `budtracks-v51` on https://montzi.github.io/budtracks/
 - Worker `budtracks-worker` live on Cloudflare, Plaid **production**.
 - AI: Claude Haiku 5.5 default, Gemini 3.8 Flash optional. Both keys work.
 - Nothing pending.
@@ -82,5 +82,6 @@ Aim: a small change ships in 5 to 8 minutes. The user checks it on the phone and
 - Tests should close messages with ✕ instead of waiting for them to disappear.
 - `tests/v12.e2e.mjs` sometimes never gets balances from its first sync. The retry passes. When it fails, the log has a `SYNC WAIT TIMED OUT` line with the app's state. Read that before changing anything.
 - GitHub's test machine needs Inter as its default font, like the sandbox. `tests/fonts-prefer-inter.conf` does that. Without it, text is wider and layout checks fail.
+- iOS never refreshes a Home Screen icon. A new icon needs: new PNGs from `scripts/render-icons.mjs`, a new `?v=` in `index.html`, `manifest.webmanifest` and `sw.js`, then the user removes and re-adds the app after a backup. Removing it can delete its data.
 - Plaid Trial caps at 10 bank logins and removing one does not free a slot.
 - Teller shut down its API; Plaid replaced it.

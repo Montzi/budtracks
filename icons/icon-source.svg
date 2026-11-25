@@ -1,0 +1,13 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><defs>
+<linearGradient id="ibg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22345e"/><stop offset="1" stop-color="#0c1428"/></linearGradient>
+<radialGradient id="igl" cx=".5" cy=".34" r=".62"><stop offset="0" stop-color="#4a6cc0" stop-opacity=".42"/><stop offset="1" stop-color="#4a6cc0" stop-opacity="0"/></radialGradient>
+<linearGradient id="ico" x1="0" y1="0" x2=".8" y2="1"><stop offset="0" stop-color="#ffd0bb"/><stop offset=".55" stop-color="#f4a58b"/><stop offset="1" stop-color="#e07a62"/></linearGradient>
+<linearGradient id="iau" x1="0" x2="1"><stop offset="0" stop-color="#a97a2e"/><stop offset=".5" stop-color="#f6dc98"/><stop offset="1" stop-color="#a97a2e"/></linearGradient>
+<filter id="ish" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000" flood-opacity=".45"/></filter>
+<filter id="igw" x="-50%" y="-300%" width="200%" height="700%"><feGaussianBlur stdDeviation="14"/></filter></defs>
+<rect width="1024" height="1024" rx="228" fill="url(#ibg)"/><rect width="1024" height="1024" rx="228" fill="url(#igl)"/>
+<path d="M0 228 A228 228 0 0 1 228 0 H796 A228 228 0 0 1 1024 228 V420 C760 360 300 470 0 400 Z" fill="#fff" opacity=".045"/>
+<text x="512" y="650" text-anchor="middle" font-family="Instrument Serif, Georgia, serif" font-style="italic" font-size="560" letter-spacing="-12" fill="url(#ico)" filter="url(#ish)">Bt</text>
+<rect x="300" y="734" width="424" height="26" rx="13" fill="#f6dc98" opacity=".55" filter="url(#igw)"/>
+<rect x="300" y="734" width="424" height="24" rx="12" fill="url(#iau)"/>
+<rect x="2" y="2" width="1020" height="1020" rx="226" fill="none" stroke="#fff" stroke-opacity=".10" stroke-width="3"/></svg>
