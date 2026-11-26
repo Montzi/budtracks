@@ -994,11 +994,15 @@ html.rotating *, html.rotating *::before, html.rotating *::after { transition: n
 html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
 /* iPhone Duo outer display: the system keeps a column on one side for the status bar, and Apple puts tab bars there,
    under it, as icons. html.rail is set by railCheck() when that column shows up in portrait, or by the Tabs setting. */
-html.rail .tabs { left: auto; right: 0; top: 0; bottom: 0; width: var(--rail-w, 64px); padding: max(28vh, 190px) 0 calc(12px + env(safe-area-inset-bottom)); flex-direction: column; justify-content: flex-start; align-items: center; border-top: 0; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
+html.rail .tabs { left: auto; right: 0; top: 0; bottom: 0; width: var(--rail-w, 64px); padding: max(26vh, 190px) 0 calc(18px + env(safe-area-inset-bottom)); flex-direction: column; justify-content: flex-end; align-items: center; border-top: 0; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
 html.rail.rail-left .tabs { right: auto; left: 0; }
 html.rail .tabs-in { display: flex; flex-direction: column; align-items: center; gap: 10px; width: auto; max-width: none; }
-html.rail .tabs a { width: 52px; height: 52px; padding: 0; place-items: center; align-content: center; font-size: 0; position: relative; }
-html.rail .tabs a svg { width: 24px; height: 24px; }
+.tabs .tab-set { display: none; }
+html.rail .tabs-in { gap: 8px; }
+html.rail .tabs a, html.rail .tabs .tab-set { width: 56px; height: 56px; padding: 0; place-items: center; align-content: center; font-size: 0; position: relative; }
+html.rail .tabs .tab-set { display: grid; border: 0; border-radius: 12px; background: transparent; color: var(--ink-3); cursor: pointer; }
+html.rail .tabs a svg, html.rail .tabs .tab-set svg { width: 27px; height: 27px; }
+@media (max-height: 640px) { html.rail .tabs a, html.rail .tabs .tab-set { width: 48px; height: 48px; } html.rail .tabs a svg, html.rail .tabs .tab-set svg { width: 24px; height: 24px; } }
 html.rail .tabs .badge { top: 2px; left: auto; right: 2px; }
 html.rail .app { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
 html.rail .app { padding-right: max(16px, env(safe-area-inset-right), calc(var(--rail-w, 64px) + 8px)); }
@@ -1071,6 +1075,8 @@ html.rail .bud.float { bottom: calc(20px + env(safe-area-inset-bottom)); }
 .tx-card .card-h .meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tx-sum { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .tx-card .card-h.tx-sum { padding: 14px 16px 12px; }
+.tx-card { container-type: inline-size; }
+@container (max-width: 340px) { .tx-card .card-h.tx-sum { flex-wrap: wrap; row-gap: 10px; } .tx-card .card-h.tx-sum .tx-hb { margin-left: auto; } }
 .tx-sum .tx-hb { gap: 3px; }
 .tx-sum .tx-hb .icon-btn { width: 40px; height: 40px; border-radius: 12px; }
 .tx-sum .tx-hb .icon-btn svg { width: 18px; height: 18px; }
@@ -1351,6 +1357,7 @@ body.dragging-bank { cursor: grabbing; -webkit-user-select: none; user-select: n
   <a href="#bills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Bills<span class="badge" aria-hidden="true" hidden></span></a>
   <a href="#plans"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.5 11h-11z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg>Plans<span class="badge" aria-hidden="true" hidden></span></a>
   <a href="#income"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>Income<span class="badge" aria-hidden="true" hidden></span></a>
+  <button type="button" class="tab-set" data-action="go-settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
 </div></nav>
 <div id="railprobe" aria-hidden="true"></div>
 <div id="sheet" class="sheet-wrap" hidden><div class="backdrop" data-action="close"></div><div class="sheet" role="dialog" aria-modal="true"><div id="sheetBody"></div></div></div>
@@ -6778,6 +6785,7 @@ document.addEventListener('click', async e => {
     case 'bc-ai': bcMenu($('#bcmenu').hidden); break;
     case 'bc-pick': AIUI.res = null; state.settings.aiProvider = a.dataset.p === 'gemini' ? 'gemini' : 'claude'; try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} clearTimeout(timer); timer = setTimeout(flush, 600); bcMenu(true); toast(AI_NAME[aiProv()] + ' answers now'); break;
     case 'bc-keys': bcMenu(false); goSettings('aicard'); break;
+    case 'go-settings': goSettings('settings'); break;
     case 'bc-new': if (chatCurrent().length) { CHAT.msgs.push({ r: 'sep', t: '', at: new Date().toISOString() }); chatSave(); } chatPaint(); $('#bcq').focus(); break;
     case 'bc-clear': {
       // Two taps: the first asks, the second erases every message on this phone.

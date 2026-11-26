@@ -3,6 +3,7 @@
 Versions match `VERSION` in `sw.js`. Newest first.
 
 ## 2026-11-26
+- **v57** Side column: Settings added as the last icon, icons sit near the bottom edge and are bigger. The Transactions header wraps to two rows when the column leaves it very narrow.
 - **v56** iPhone Duo outer display: tabs move to the side column under the status bar, icons only, with badges. Found from the reserved column in portrait; landscape and other iPhones keep the bottom bar. Income, Appearance, Tabs: Auto, Side or Bottom for this phone.
 
 ## 2026-11-25
