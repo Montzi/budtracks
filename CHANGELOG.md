@@ -2,6 +2,9 @@
 
 Versions match `VERSION` in `sw.js`. Newest first.
 
+## v69
+- The side tab column stays on screen while you scroll.
+
 ## v68
 - The side + circle is smaller. The + and the tab group sit a little lower.
 

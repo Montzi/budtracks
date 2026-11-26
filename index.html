@@ -996,6 +996,7 @@ html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
    under it, as icons. html.rail is set by railCheck() when that column shows up in portrait, or by the Tabs setting. */
 html.rail .tabs { left: auto; right: 0; top: 0; bottom: 0; width: var(--rail-w, 64px); padding: max(28vh, 190px) 0 calc(4px + env(safe-area-inset-bottom)); flex-direction: column; justify-content: flex-end; align-items: center; border-top: 0; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
 html.rail.rail-left .tabs { right: auto; left: 0; }
+html.rail .tabs { transform: translateZ(0); -webkit-transform: translateZ(0); }
 html.rail .tabs-in { display: flex; flex-direction: column; align-items: center; gap: 10px; width: auto; max-width: none; }
 .tabs .tab-set, .tabs .tab-add { display: none; }
 html.rail .tabs .tab-add { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 12px; flex: none; box-sizing: border-box; border: 1px solid var(--line); border-radius: 50%; background: color-mix(in srgb, var(--surface) 72%, transparent); box-shadow: 0 6px 18px rgba(0,0,0,.18); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: var(--ink-3); cursor: pointer; }
@@ -3460,6 +3461,20 @@ try { const ro = new ResizeObserver(() => railCheck()); document.querySelectorAl
 addEventListener('pageshow', () => railCheck()); addEventListener('load', () => railCheck());
 document.addEventListener('visibilitychange', () => { if (!document.hidden) railCheck(); });
 [50, 250, 800, 2000].forEach(ms => setTimeout(railCheck, ms));
+// iOS can let the side column scroll away with the page. Measure where it really is and pin it back to the screen.
+let PINQ = 0;
+function railPin() {
+  PINQ = 0; const n = document.querySelector('.tabs'); if (!n) return;
+  const cur = parseFloat(n.dataset.pin) || 0;
+  if (!document.documentElement.classList.contains('rail')) { if (cur) { n.dataset.pin = ''; n.style.transform = ''; } return; }
+  const t = Math.round(cur - n.getBoundingClientRect().top);
+  if (Math.abs(t - cur) < 1) return;
+  n.dataset.pin = t || ''; n.style.transform = t ? `translate3d(0, ${t}px, 0)` : '';
+}
+const railPinSoon = () => { if (!PINQ) PINQ = requestAnimationFrame(railPin); };
+addEventListener('scroll', railPinSoon, { passive: true }); addEventListener('resize', railPinSoon);
+if (window.visualViewport) visualViewport.addEventListener('scroll', railPinSoon);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) railPinSoon(); });
 const THEMES = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 const themeSeg = () => { const t = THEMES.some(x => x[0] === state.settings.theme) ? state.settings.theme : 'auto';
   return `<div class="seg theme-seg" role="group" aria-label="Appearance">${THEMES.map(([v, l]) => `<button type="button" data-action="theme" data-t="${v}" aria-pressed="${v === t}">${l}</button>`).join('')}</div>`; };
