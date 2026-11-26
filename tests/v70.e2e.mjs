@@ -1,4 +1,4 @@
-// v70: Bud's face and glasses are lit by his laptop screen, cycling through pages.
+// v70, v71: Bud's face and glasses are lit by his laptop screen. Pages scroll, change every 3 s and at once on a tab change.
 // Run: node tests/v64.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
 import assert from 'node:assert/strict';
 import { pw, SHOTS, BASE, API, iso, addD, step, finish, prep, synced, near } from './lib.mjs';
@@ -85,20 +85,25 @@ const fakeColumn = (page, px) => page.addStyleTag({ content: `#railprobe { paddi
 {
   const { ctx, page, errs } = await newPage(390, 844, { txns: TX(), hash: '#overview', fixture: fixture() });
   await page.waitForSelector('.wm svg.hd');
-  await step('Bud is lit by his screen, with a page in each lens', async () => {
-    const m = await page.evaluate(() => { const h = document.querySelector('.wm svg.hd');
-      const ids = [...document.querySelectorAll('svg [id^="bs"]')].map(e => e.id);
-      return { pages: h.querySelectorAll('.scr-pg').length, glow: !!h.querySelector('.scr-glow'), anim: getComputedStyle(h).animationName, pg: getComputedStyle(h.querySelector('.scr-pg')).animationName, unique: new Set(ids).size === ids.length, ids: ids.length }; });
-    assert.equal(m.pages, 10, 'five pages in each lens'); assert.ok(m.glow); assert.equal(m.anim, 'budScr'); assert.equal(m.pg, 'budPg'); assert.ok(m.unique && m.ids >= 2, 'ids are unique ' + m.ids);
+  const shown = () => page.evaluate(() => { const h = document.querySelector('.wm svg.hd'); return { pages: [...h.querySelectorAll('.scr-lens > g')[0].children].map(g => getComputedStyle(g).display !== 'none'), color: getComputedStyle(h).color, scr: document.documentElement.dataset.scr }; });
+  await step('Bud is lit by his screen, with one scrolling page in each lens', async () => {
+    const m = await page.evaluate(() => { const h = document.querySelector('.wm svg.hd'); const ids = [...document.querySelectorAll('svg [id^="bs"]')].map(e => e.id);
+      return { pages: h.querySelectorAll('.scr-pg').length, glow: !!h.querySelector('.scr-glow'), sc: getComputedStyle(h.querySelector('.scr-sc')).animationName, unique: new Set(ids).size === ids.length }; });
+    assert.equal(m.pages, 10); assert.ok(m.glow); assert.equal(m.sc, 'budScroll', 'the page scrolls'); assert.ok(m.unique);
+    const s = await shown(); assert.equal(s.pages.filter(Boolean).length, 1, 'one page at a time');
   });
-  const at = ms => page.evaluate(ms => { document.getAnimations().forEach(a => { if (['budScr', 'budPg'].includes(a.animationName)) { a.pause(); a.currentTime = ms; } });
-    const h = document.querySelector('.wm svg.hd'); return { color: getComputedStyle(h).color, shown: [...h.querySelectorAll('.scr-pg')].slice(0, 5).map(g => +(+getComputedStyle(g).opacity).toFixed(2)) }; }, ms);
-  await step('one page at a time, the face color follows it', async () => {
-    const a = await at(1500), b = await at(4500), c = await at(2800);
-    assert.equal(a.shown.filter(o => o > .9).length, 1); assert.equal(a.shown[0], 1, 'first page'); assert.equal(b.shown[1], 1, 'second page');
-    assert.notEqual(a.color, b.color, 'the light changes with the page');
-    assert.ok(c.shown[0] > 0 && c.shown[0] < 1, 'the first page is minimizing ' + c.shown[0]);
-    for (const ms of [1500, 2700, 4500, 7500, 10500, 13500]) { await at(ms); await page.locator('.wm').first().screenshot({ path: `${SHOTS}/v70-bud-${ms}.png` }); }
+  await step('a new page every 3 seconds', async () => {
+    const s0 = await shown();
+    await page.waitForFunction(v => document.documentElement.dataset.scr !== v, s0.scr, { timeout: 4500 });
+    const s1 = await shown(); assert.equal(s1.pages.filter(Boolean).length, 1); assert.notDeepEqual(s1.pages, s0.pages);
+  });
+  await step('a tab change switches the page at once', async () => {
+    const s0 = await shown(); const t0 = Date.now();
+    await page.evaluate(() => { location.hash = '#transactions'; });
+    await page.waitForFunction(v => document.documentElement.dataset.scr !== v, s0.scr, { timeout: 1000 });
+    assert.ok(Date.now() - t0 < 1000);
+    const s1 = await shown(); assert.equal(+s1.scr, (+s0.scr + 1) % 5);
+    await page.locator('.wm').first().screenshot({ path: `${SHOTS}/v71-bud.png` });
   });
   await step('no page errors', async () => { assert.deepEqual(errs, []); });
   await ctx.close();

@@ -741,12 +741,14 @@ button.slogo-btn:hover .slogo { outline: 2px solid var(--accent); outline-offset
 /* Keep the glow lines behind Bud and the laptop */
 .brandbar::before, .brandbar::after { z-index: 0; }
 .wm svg.hd { z-index: 2; }
-/* Bud's screen light: 15 s loop, five pages of 3 s. Each page shrinks to the bottom of the lens as the next one opens. */
-svg.hd, svg.hp, svg.mini { color: #5b9bff; animation: budScr 15s linear infinite; }
-@keyframes budScr { 0%, 15% { color: #5b9bff; } 20%, 35% { color: #eef3ff; } 40%, 55% { color: #3ccf8a; } 60%, 75% { color: #ff5a5f; } 80%, 95% { color: #a879ff; } 100% { color: #5b9bff; } }
-.scr-pg { opacity: 0; transform-box: fill-box; transform-origin: 50% 100%; animation: budPg 15s ease-in-out infinite; animation-delay: calc(var(--i) * 3s - 15s); }
-@keyframes budPg { 0% { opacity: 0; transform: scale(.85) translateY(3px); } 3%, 15% { opacity: 1; transform: none; } 20%, 100% { opacity: 0; transform: scale(.12) translateY(10px); } }
-@media (prefers-reduced-motion: reduce) { svg.hd, svg.hp, svg.mini, .scr-pg { animation: none; } .scr-pg[style="--i:0"] { opacity: 1; } }
+/* Bud's screen light: html[data-scr] picks the page, --scr its color. Each page scrolls up on a loop. */
+svg.hd, svg.hp, svg.mini { color: var(--scr, #5b9bff); transition: color .3s; }
+html.scr-cut svg.hd, html.scr-cut svg.hp, html.scr-cut svg.mini { transition: none; }
+.scr-pg { display: none; }
+html:not([data-scr]) .scr-pg:nth-child(1), html[data-scr="0"] .scr-pg:nth-child(1), html[data-scr="1"] .scr-pg:nth-child(2), html[data-scr="2"] .scr-pg:nth-child(3), html[data-scr="3"] .scr-pg:nth-child(4), html[data-scr="4"] .scr-pg:nth-child(5) { display: inline; }
+.scr-sc { animation: budScroll 3s linear infinite; }
+@keyframes budScroll { to { transform: translateY(-20px); } }
+@media (prefers-reduced-motion: reduce) { .scr-sc { animation: none; } }
 
 /* Maker's stamp under the logo */
 .hero .byline { position: absolute; right: 0; bottom: 10px; font: italic 400 13px/1 var(--display); letter-spacing: .02em; color: var(--hero-ink-2); opacity: .55; }
@@ -2506,7 +2508,7 @@ function hatSVG(h) {
     <circle cx="50" cy="-5" r="4" fill="${c}" stroke="${line}" stroke-width="2.5"/>
     <path d="M6 40 q44 -14 88 0 q-8 12 -44 12 q-36 0 -44 -12z" fill="${brim}" stroke="${line}" stroke-width="3" stroke-linejoin="round"/>`;
 }
-// Bud works on his laptop: the screen lights his face and each lens reflects the page. Pages change like windows minimizing.
+// Bud works on his laptop: the screen lights his face and each lens reflects a scrolling page. A new page every 3 s, or at once on a tab change.
 const SCREENS = [['#5b9bff', 'site'], ['#eef3ff', 'site'], ['#3ccf8a', 'sheet'], ['#ff5a5f', 'video'], ['#a879ff', 'site']];
 let HDN = 0;
 function screenPage(c, kind) {
@@ -2518,7 +2520,7 @@ function screenLight() {
   const n = ++HDN;
   const glow = `<defs><radialGradient id="bsg${n}" cx="50" cy="92" r="58" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="currentColor" stop-opacity=".6"/><stop offset=".7" stop-color="currentColor" stop-opacity=".21"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></radialGradient>`
     + `<clipPath id="bsc${n}"><path d="${LENS_D}"/></clipPath></defs><circle class="scr-glow" cx="50" cy="56" r="44" fill="url(#bsg${n})"/>`;
-  const pages = `<g class="scr-lens" clip-path="url(#bsc${n})" opacity=".85">` + [14, 54].map(x => `<g transform="translate(${x} 0)">${SCREENS.map(([c, k], i) => `<g class="scr-pg" style="--i:${i}">${screenPage(c, k)}</g>`).join('')}</g>`).join('') + '</g>';
+  const pages = `<g class="scr-lens" clip-path="url(#bsc${n})" opacity=".85">` + [14, 54].map(x => `<g transform="translate(${x} 0)">${SCREENS.map(([c, k], i) => `<g class="scr-pg"><g class="scr-sc">${screenPage(c, k)}<g transform="translate(0 20)">${screenPage(c, k)}</g></g></g>`).join('')}</g>`).join('') + '</g>';
   return { glow, pages };
 }
 const LENS_D = 'M16 50 h28 a3 3 0 0 1 3 3 v4 a11 11 0 0 1 -11 11 h-7 a11 11 0 0 1 -11 -11 v-4 a3 3 0 0 1 3 -3z M56 50 h28 a3 3 0 0 1 3 3 v4 a11 11 0 0 1 -11 11 h-7 a11 11 0 0 1 -11 -11 v-4 a3 3 0 0 1 3 -3z';
@@ -7388,7 +7390,17 @@ document.addEventListener('click', e => { if (SETLIT && e.target.closest && e.ta
 // so for 2 s each redraw scrolls to it again, unless you scrolled yourself.
 function scrollKeep(id) { const el = $('#' + id); if (!el) return; el.scrollIntoView({ block: 'start' }); SCROLLKEEP = { id, until: Date.now() + 2000, y: scrollY }; }
 function scrollKept() { const k = SCROLLKEEP; if (!k) return; if (Date.now() > k.until || currentTab() !== 'income' || Math.abs(scrollY - k.y) > 2) { SCROLLKEEP = null; return; } scrollKeep(k.id); }
-window.addEventListener('hashchange', () => { closePeriod(false); render(); window.scrollTo(0, 0); if (SCROLLTO) { const id = SCROLLTO; SCROLLTO = ''; if (currentTab() === 'income') scrollKeep(id); } requestAnimationFrame(() => budSay(TABNAME[currentTab()], 10000)); });
+// Bud's screen: next page every 3 s. A tab change switches it at once and restarts the 3 s.
+let SCRI = 0, SCRT = null;
+function scrNext(cut) {
+  SCRI = (SCRI + 1) % SCREENS.length; const h = document.documentElement;
+  h.classList.toggle('scr-cut', !!cut); h.dataset.scr = SCRI; h.style.setProperty('--scr', SCREENS[SCRI][0]);
+  if (cut) requestAnimationFrame(() => requestAnimationFrame(() => h.classList.remove('scr-cut')));
+  clearTimeout(SCRT); if (!matchMedia('(prefers-reduced-motion: reduce)').matches) SCRT = setTimeout(() => scrNext(false), 3000);
+}
+document.documentElement.dataset.scr = 0; document.documentElement.style.setProperty('--scr', SCREENS[0][0]);
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) SCRT = setTimeout(() => scrNext(false), 3000);
+window.addEventListener('hashchange', () => { scrNext(true); closePeriod(false); render(); window.scrollTo(0, 0); if (SCROLLTO) { const id = SCROLLTO; SCROLLTO = ''; if (currentTab() === 'income') scrollKeep(id); } requestAnimationFrame(() => budSay(TABNAME[currentTab()], 10000)); });
 // Tapping the tab you are already on has no hash change: Bud still says its name and the page returns to the top.
 document.addEventListener('click', e => { const a = e.target.closest('.tabs a'); if (a && a.getAttribute('href') === '#' + currentTab()) { window.scrollTo(0, 0); requestAnimationFrame(() => budSay(TABNAME[currentTab()], 10000)); } });
 render(); railCheck();

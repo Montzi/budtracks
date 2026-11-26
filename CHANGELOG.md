@@ -2,6 +2,9 @@
 
 Versions match `VERSION` in `sw.js`. Newest first.
 
+## v71
+- Bud's glasses show a scrolling page instead of minimizing windows. Each page stays 3 seconds. Changing tabs switches it at once.
+
 ## v70
 - Bud's face is lit by his laptop screen. His glasses reflect the page. Pages change every 3 seconds and minimize into the next one.
 
