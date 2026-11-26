@@ -2,6 +2,9 @@
 
 Versions match `VERSION` in `sw.js`. Newest first.
 
+## v70
+- Bud's face is lit by his laptop screen. His glasses reflect the page. Pages change every 3 seconds and minimize into the next one.
+
 ## v69
 - The side tab column stays on screen while you scroll.
 
