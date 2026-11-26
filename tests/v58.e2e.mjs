@@ -91,7 +91,7 @@ const overlap = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bott
       await page.click(`.tabs a[href="#${t}"]`);
       await page.waitForFunction(() => document.querySelector('#bud.on'), null, { timeout: 4000 }).catch(() => {});
       const r = await page.evaluate(() => { const b = document.querySelector('#bud.on'), s = document.querySelector('.hero .sync') || document.querySelector('.sync'); if (!b || !s || !s.offsetParent || b.classList.contains('float')) return null; const R = e => { const x = e.getBoundingClientRect(); return { left: x.left, right: x.right, top: x.top, bottom: x.bottom }; }; return { b: R(b), s: R(s) }; });
-      if (r) { assert.ok(!overlap(r.b, r.s), t + ': bubble over Saved ' + JSON.stringify(r)); assert.ok(r.b.left > r.s.right || r.b.right < r.s.left || r.b.top >= r.s.bottom + 14, t + ': room for the puffs'); }
+      if (r) { assert.ok(!overlap(r.b, r.s), t + ': bubble over Saved ' + JSON.stringify(r)); assert.ok(r.b.left > r.s.right || r.b.right < r.s.left || r.b.top >= r.s.bottom + 24, t + ': room for the puffs and a gap'); }
     }
     await page.screenshot({ path: `${SHOTS}/v58-bubble.png`, clip: { x: 0, y: 0, width: 390, height: 260 } });
   });
@@ -99,8 +99,8 @@ const overlap = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bott
   await step('side column: + near the top, a clear gap, then the tabs low at the bottom', async () => {
     await fakeColumn(page, 72); await page.waitForFunction(() => document.documentElement.classList.contains('rail'));
     const m = await page.evaluate(() => { const R = e => e.getBoundingClientRect(); const add = R(document.querySelector('.tabs .tab-add')), first = R(document.querySelector('.tabs a')), last = R(document.querySelector('.tabs .tab-set')); return { add: [add.top, add.bottom, add.width], first: first.top, last: last.bottom }; });
-    assert.ok(m.add[0] >= 150 && m.add[0] <= 220, 'under the status area ' + m.add[0]); assert.ok(m.add[2] >= 56);
-    assert.ok(m.first - m.add[1] >= 40, 'set apart ' + (m.first - m.add[1]));
+    assert.ok(m.add[0] >= 190 && m.add[0] <= 260, 'under the status area ' + m.add[0]); assert.ok(m.add[2] >= 44 && m.add[2] <= 50, 'smaller ' + m.add[2]); // v59
+    assert.ok(m.first - m.add[1] >= 24, 'set apart ' + (m.first - m.add[1]));
     assert.ok(m.last >= 844 - 24, 'tabs low ' + m.last);
     await page.screenshot({ path: `${SHOTS}/v58-rail.png` });
   });
