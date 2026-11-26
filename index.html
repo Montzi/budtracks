@@ -998,12 +998,13 @@ html.rail .tabs { left: auto; right: 0; top: 0; bottom: 0; width: var(--rail-w, 
 html.rail.rail-left .tabs { right: auto; left: 0; }
 html.rail .tabs-in { display: flex; flex-direction: column; align-items: center; gap: 10px; width: auto; max-width: none; }
 .tabs .tab-set, .tabs .tab-add { display: none; }
-html.rail .tabs .tab-add { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: auto; flex: none; border: 1.5px solid var(--line); border-radius: 14px; background: transparent; color: var(--ink-3); cursor: pointer; }
-html.rail .tabs .tab-add svg { width: 24px; height: 24px; }
-html.rail .tabs-in { gap: 8px; }
-html.rail .tabs a, html.rail .tabs .tab-set { width: 56px; height: 56px; padding: 0; place-items: center; align-content: center; font-size: 0; position: relative; }
+html.rail .tabs .tab-add { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: auto; flex: none; border: 1.5px solid var(--line); border-radius: 12px; box-sizing: border-box; background: transparent; color: var(--ink-3); cursor: pointer; }
+html.rail .tabs .tab-add svg { width: 22px; height: 22px; }
+html.rail .tabs-in { gap: 2px; }
+html.rail .tabs a, html.rail .tabs .tab-set { width: 48px; height: 48px; padding: 0; place-items: center; align-content: center; font-size: 0; position: relative; }
 html.rail .tabs .tab-set { display: grid; border: 0; border-radius: 12px; background: transparent; color: var(--ink-3); cursor: pointer; }
-html.rail .tabs a svg, html.rail .tabs .tab-set svg { width: 27px; height: 27px; }
+html.rail .tabs a svg, html.rail .tabs .tab-set svg { width: 24px; height: 24px; }
+html.rail .tabs .tab-set[aria-current="page"] { color: var(--ink); background: var(--surface); box-shadow: var(--shadow); }
 @media (max-height: 640px) { html.rail .tabs a, html.rail .tabs .tab-set { width: 48px; height: 48px; } html.rail .tabs a svg, html.rail .tabs .tab-set svg { width: 24px; height: 24px; } }
 html.rail .tabs .badge { top: 2px; left: auto; right: 2px; }
 html.rail .app { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
@@ -6787,7 +6788,7 @@ document.addEventListener('click', async e => {
     case 'bc-ai': bcMenu($('#bcmenu').hidden); break;
     case 'bc-pick': AIUI.res = null; state.settings.aiProvider = a.dataset.p === 'gemini' ? 'gemini' : 'claude'; try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} clearTimeout(timer); timer = setTimeout(flush, 600); bcMenu(true); toast(AI_NAME[aiProv()] + ' answers now'); break;
     case 'bc-keys': bcMenu(false); goSettings('aicard'); break;
-    case 'go-settings': goSettings('settings'); break;
+    case 'go-settings': SETLIT = true; goSettings('settings'); render(); break;
     case 'bc-new': if (chatCurrent().length) { CHAT.msgs.push({ r: 'sep', t: '', at: new Date().toISOString() }); chatSave(); } chatPaint(); $('#bcq').focus(); break;
     case 'bc-clear': {
       // Two taps: the first asks, the second erases every message on this phone.
@@ -7296,7 +7297,11 @@ function render() {
   document.querySelectorAll('#periodMenu [data-view]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.view === state.settings.view)));
   $('#periodLbl').textContent = VIEWLBL[state.settings.view] || 'Bi-weekly';
   document.querySelector('.app').dataset.tab = tab;
-  document.querySelectorAll('.tabs a').forEach(a => { if (a.getAttribute('href') === '#' + tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  // Settings lights up instead of Income while you are there because you tapped Settings.
+  if (tab !== 'income') SETLIT = false;
+  const lit = SETLIT && document.documentElement.classList.contains('rail') ? 'settings' : tab;
+  document.querySelectorAll('.tabs a').forEach(a => { if (a.getAttribute('href') === '#' + lit) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  { const st = document.querySelector('.tabs .tab-set'); if (st) { if (lit === 'settings') st.setAttribute('aria-current', 'page'); else st.removeAttribute('aria-current'); } }
   $('#main').innerHTML = TABS[tab]();
   if (lastTab !== null && lastTab !== tab) { const mn = $('#main'); mn.classList.remove('tabin'); void mn.offsetWidth; mn.classList.add('tabin'); }
   lastTab = tab;
@@ -7327,7 +7332,9 @@ window.addEventListener('touchend', () => {
   const b = document.querySelector('.tx-card .card-h [data-action="bk-sync"]:not([disabled])');
   if (b) b.click(); else toast(bankReady() ? 'Already refreshing' : 'Connect a bank on the Income tab to refresh');
 }, { passive: true });
-let SCROLLTO = '', SCROLLKEEP = null;
+let SCROLLTO = '', SCROLLKEEP = null, SETLIT = false;
+// Tapping a tab, Income included, hands the highlight back to the tabs.
+document.addEventListener('click', e => { if (SETLIT && e.target.closest && e.target.closest('.tabs a')) { SETLIT = false; setTimeout(render, 0); } }, true);
 // Scrolls to a card on the Income tab. Content that loads late above it (the bank list, the AI card) would push it down,
 // so for 2 s each redraw scrolls to it again, unless you scrolled yourself.
 function scrollKeep(id) { const el = $('#' + id); if (!el) return; el.scrollIntoView({ block: 'start' }); SCROLLKEEP = { id, until: Date.now() + 2000, y: scrollY }; }

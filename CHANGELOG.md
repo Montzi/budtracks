@@ -3,6 +3,7 @@
 Versions match `VERSION` in `sw.js`. Newest first.
 
 ## 2026-11-26
+- **v60** Side column: the tabs and Settings form one tight group at 48 px, the + matches that size and stands apart above. Settings lights up when you tap it, and hands the light back when you tap a tab.
 - **v59** Side column +: smaller, outlined in the same color as the other icons, and lower so it clears the status area. Bud's bubble is smaller, sits lower beside the head, and keeps a clear gap under the Saved pill.
 - **v58** Side column: a + button at the top for new spending, set apart from the tabs, which sit lower. Bud's thought bubble is a little smaller and drops below the Saved pill instead of covering it. Tests: six files loaded the page twice in a row, which cut the first bank sync off; they load it once now.
 - **v57** Side column: Settings added as the last icon, icons sit near the bottom edge and are bigger. The Transactions header wraps to two rows when the column leaves it very narrow.
