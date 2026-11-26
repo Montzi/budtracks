@@ -88,8 +88,8 @@ const fakeColumn = (page, px) => page.addStyleTag({ content: `#railprobe { paddi
   const lit = () => page.evaluate(() => [...document.querySelectorAll('.tabs [aria-current="page"]')].map(e => e.getAttribute('href') || e.dataset.action));
   await step('the tabs form one tight group, the + is the same size and apart', async () => {
     const m = await page.evaluate(() => { const l = [...document.querySelectorAll('.tabs a, .tabs .tab-set')].map(e => e.getBoundingClientRect()), add = document.querySelector('.tabs .tab-add').getBoundingClientRect(); return { gaps: l.slice(1).map((r, i) => Math.round(r.top - l[i].bottom)), sizes: l.map(r => Math.round(r.width)), add: [Math.round(add.width), Math.round(add.height)], apart: Math.round(l[0].top - add.bottom) }; });
-    assert.ok(m.gaps.every(g => g <= 4), 'gaps ' + m.gaps); assert.ok(m.sizes.every(w => w === 48), 'sizes ' + m.sizes);
-    assert.deepEqual(m.add, [48, 48]); assert.ok(m.apart >= 60, 'the + stands apart ' + m.apart);
+    assert.ok(m.gaps.every(g => g <= 4), 'gaps ' + m.gaps); assert.ok(m.sizes.every(w => w === 50), 'sizes ' + m.sizes); // v62: 5% bigger
+    assert.deepEqual(m.add, [42, 42]); // v62: the + no bigger than the icons around it assert.ok(m.apart >= 60, 'the + stands apart ' + m.apart);
     await page.screenshot({ path: `${SHOTS}/v60-rail.png` });
   });
   await step('tapping Settings lights Settings, not Income', async () => {

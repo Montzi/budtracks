@@ -3,6 +3,7 @@
 Versions match `VERSION` in `sw.js`. Newest first.
 
 ## 2026-11-26
+- **v62** Side column: tab icons 5% bigger, 50 px. The + is smaller, 42 px, with the same thin stroke as the other icons.
 - **v61** Fix: the side column sometimes did not turn on at launch. iOS can report the reserved column a moment late with no resize event. The app now watches for it, checks again when it comes back to the front, and a few times after launch.
 - **v60** Side column: the tabs and Settings form one tight group at 48 px, the + matches that size and stands apart above. Settings lights up when you tap it, and hands the light back when you tap a tab.
 - **v59** Side column +: smaller, outlined in the same color as the other icons, and lower so it clears the status area. Bud's bubble is smaller, sits lower beside the head, and keeps a clear gap under the Saved pill.

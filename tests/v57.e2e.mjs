@@ -91,7 +91,7 @@ const fakeColumn = (page, px) => page.addStyleTag({ content: `#railprobe { paddi
   await step('in the side column: six bigger icons, Settings last, close to the bottom', async () => {
     await fakeColumn(page, 72); await page.waitForFunction(() => document.documentElement.classList.contains('rail'));
     const items = await page.$$eval('.tabs a, .tabs .tab-set', l => l.map(e => { const r = e.getBoundingClientRect(); return { k: e.getAttribute('href') || e.dataset.action, w: Math.round(r.width), t: Math.round(r.top), b: Math.round(r.bottom), on: r.width > 0 }; }));
-    assert.equal(items.length, 6); assert.equal(items[5].k, 'go-settings'); assert.ok(items.every(i => i.on && i.w >= 48), JSON.stringify(items)); // v60: 48 px
+    assert.equal(items.length, 6); assert.equal(items[5].k, 'go-settings'); assert.ok(items.every(i => i.on && i.w >= 48), JSON.stringify(items)); // v62: 50 px
     assert.ok(items[5].b >= 844 - 40, 'near the bottom ' + items[5].b);
     assert.ok(items.every((i, n) => n === 0 || i.t > items[n - 1].t), 'one column in order');
     assert.ok(items[0].t >= 190, 'under the status area');

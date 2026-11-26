@@ -3,7 +3,7 @@
 Working rules for anyone (or any Claude session) changing this repo. Keep this file current after every release.
 
 ## Status (2026-11-26)
-- Live release: `budtracks-v61` on https://montzi.github.io/budtracks/
+- Live release: `budtracks-v62` on https://montzi.github.io/budtracks/
 - Worker `budtracks-worker` live on Cloudflare, Plaid **production**.
 - AI: Claude Haiku 5.5 default, Gemini 3.8 Flash optional. Both keys work.
 - Nothing pending.
@@ -70,7 +70,7 @@ Aim: a small change ships in 5 to 8 minutes. The user checks it on the phone and
 - Overview: `dueTodayHTML()` above the hero foot, `heroListSheet('today')` lists today's unpaid bills. Transactions header is `txSummaryHTML()` returning `{ btn, seg }`; tests read its Updated time with `txUpdated(page)` from `tests/lib.mjs`.
 - Your own entries: `shotWaitHTML()` lists screenshot entries and ones added with + (`mine: true`), with `manualLogo`. `spMatchSheet` / `spMatch` match one to a bill: the bill is marked paid and the entry stays with `billKey`, `billName` and `billMarked`; `BT.occurrences` skips spends with `billKey` so the bill counts it once. `spUnmatch` reverses it. Bank lines link to `shot` and `mine` entries alike. The list covers 62 days back to 22 ahead: Same amount first, paid or not, then Not paid yet, then Already marked paid. Their actions sit in the main action switch, not `txAct`.
 - Range control: `.tx-rg1` one button on phones, `.seg` in landscape. Tests click `[data-action="tx-range"][data-r="month"]:visible`.
-- iPhone Duo side tabs: `railCheck()` reads `#railprobe`'s env(safe-area-inset-left/right). Portrait with 24 px or more reserved sets `html.rail`. The Tabs setting in Appearance is `budtrack.rail` in localStorage: auto, side or bottom, per phone. Tests fake the column by padding `#railprobe`. The column ends with `.tab-set`, a Settings button shown only there, action `go-settings`. Icons are bottom-aligned, 48 px, 2 px apart. `SETLIT` lights `.tab-set` instead of Income after a Settings tap; a tap on any tab clears it. `.tab-add` is a 48 px outlined + near the top of the column at 28vh, action `add` type `extra`.
+- iPhone Duo side tabs: `railCheck()` reads `#railprobe`'s env(safe-area-inset-left/right). Portrait with 24 px or more reserved sets `html.rail`. The Tabs setting in Appearance is `budtrack.rail` in localStorage: auto, side or bottom, per phone. Tests fake the column by padding `#railprobe`. The column ends with `.tab-set`, a Settings button shown only there, action `go-settings`. Icons are bottom-aligned, 50 px with 25 px glyphs, 2 px apart. `SETLIT` lights `.tab-set` instead of Income after a Settings tap; a tap on any tab clears it. `.tab-add` is a 42 px outlined + with a 1.7 stroke near the top of the column at 28vh, action `add` type `extra`.
 - Pull to refresh: `PTR` touch handlers near `SCROLLTO`. A pull of 70 px from the top of Transactions clicks the header sync button.
 - Ask Bud card is collapsible with key `ai`. `goSettings('aicard')` opens it. `prep(page)` opens `bank` and `ai` for tests.
 - Current balance list reorders banks with `bal-move`, the same `state.bank.order` as In account.
