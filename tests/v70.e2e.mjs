@@ -109,6 +109,16 @@ const fakeColumn = (page, px) => page.addStyleTag({ content: `#railprobe { paddi
     assert.ok(ys[0] < 0 && ys[0] > -14 && ys[5] > -6, 'moves between rests ' + ys);
     await page.locator('.wm').first().screenshot({ path: `${SHOTS}/v72-bud.png` });
   });
+  await step('an open sheet covers Bud\'s bubble', async () => {
+    await page.evaluate(() => { location.hash = '#transactions'; }); await page.waitForFunction(() => document.querySelector('#bud.on'));
+    await page.evaluate(() => { location.hash = '#overview'; }); await page.waitForSelector('[data-action="account"]');
+    await page.click('[data-action="account"]'); await page.waitForSelector('#sheet:not([hidden])');
+    await page.evaluate(() => { location.hash = '#transactions'; }); await page.evaluate(() => { location.hash = '#overview'; });
+    const m = await page.evaluate(() => { const b = document.querySelector('#bud'), r = b.getBoundingClientRect();
+      return { on: b.classList.contains('on') && r.width > 0, top: r.width ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('#bud') !== null : false, z: getComputedStyle(b).zIndex }; });
+    assert.equal(m.z, '30', 'below the sheet'); if (m.on) assert.equal(m.top, false, 'the sheet is on top');
+    await page.screenshot({ path: `${SHOTS}/v73-sheet.png` });
+  });
   await step('no page errors', async () => { assert.deepEqual(errs, []); });
   await ctx.close();
 }

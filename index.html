@@ -701,6 +701,8 @@ button.slogo-btn:hover .slogo { outline: 2px solid var(--accent); outline-offset
 .bud.left .d1 { left: auto; right: -8px; } .bud.left .d2 { left: auto; right: -15px; }
 .bud.float { left: auto; right: 14px; top: auto; bottom: calc(86px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 8px; border-radius: 16px; padding: 6px 12px 6px 6px; }
 .bud.float::before { display: none; }
+/* An open sheet covers Bud's bubble: it stays in the background. */
+body:has(#sheet:not([hidden])) .bud { z-index: 30; }
 .bud .mini { width: 44px; height: 36px; flex: none; }
 .bud .mini { background: #15203a; border-radius: 10px; padding: 2px; }
 @media (max-width: 600px) { .bud.float { bottom: calc(140px + env(safe-area-inset-bottom)); } }

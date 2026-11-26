@@ -2,6 +2,9 @@
 
 Versions match `VERSION` in `sw.js`. Newest first.
 
+## v73
+- Bud's speech bubble stays behind an open window instead of covering it.
+
 ## v72
 - Each tab has its own color on Bud's screen. On one tab the page changes after 40 seconds. The page scrolls down and back up, with 10 second rests.
 
