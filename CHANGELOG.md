@@ -2,6 +2,12 @@
 
 Versions match `VERSION` in `sw.js`. Newest first.
 
+## v67
+- Fixed a page error after a refresh when the service worker had no registration. CI is green again.
+
+## v66
+- The side + sits closer to the tabs, in the same frosted circle as the tab group.
+
 ## 2026-11-26
 - **v65** Updates land on the first reopen. The page is always fetched fresh, the app checks for an update each time it comes back to the front, and it reloads once when a new version takes over, unless a form or chat is open.
 - **v64** Side column: the tabs and Settings sit in their own rounded pill. The + is 5% bigger and sits just above the pill.
