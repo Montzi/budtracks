@@ -2,6 +2,9 @@
 
 Versions match `VERSION` in `sw.js`. Newest first.
 
+## v68
+- The side + circle is smaller. The + and the tab group sit a little lower.
+
 ## v67
 - Fixed a page error after a refresh when the service worker had no registration. CI is green again.
 
