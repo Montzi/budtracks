@@ -272,6 +272,10 @@ details.done[open] summary::before { content: "− "; }
 .tabs a { display: grid; justify-items: center; gap: 2px; padding: 6px 2px; border-radius: 12px; color: var(--ink-3); text-decoration: none; font-size: 11px; font-weight: 500; }
 .tabs a svg { width: 22px; height: 22px; }
 .tabs a[aria-current="page"] { color: var(--ink); background: var(--surface); box-shadow: var(--shadow); }
+.appear-rail { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 0; }
+.appear-rail > div { display: grid; gap: 2px; min-width: 0; flex: 1 1 160px; }
+.appear-rail .ar-n { font-size: 12.5px; color: var(--ink-3); line-height: 1.35; }
+.appear-rail .rail-seg { display: inline-flex; flex-direction: row; flex: none; }
 
 /* Sheet */
 .sheet-wrap { position: fixed; inset: 0; z-index: 40; display: grid; align-items: end; justify-items: center; }
@@ -988,6 +992,19 @@ h3 > .icon-pick { display: inline-grid; vertical-align: middle; width: 38px; hei
 .tabs { transition: opacity .18s ease; }
 html.rotating *, html.rotating *::before, html.rotating *::after { transition: none !important; scroll-behavior: auto !important; }
 html.rotating .tabs, html.rotating .bud { opacity: 0 !important; }
+/* iPhone Duo outer display: the system keeps a column on one side for the status bar, and Apple puts tab bars there,
+   under it, as icons. html.rail is set by railCheck() when that column shows up in portrait, or by the Tabs setting. */
+html.rail .tabs { left: auto; right: 0; top: 0; bottom: 0; width: var(--rail-w, 64px); padding: max(28vh, 190px) 0 calc(12px + env(safe-area-inset-bottom)); flex-direction: column; justify-content: flex-start; align-items: center; border-top: 0; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
+html.rail.rail-left .tabs { right: auto; left: 0; }
+html.rail .tabs-in { display: flex; flex-direction: column; align-items: center; gap: 10px; width: auto; max-width: none; }
+html.rail .tabs a { width: 52px; height: 52px; padding: 0; place-items: center; align-content: center; font-size: 0; position: relative; }
+html.rail .tabs a svg { width: 24px; height: 24px; }
+html.rail .tabs .badge { top: 2px; left: auto; right: 2px; }
+html.rail .app { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+html.rail .app { padding-right: max(16px, env(safe-area-inset-right), calc(var(--rail-w, 64px) + 8px)); }
+html.rail.rail-left .app { padding-right: max(16px, env(safe-area-inset-right)); padding-left: max(16px, env(safe-area-inset-left), calc(var(--rail-w, 64px) + 8px)); }
+html.rail .bud.float { bottom: calc(20px + env(safe-area-inset-bottom)); }
+#railprobe { position: fixed; top: 0; left: 0; width: 0; height: 0; visibility: hidden; pointer-events: none; padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 /* Paycheck prompt inside the navy cycle card */
 .pay-ask { margin-top: 12px; padding: 12px; border: 1px dashed var(--brass-hi); border-radius: 12px; background: var(--hero-fill); display: grid; gap: 10px; font-size: 13px; color: var(--hero-ink-2); }
 .pay-ask label b { display: block; color: var(--hero-ink); font-size: 14px; margin-bottom: 2px; }
@@ -1335,6 +1352,7 @@ body.dragging-bank { cursor: grabbing; -webkit-user-select: none; user-select: n
   <a href="#plans"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.5 11h-11z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg>Plans<span class="badge" aria-hidden="true" hidden></span></a>
   <a href="#income"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>Income<span class="badge" aria-hidden="true" hidden></span></a>
 </div></nav>
+<div id="railprobe" aria-hidden="true"></div>
 <div id="sheet" class="sheet-wrap" hidden><div class="backdrop" data-action="close"></div><div class="sheet" role="dialog" aria-modal="true"><div id="sheetBody"></div></div></div>
 <div id="budchat" class="bc-wrap" hidden><div class="bc-back" data-action="bc-close"></div><section class="bc" role="dialog" aria-modal="true" aria-labelledby="bc-title">
   <header class="bc-h"><h2 id="bc-title" class="sr">Ask Bud</h2><button type="button" class="btn sm" data-action="bc-new">New chat</button><button type="button" class="btn sm" data-action="style">Style</button><button type="button" class="btn sm bc-ai" data-action="bc-ai" aria-expanded="false" aria-controls="bcmenu">AI</button><button type="button" class="btn sm bc-clear" data-action="bc-clear" hidden>Clear</button><span class="bc-sp"></span><button type="button" class="icon-btn" data-action="settings" aria-label="Settings" title="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button><button type="button" class="icon-btn" data-action="bc-close" aria-label="Close">
@@ -3405,6 +3423,22 @@ function greetHTML() {
   const day = BT.parse(TODAY).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   return `<button type="button" class="greet" data-action="greet" title="Edit greeting"><span>${esc(g)}${name ? ', ' + esc(name) : ''}</span><i aria-hidden="true"> · </i><span>Today is ${day}</span></button>`;
 }
+// Tabs on the side for iPhone Duo's outer display. A web page cannot read the iPhone model, so this looks for what
+// the model does: in portrait a normal iPhone reserves nothing on the left or right, the Duo's outer display reserves a
+// column for the status bar. The Tabs setting can force Side or Bottom on this phone. Landscape keeps the bottom bar.
+const RAILS = [['auto', 'Auto'], ['side', 'Side'], ['bottom', 'Bottom']];
+function railPref() { try { const v = localStorage.getItem('budtrack.rail'); return RAILS.some(x => x[0] === v) ? v : 'auto'; } catch (e) { return 'auto'; } }
+function railCheck() {
+  const pr = document.getElementById('railprobe'); if (!pr) return;
+  const cs = getComputedStyle(pr), r = parseFloat(cs.paddingRight) || 0, l = parseFloat(cs.paddingLeft) || 0, pref = railPref();
+  const portrait = innerHeight > innerWidth, sys = portrait && Math.max(r, l) >= 24;
+  const on = pref === 'side' || (pref === 'auto' && sys), h = document.documentElement;
+  h.classList.toggle('rail', on); h.classList.toggle('rail-left', on && l > r); h.classList.toggle('rail-forced', on && !sys);
+  h.style.setProperty('--rail-w', (sys ? Math.max(r, l) : 64) + 'px');
+}
+const railSeg = () => { const t = railPref();
+  return `<div class="seg rail-seg" role="group" aria-label="Tabs">${RAILS.map(([v, l]) => `<button type="button" data-action="rail" data-t="${v}" aria-pressed="${v === t}">${l}</button>`).join('')}</div>`; };
+addEventListener('resize', () => railCheck()); addEventListener('orientationchange', () => setTimeout(railCheck, 300));
 const THEMES = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 const themeSeg = () => { const t = THEMES.some(x => x[0] === state.settings.theme) ? state.settings.theme : 'auto';
   return `<div class="seg theme-seg" role="group" aria-label="Appearance">${THEMES.map(([v, l]) => `<button type="button" data-action="theme" data-t="${v}" aria-pressed="${v === t}">${l}</button>`).join('')}</div>`; };
@@ -3513,7 +3547,8 @@ function viewIncome() {
   <div class="inc-w" style="--o:4">${viaManager()}</div>
   <div class="inc-w" style="--o:7">${aiCard()}</div>
   <div class="inc-w" style="--o:6">${logosCard()}</div>
-  <section class="card appear" style="--o:8"><header class="card-h"><div><h2>Appearance</h2><span class="meta">Auto follows your phone</span></div>${themeSeg()}</header></section>
+  <section class="card appear" style="--o:8"><header class="card-h"><div><h2>Appearance</h2><span class="meta">Auto follows your phone</span></div>${themeSeg()}</header>
+    <div class="card-b appear-rail"><div><b>Tabs</b><span class="ar-n">Auto puts them on the side on iPhone Duo's outer display</span></div>${railSeg()}</div></section>
   </div></div>`;
 }
 
@@ -6661,6 +6696,7 @@ document.addEventListener('click', async e => {
     case 'pay-to-income': INCOPEN.pay = true; try { localStorage.setItem('budtrack.incopen', JSON.stringify(INCOPEN)); } catch (e) {} closeSheet(); if (currentTab() === 'income') render(); else location.hash = '#income'; setTimeout(() => { const c = $('#latestpay'); if (c) c.scrollIntoView({ block: 'start' }); }, 60); break;
     case 'greet': greetSheet(); break;
     case 'theme': setTheme(a.dataset.t); break;
+    case 'rail': try { localStorage.setItem('budtrack.rail', a.dataset.t); } catch (e) {} railCheck(); render(); break;
     case 'sv-add': savingsAddSheet(); break;
     case 'sv-on': state.savings.on = true; commit('Savings on'); accountSheet(true); break;
     case 'sv-off': state.savings.on = false; commit('Savings hidden. Your entries are kept.'); accountSheet(true); break;
@@ -7285,7 +7321,7 @@ function scrollKept() { const k = SCROLLKEEP; if (!k) return; if (Date.now() > k
 window.addEventListener('hashchange', () => { closePeriod(false); render(); window.scrollTo(0, 0); if (SCROLLTO) { const id = SCROLLTO; SCROLLTO = ''; if (currentTab() === 'income') scrollKeep(id); } requestAnimationFrame(() => budSay(TABNAME[currentTab()], 10000)); });
 // Tapping the tab you are already on has no hash change: Bud still says its name and the page returns to the top.
 document.addEventListener('click', e => { const a = e.target.closest('.tabs a'); if (a && a.getAttribute('href') === '#' + currentTab()) { window.scrollTo(0, 0); requestAnimationFrame(() => budSay(TABNAME[currentTab()], 10000)); } });
-render();
+render(); railCheck();
 const bankBoot = () => { bankOAuthResume(); bankAutoSync(); sendSnapshot().catch(() => {}); };
 connect().then(bankBoot, bankBoot);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') bankAutoSync(); });

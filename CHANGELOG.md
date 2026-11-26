@@ -2,6 +2,9 @@
 
 Versions match `VERSION` in `sw.js`. Newest first.
 
+## 2026-11-26
+- **v56** iPhone Duo outer display: tabs move to the side column under the status bar, icons only, with badges. Found from the reserved column in portrait; landscape and other iPhones keep the bottom bar. Income, Appearance, Tabs: Auto, Side or Bottom for this phone.
+
 ## 2026-11-25
 - **v55** Matching your own entry to a bill keeps it in Transactions with a Paid tag; totals count the payment once through the bill. Unmatch in its edit form. When the bank line arrives it links to the entry, for + entries too, not only screenshots.
 - **v54** Match to a bill puts bills with the same amount first, paid or not. Tests block outside requests, so logo services no longer stall GitHub runs.
