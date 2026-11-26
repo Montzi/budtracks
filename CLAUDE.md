@@ -3,7 +3,7 @@
 Working rules for anyone (or any Claude session) changing this repo. Keep this file current after every release.
 
 ## Status (2026-11-26)
-- Live release: `budtracks-v60` on https://montzi.github.io/budtracks/
+- Live release: `budtracks-v61` on https://montzi.github.io/budtracks/
 - Worker `budtracks-worker` live on Cloudflare, Plaid **production**.
 - AI: Claude Haiku 5.5 default, Gemini 3.8 Flash optional. Both keys work.
 - Nothing pending.
@@ -88,5 +88,6 @@ Aim: a small change ships in 5 to 8 minutes. The user checks it on the phone and
 - GitHub's test machine needs Inter as its default font, like the sandbox. `tests/fonts-prefer-inter.conf` does that. Without it, text is wider and layout checks fail.
 - iOS never refreshes a Home Screen icon. A new icon needs: new PNGs from `scripts/render-icons.mjs`, a new `?v=` in `index.html`, `manifest.webmanifest` and `sw.js`, then the user removes and re-adds the app after a backup. Removing it can delete its data.
 - Tests run offline: `prep(page)` aborts every request outside localhost, `worker.test` and `cdn.plaid.com`. GitHub's open network let logo services stall page loads.
+- iOS can report safe-area insets after launch with no resize event. `railCheck` runs from a ResizeObserver on `#railprobe i` sized by the insets, on load, pageshow, visibilitychange and timed retries. Never rely on one check at startup.
 - Plaid Trial caps at 10 bank logins and removing one does not free a slot.
 - Teller shut down its API; Plaid replaced it.
