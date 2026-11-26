@@ -1,5 +1,5 @@
 // Offline shell. Bump VERSION on each release so phones pick up the new build.
-const VERSION = 'budtracks-v64';
+const VERSION = 'budtracks-v65';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png?v=51', 'icons/icon-512.png?v=51', 'icons/apple-touch-icon.png?v=51'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -14,7 +14,8 @@ self.addEventListener('fetch', e => {
   // The bank service and Plaid are never cached or answered by the shell: let them go straight to the network.
   { const h = new URL(req.url); if (h.origin !== location.origin && !/fonts\.(googleapis|gstatic)\.com$/.test(h.hostname)) return; }
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put('index.html', copy)); return r; })
+    // no-cache: always ask GitHub whether the page changed. Its 10-minute cache kept phones on the old build.
+    e.respondWith(fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put('index.html', copy)); return r; })
       .catch(() => caches.match('index.html')));
     return;
   }

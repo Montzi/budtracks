@@ -7360,6 +7360,21 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 })();
 
 </script>
-<script>if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
+<script>
+// Updates: check when the app opens and whenever it comes back to the front (iOS often resumes instead of reopening).
+// When a new version takes over, reload once, unless a form or chat is open; then wait until the app is hidden.
+if ('serviceWorker' in navigator) {
+  const had = !!navigator.serviceWorker.controller; let reloaded = false;
+  const busy = () => { const sh = document.getElementById('sheet'), bc = document.getElementById('budchat'); return (sh && !sh.hidden) || (bc && !bc.hidden); };
+  const go = () => { if (reloaded) return; reloaded = true; location.reload(); };
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!had) return; // first install: nothing old on screen
+    if (!busy()) go(); else document.addEventListener('visibilitychange', () => { if (document.hidden) go(); }, { once: true });
+  });
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').then(reg => {
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+  }).catch(() => {}));
+}
+</script>
 </body>
 </html>

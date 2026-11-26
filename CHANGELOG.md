@@ -3,6 +3,7 @@
 Versions match `VERSION` in `sw.js`. Newest first.
 
 ## 2026-11-26
+- **v65** Updates land on the first reopen. The page is always fetched fresh, the app checks for an update each time it comes back to the front, and it reloads once when a new version takes over, unless a form or chat is open.
 - **v64** Side column: the tabs and Settings sit in their own rounded pill. The + is 5% bigger and sits just above the pill.
 - **v63** Side column +: now a circled plus drawn like the other icons, same 25 px size and line weight, no box around it.
 - **v62** Side column: tab icons 5% bigger, 50 px. The + is smaller, 42 px, with the same thin stroke as the other icons.

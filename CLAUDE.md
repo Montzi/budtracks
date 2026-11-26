@@ -3,7 +3,7 @@
 Working rules for anyone (or any Claude session) changing this repo. Keep this file current after every release.
 
 ## Status (2026-11-26)
-- Live release: `budtracks-v64` on https://montzi.github.io/budtracks/
+- Live release: `budtracks-v65` on https://montzi.github.io/budtracks/
 - Worker `budtracks-worker` live on Cloudflare, Plaid **production**.
 - AI: Claude Haiku 5.5 default, Gemini 3.8 Flash optional. Both keys work.
 - Nothing pending.
@@ -89,5 +89,6 @@ Aim: a small change ships in 5 to 8 minutes. The user checks it on the phone and
 - iOS never refreshes a Home Screen icon. A new icon needs: new PNGs from `scripts/render-icons.mjs`, a new `?v=` in `index.html`, `manifest.webmanifest` and `sw.js`, then the user removes and re-adds the app after a backup. Removing it can delete its data.
 - Tests run offline: `prep(page)` aborts every request outside localhost, `worker.test` and `cdn.plaid.com`. GitHub's open network let logo services stall page loads.
 - iOS can report safe-area insets after launch with no resize event. `railCheck` runs from a ResizeObserver on `#railprobe i` sized by the insets, on load, pageshow, visibilitychange and timed retries. Never rely on one check at startup.
+- Updates: GitHub Pages caches the page for 10 minutes and iOS often resumes the app instead of reopening it. `sw.js` fetches the page with `cache: 'no-cache'`; the page calls `reg.update()` on visibilitychange and reloads once on `controllerchange` unless a sheet or chat is open. `scripts/check-update.mjs` checks this with a real service worker.
 - Plaid Trial caps at 10 bank logins and removing one does not free a slot.
 - Teller shut down its API; Plaid replaced it.

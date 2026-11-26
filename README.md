@@ -4,7 +4,7 @@ Pay-cycle budget tracker for one person. Installable web app (PWA) on GitHub Pag
 
 - App: https://montzi.github.io/budtracks/
 - Worker: https://budtracks-worker.atsdsc27.workers.dev
-- Current release: `budtracks-v64` (see `sw.js`)
+- Current release: `budtracks-v65` (see `sw.js`)
 - History: [CHANGELOG.md](CHANGELOG.md). How updates are made: [CLAUDE.md](CLAUDE.md). Worker details: [worker/README.md](worker/README.md).
 
 ## What is in the repo
