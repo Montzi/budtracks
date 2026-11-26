@@ -998,8 +998,9 @@ html.rail .tabs { left: auto; right: 0; top: 0; bottom: 0; width: var(--rail-w, 
 html.rail.rail-left .tabs { right: auto; left: 0; }
 html.rail .tabs-in { display: flex; flex-direction: column; align-items: center; gap: 10px; width: auto; max-width: none; }
 .tabs .tab-set, .tabs .tab-add { display: none; }
-html.rail .tabs .tab-add { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: auto; flex: none; border: 1.5px solid var(--line); border-radius: 12px; box-sizing: border-box; background: transparent; color: var(--ink-3); cursor: pointer; }
-html.rail .tabs .tab-add svg { width: 21px; height: 21px; }
+html.rail .tabs .tab-add { display: grid; place-items: center; width: 50px; height: 50px; margin-bottom: auto; flex: none; border: 0; border-radius: 12px; box-sizing: border-box; background: transparent; color: var(--ink-3); cursor: pointer; }
+html.rail .tabs .tab-add svg { width: 25px; height: 25px; }
+html.rail .tabs .tab-add:active { background: var(--surface); }
 html.rail .tabs-in { gap: 2px; }
 html.rail .tabs a, html.rail .tabs .tab-set { width: 50px; height: 50px; padding: 0; place-items: center; align-content: center; font-size: 0; position: relative; }
 html.rail .tabs .tab-set { display: grid; border: 0; border-radius: 12px; background: transparent; color: var(--ink-3); cursor: pointer; }
@@ -1356,7 +1357,7 @@ body.dragging-bank { cursor: grabbing; -webkit-user-select: none; user-select: n
     <span id="logoOut"></span><span class="sync" role="status">Loading…</span></header>
   <main id="main"></main>
 </div>
-<nav class="tabs" aria-label="Sections"><button type="button" class="tab-add" data-action="add" data-type="extra" aria-label="Add spending"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button><div class="tabs-in">
+<nav class="tabs" aria-label="Sections"><button type="button" class="tab-add" data-action="add" data-type="extra" aria-label="Add spending"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg></button><div class="tabs-in">
   <a href="#overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l6 4"/></svg>Overview<span class="badge" aria-hidden="true" hidden></span></a>
   <a href="#transactions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Transactions<span class="badge" aria-hidden="true" hidden></span></a>
   <a href="#bills"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Bills<span class="badge" aria-hidden="true" hidden></span></a>

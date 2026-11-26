@@ -99,7 +99,7 @@ const overlap = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bott
   await step('side column: + near the top, a clear gap, then the tabs low at the bottom', async () => {
     await fakeColumn(page, 72); await page.waitForFunction(() => document.documentElement.classList.contains('rail'));
     const m = await page.evaluate(() => { const R = e => e.getBoundingClientRect(); const add = R(document.querySelector('.tabs .tab-add')), first = R(document.querySelector('.tabs a')), last = R(document.querySelector('.tabs .tab-set')); return { add: [add.top, add.bottom, add.width], first: first.top, last: last.bottom }; });
-    assert.ok(m.add[0] >= 190 && m.add[0] <= 260, 'under the status area ' + m.add[0]); assert.ok(m.add[2] >= 40 && m.add[2] <= 44, 'smaller ' + m.add[2]); // v62
+    assert.ok(m.add[0] >= 190 && m.add[0] <= 260, 'under the status area ' + m.add[0]); assert.equal(m.add[2], 50, 'same as the tabs'); // v63
     assert.ok(m.first - m.add[1] >= 24, 'set apart ' + (m.first - m.add[1]));
     assert.ok(m.last >= 844 - 24, 'tabs low ' + m.last);
     await page.screenshot({ path: `${SHOTS}/v58-rail.png` });
