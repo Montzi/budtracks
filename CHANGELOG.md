@@ -2,6 +2,9 @@
 
 Versions match `VERSION` in `sw.js`. Newest first.
 
+## v72
+- Each tab has its own color on Bud's screen. On one tab the page changes after 40 seconds. The page scrolls down and back up, with 10 second rests.
+
 ## v71
 - Bud's glasses show a scrolling page instead of minimizing windows. Each page stays 3 seconds. Changing tabs switches it at once.
 

@@ -741,13 +741,13 @@ button.slogo-btn:hover .slogo { outline: 2px solid var(--accent); outline-offset
 /* Keep the glow lines behind Bud and the laptop */
 .brandbar::before, .brandbar::after { z-index: 0; }
 .wm svg.hd { z-index: 2; }
-/* Bud's screen light: html[data-scr] picks the page, --scr its color. Each page scrolls up on a loop. */
+/* Bud's screen light: html[data-scr] picks the page, --scr its color. The page scrolls down, rests 10 s, scrolls back up, rests 10 s. */
 svg.hd, svg.hp, svg.mini { color: var(--scr, #5b9bff); transition: color .3s; }
 html.scr-cut svg.hd, html.scr-cut svg.hp, html.scr-cut svg.mini { transition: none; }
 .scr-pg { display: none; }
 html:not([data-scr]) .scr-pg:nth-child(1), html[data-scr="0"] .scr-pg:nth-child(1), html[data-scr="1"] .scr-pg:nth-child(2), html[data-scr="2"] .scr-pg:nth-child(3), html[data-scr="3"] .scr-pg:nth-child(4), html[data-scr="4"] .scr-pg:nth-child(5) { display: inline; }
-.scr-sc { animation: budScroll 3s linear infinite; }
-@keyframes budScroll { to { transform: translateY(-20px); } }
+.scr-sc { animation: budScroll 30s ease-in-out infinite; }
+@keyframes budScroll { 0% { transform: none; } 10%, 43% { transform: translateY(-14px); } 53%, 86% { transform: translateY(-6px); } 100% { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .scr-sc { animation: none; } }
 
 /* Maker's stamp under the logo */
@@ -7390,17 +7390,18 @@ document.addEventListener('click', e => { if (SETLIT && e.target.closest && e.ta
 // so for 2 s each redraw scrolls to it again, unless you scrolled yourself.
 function scrollKeep(id) { const el = $('#' + id); if (!el) return; el.scrollIntoView({ block: 'start' }); SCROLLKEEP = { id, until: Date.now() + 2000, y: scrollY }; }
 function scrollKept() { const k = SCROLLKEEP; if (!k) return; if (Date.now() > k.until || currentTab() !== 'income' || Math.abs(scrollY - k.y) > 2) { SCROLLKEEP = null; return; } scrollKeep(k.id); }
-// Bud's screen: next page every 3 s. A tab change switches it at once and restarts the 3 s.
+// Bud's screen: each tab has its own page. Changing tabs switches at once. On one tab, the next page shows after 40 s.
+const SCR_MS = 40000, TAB_SCR = { overview: 0, transactions: 1, bills: 2, plans: 3, income: 4 };
 let SCRI = 0, SCRT = null;
-function scrNext(cut) {
-  SCRI = (SCRI + 1) % SCREENS.length; const h = document.documentElement;
+function scrSet(i, cut) {
+  SCRI = i % SCREENS.length; const h = document.documentElement;
   h.classList.toggle('scr-cut', !!cut); h.dataset.scr = SCRI; h.style.setProperty('--scr', SCREENS[SCRI][0]);
   if (cut) requestAnimationFrame(() => requestAnimationFrame(() => h.classList.remove('scr-cut')));
-  clearTimeout(SCRT); if (!matchMedia('(prefers-reduced-motion: reduce)').matches) SCRT = setTimeout(() => scrNext(false), 3000);
+  clearTimeout(SCRT); if (!matchMedia('(prefers-reduced-motion: reduce)').matches) SCRT = setTimeout(() => scrSet(SCRI + 1, false), SCR_MS);
 }
-document.documentElement.dataset.scr = 0; document.documentElement.style.setProperty('--scr', SCREENS[0][0]);
-if (!matchMedia('(prefers-reduced-motion: reduce)').matches) SCRT = setTimeout(() => scrNext(false), 3000);
-window.addEventListener('hashchange', () => { scrNext(true); closePeriod(false); render(); window.scrollTo(0, 0); if (SCROLLTO) { const id = SCROLLTO; SCROLLTO = ''; if (currentTab() === 'income') scrollKeep(id); } requestAnimationFrame(() => budSay(TABNAME[currentTab()], 10000)); });
+const scrTab = () => scrSet(TAB_SCR[currentTab()] || 0, true);
+scrTab();
+window.addEventListener('hashchange', () => { scrTab(); closePeriod(false); render(); window.scrollTo(0, 0); if (SCROLLTO) { const id = SCROLLTO; SCROLLTO = ''; if (currentTab() === 'income') scrollKeep(id); } requestAnimationFrame(() => budSay(TABNAME[currentTab()], 10000)); });
 // Tapping the tab you are already on has no hash change: Bud still says its name and the page returns to the top.
 document.addEventListener('click', e => { const a = e.target.closest('.tabs a'); if (a && a.getAttribute('href') === '#' + currentTab()) { window.scrollTo(0, 0); requestAnimationFrame(() => budSay(TABNAME[currentTab()], 10000)); } });
 render(); railCheck();

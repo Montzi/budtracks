@@ -1,4 +1,4 @@
-// v70, v71: Bud's face and glasses are lit by his laptop screen. Pages scroll, change every 3 s and at once on a tab change.
+// v70, v71: Bud's face and glasses are lit by his laptop screen. v72: each tab has its own page. The page scrolls down and up with 10 s rests.
 // Run: node tests/v64.e2e.mjs <screenshot dir>   (needs `python3 -m http.server 8765` in the repo root)
 import assert from 'node:assert/strict';
 import { pw, SHOTS, BASE, API, iso, addD, step, finish, prep, synced, near } from './lib.mjs';
@@ -92,18 +92,22 @@ const fakeColumn = (page, px) => page.addStyleTag({ content: `#railprobe { paddi
     assert.equal(m.pages, 10); assert.ok(m.glow); assert.equal(m.sc, 'budScroll', 'the page scrolls'); assert.ok(m.unique);
     const s = await shown(); assert.equal(s.pages.filter(Boolean).length, 1, 'one page at a time');
   });
-  await step('a new page every 3 seconds', async () => {
-    const s0 = await shown();
-    await page.waitForFunction(v => document.documentElement.dataset.scr !== v, s0.scr, { timeout: 4500 });
-    const s1 = await shown(); assert.equal(s1.pages.filter(Boolean).length, 1); assert.notDeepEqual(s1.pages, s0.pages);
+  await step('each tab has its own page, and it holds', async () => {
+    assert.equal((await shown()).scr, '0', 'Overview');
+    await page.waitForTimeout(3500); assert.equal((await shown()).scr, '0', 'still the same after 3 s');
+    for (const [tab, i] of [['transactions', '1'], ['bills', '2'], ['plans', '3'], ['income', '4'], ['overview', '0']]) {
+      const t0 = Date.now(); await page.evaluate(h => { location.hash = '#' + h; }, tab);
+      await page.waitForFunction(v => document.documentElement.dataset.scr === v, i, { timeout: 1000 }); assert.ok(Date.now() - t0 < 1000, tab);
+      const s = await shown(); assert.equal(s.pages.filter(Boolean).length, 1);
+    }
   });
-  await step('a tab change switches the page at once', async () => {
-    const s0 = await shown(); const t0 = Date.now();
-    await page.evaluate(() => { location.hash = '#transactions'; });
-    await page.waitForFunction(v => document.documentElement.dataset.scr !== v, s0.scr, { timeout: 1000 });
-    assert.ok(Date.now() - t0 < 1000);
-    const s1 = await shown(); assert.equal(+s1.scr, (+s0.scr + 1) % 5);
-    await page.locator('.wm').first().screenshot({ path: `${SHOTS}/v71-bud.png` });
+  await step('the page scrolls down and back up, with rests', async () => {
+    const d = await page.evaluate(() => getComputedStyle(document.querySelector('.scr-sc')).animationDuration); assert.equal(d, '30s');
+    const ys = await page.evaluate(() => { const e = document.querySelector('.wm svg.hd .scr-sc'), a = e.getAnimations()[0]; a.pause();
+      return [1500, 3000, 12000, 16000, 25000, 29999].map(ms => { a.currentTime = ms; return Math.round(new DOMMatrix(getComputedStyle(e).transform).f); }); });
+    assert.deepEqual([ys[1], ys[2]], [-14, -14], 'rests 10 s down'); assert.deepEqual([ys[3], ys[4]], [-6, -6], 'scrolled back up, rests');
+    assert.ok(ys[0] < 0 && ys[0] > -14 && ys[5] > -6, 'moves between rests ' + ys);
+    await page.locator('.wm').first().screenshot({ path: `${SHOTS}/v72-bud.png` });
   });
   await step('no page errors', async () => { assert.deepEqual(errs, []); });
   await ctx.close();
