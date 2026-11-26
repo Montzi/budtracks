@@ -86,7 +86,7 @@ async function newPage(w, h, o) {
     s.imports = (s.imports || []).filter(k => k !== 'cats-v5');   // an older user: the split has not run yet
     localStorage.setItem('budtrack.v1', JSON.stringify(s)); localStorage.setItem('budtrack.bankkey', 'secret-device-key-123');
   }, [JSON.stringify(fixture()), o.settings]);
-  await page.goto(BASE + (o.hash || ''), { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
+  await page.evaluate(h => history.replaceState(null, '', location.pathname + h), o.hash || ''); await page.reload({ waitUntil: 'load' }); // one load: see v12
   await synced(page, true);
   await page.waitForTimeout(250);
   return { ctx, page, errs, mock, calls };

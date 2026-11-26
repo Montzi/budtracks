@@ -67,7 +67,9 @@ async function newPage(w, h, o) {
     const f = JSON.parse(fx); Object.assign(s, f); Object.assign(s.settings, f.settings, extra || {});
     localStorage.setItem('budtrack.v1', JSON.stringify(s)); localStorage.setItem('budtrack.bankkey', 'secret-device-key-123');
   }, [JSON.stringify(Object.assign(fixture('svAccts' in o ? o.svAccts : {}), o.fx || {})), o.settings]);
-  await page.goto(BASE + (o.hash || ''), { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
+  // One load only. A goto followed at once by a reload cut the first sync off after it saved its time but before
+  // the balances, and the second load then saw a fresh sync and did not ask again.
+  await page.evaluate(h => history.replaceState(null, '', location.pathname + h), o.hash || ''); await page.reload({ waitUntil: 'load' });
   await synced(page, true);
   await page.waitForTimeout(250);
   return { ctx, page, errs, mock };

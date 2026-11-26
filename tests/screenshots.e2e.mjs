@@ -75,7 +75,7 @@ async function newPage(w, h, o) {
     Object.assign(s, f); Object.assign(s.settings, f.settings);
     localStorage.setItem('budtrack.v1', JSON.stringify(s)); localStorage.setItem('budtrack.bankkey', 'secret-device-key-123');
   }, JSON.stringify(fixture()));
-  await page.goto(BASE + (o.hash || ''), { waitUntil: 'load' }); await page.reload({ waitUntil: 'load' });
+  await page.evaluate(h => history.replaceState(null, '', location.pathname + h), o.hash || ''); await page.reload({ waitUntil: 'load' }); // one load: see v12
   await synced(page);
   await page.waitForTimeout(250);
   return { ctx, page, errs, mock, calls };
