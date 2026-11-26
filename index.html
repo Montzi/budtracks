@@ -998,9 +998,9 @@ html.rail .tabs { left: auto; right: 0; top: 0; bottom: 0; width: var(--rail-w, 
 html.rail.rail-left .tabs { right: auto; left: 0; }
 html.rail .tabs-in { display: flex; flex-direction: column; align-items: center; gap: 10px; width: auto; max-width: none; }
 .tabs .tab-set, .tabs .tab-add { display: none; }
-html.rail .tabs .tab-add { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 30px; flex: none; border: 0; border-radius: 12px; box-sizing: border-box; background: transparent; color: var(--ink-3); cursor: pointer; }
+html.rail .tabs .tab-add { display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 12px; flex: none; box-sizing: border-box; border: 1px solid var(--line); border-radius: 50%; background: color-mix(in srgb, var(--surface) 72%, transparent); box-shadow: 0 6px 18px rgba(0,0,0,.18); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: var(--ink-3); cursor: pointer; }
 html.rail .tabs .tab-add svg { width: 26px; height: 26px; }
-html.rail .tabs .tab-add:active { background: var(--surface); }
+html.rail .tabs .tab-add:active { background: var(--bg); }
 html.rail .tabs-in { gap: 2px; padding: 6px; border-radius: 31px; background: color-mix(in srgb, var(--surface) 72%, transparent); border: 1px solid var(--line); box-shadow: 0 6px 18px rgba(0,0,0,.18); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 html.rail .tabs a, html.rail .tabs .tab-set { border-radius: 25px; }
 html.rail .tabs a[aria-current="page"], html.rail .tabs .tab-set[aria-current="page"] { background: var(--bg); box-shadow: none; }

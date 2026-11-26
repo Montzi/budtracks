@@ -91,6 +91,9 @@ const fakeColumn = (page, px) => page.addStyleTag({ content: `#railprobe { paddi
       return { inside, radius: parseFloat(cs.borderTopLeftRadius), border: cs.borderTopWidth, bg: cs.backgroundColor, addOut: add.bottom <= gr.top, w: gr.width }; });
     assert.ok(m.inside, 'all six inside'); assert.ok(m.radius >= 28, 'rounded ' + m.radius); assert.equal(m.border, '1px');
     assert.notEqual(m.bg, 'rgba(0, 0, 0, 0)'); assert.ok(m.addOut, 'the + is outside, above'); assert.ok(m.w <= 72, 'fits the column ' + m.w);
+    const p = await page.evaluate(() => { const a = getComputedStyle(document.querySelector('.tabs .tab-add')), g = getComputedStyle(document.querySelector('.tabs-in')), ra = document.querySelector('.tabs .tab-add').getBoundingClientRect(), rg = document.querySelector('.tabs-in').getBoundingClientRect();
+      return { same: a.backgroundColor === g.backgroundColor && a.borderTopColor === g.borderTopColor && a.boxShadow === g.boxShadow, w: [Math.round(ra.width), Math.round(rg.width)], cx: Math.round(ra.left + ra.width / 2) - Math.round(rg.left + rg.width / 2), gap: Math.round(rg.top - ra.bottom) }; });
+    assert.ok(p.same, 'the + has the same background as the group'); assert.equal(p.w[0], p.w[1], 'same width'); assert.ok(Math.abs(p.cx) <= 1, 'centered on the group'); assert.ok(p.gap <= 16, 'close to the group ' + p.gap); // v66
     await page.screenshot({ path: `${SHOTS}/v64-rail.png` });
   });
   await step('no page errors', async () => { assert.deepEqual(errs, []); });
