@@ -89,9 +89,9 @@ const fakeColumn = (page, px) => page.addStyleTag({ content: `#railprobe { paddi
   await step('the tabs form one tight group, the + is the same size and apart', async () => {
     const m = await page.evaluate(() => { const l = [...document.querySelectorAll('.tabs a, .tabs .tab-set')].map(e => e.getBoundingClientRect()), add = document.querySelector('.tabs .tab-add').getBoundingClientRect(); return { gaps: l.slice(1).map((r, i) => Math.round(r.top - l[i].bottom)), sizes: l.map(r => Math.round(r.width)), add: [Math.round(add.width), Math.round(add.height)], apart: Math.round(l[0].top - add.bottom) }; });
     assert.ok(m.gaps.every(g => g <= 4), 'gaps ' + m.gaps); assert.ok(m.sizes.every(w => w === 50), 'sizes ' + m.sizes); // v62: 5% bigger
-    assert.deepEqual(m.add, [50, 50]);
+    assert.deepEqual(m.add, [52, 52]); // v64: 5% bigger
     const g = await page.evaluate(() => { const a = document.querySelector('.tabs .tab-add svg').getBoundingClientRect(), t = document.querySelector('.tabs a svg').getBoundingClientRect(), sa = getComputedStyle(document.querySelector('.tabs .tab-add svg')).strokeWidth || document.querySelector('.tabs .tab-add svg').getAttribute('stroke-width'); return [Math.round(a.width), Math.round(t.width), document.querySelector('.tabs .tab-add svg').getAttribute('stroke-width'), document.querySelector('.tabs a svg').getAttribute('stroke-width'), getComputedStyle(document.querySelector('.tabs .tab-add')).borderTopWidth]; });
-    assert.deepEqual(g, [25, 25, '1.7', '1.7', '0px'], 'same glyph size and stroke, no box'); // v63: a circled + the same size as the tab icons assert.ok(m.apart >= 60, 'the + stands apart ' + m.apart);
+    assert.deepEqual(g, [26, 25, '1.7', '1.7', '0px'], 'glyph 5% bigger, same stroke, no box'); // v64 // v63: a circled + the same size as the tab icons assert.ok(m.apart >= 30 && m.apart <= 50, 'the + sits just above the group ' + m.apart); // v64
     await page.screenshot({ path: `${SHOTS}/v60-rail.png` });
   });
   await step('tapping Settings lights Settings, not Income', async () => {

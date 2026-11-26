@@ -3,6 +3,7 @@
 Versions match `VERSION` in `sw.js`. Newest first.
 
 ## 2026-11-26
+- **v64** Side column: the tabs and Settings sit in their own rounded pill. The + is 5% bigger and sits just above the pill.
 - **v63** Side column +: now a circled plus drawn like the other icons, same 25 px size and line weight, no box around it.
 - **v62** Side column: tab icons 5% bigger, 50 px. The + is smaller, 42 px, with the same thin stroke as the other icons.
 - **v61** Fix: the side column sometimes did not turn on at launch. iOS can report the reserved column a moment late with no resize event. The app now watches for it, checks again when it comes back to the front, and a few times after launch.
