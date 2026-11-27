@@ -172,6 +172,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .pill.brass { background: var(--brass); color: var(--on-brass); }
 .pill.soft { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); }
 .pill.warn::before { content: "! "; color: var(--warn); }
+.warn-t { color: var(--warn); font-weight: 600; }
 .empty { padding: 18px 16px 22px; color: var(--ink-3); font-size: 14px; display: grid; gap: 10px; justify-items: start; }
 
 /* Totals strip */
@@ -3126,7 +3127,7 @@ function rowTap(o) {
 function listRow(o, late) {
   const d = BT.parse(o.date), tap = rowTap(o);
   return `<li class="row${tap ? ' tap' : ''}" ${tap}${tap ? ` tabindex="0" role="button" aria-label="${esc(o.name)}: ${hid() ? 'amount hidden' : fmt(o.amount)}"` : ''}><div class="date" aria-hidden="true"><span class="dow">${o.budget ? 'Bud' : DOW[d.getDay()]}</span><span class="dd">${o.budget ? '—' : d.getDate()}</span></div>
-    <div class="main"><div class="nm">${o.t ? merchLogo(o.t, 20, true) : nameLogo(o.name, 20)}${esc(o.name)}${late ? ' <span class="pill soft warn">Past due</span>' : ''}</div><div class="sub">${o.sub}</div>${o.note ? `<div class="nlabel">${esc(o.note)}</div>` : ''}</div><div class="amt">${hm(o.amount)}</div></li>`;
+    <div class="main"><div class="nm">${o.t ? merchLogo(o.t, 20, true) : nameLogo(o.name, 20)}${esc(o.name)}${late ? ' <span class="pill soft warn">Overdue</span>' : ''}</div><div class="sub">${o.sub}</div>${o.note ? `<div class="nlabel">${esc(o.note)}</div>` : ''}</div><div class="amt">${hm(o.amount)}</div></li>`;
 }
 // Bills, card payments and pay plans scheduled for today that are not paid yet. Always this cycle, whatever period Overview shows.
 function dueTodayRows() {
@@ -3172,6 +3173,11 @@ function viewOverview() {
   const shown = x => x.kind === 'spend' && x.paid && x.checkedOn ? x.checkedOn : x.date;
   const budgets = s.items.filter(x => x.kind === 'spend'), hide = hid();
   const dated = s.items.filter(x => x.kind !== 'spend').sort((a, b) => a.pinned !== b.pinned ? (a.pinned ? -1 : 1) : shown(a) < shown(b) ? -1 : shown(a) > shown(b) ? 1 : (a.kind === 'spend' ? -1 : 0) - (b.kind === 'spend' ? -1 : 0)), living = [];
+  // Unpaid bills from earlier cycles stay on the current one as Overdue until paid, matched, skipped or deleted.
+  // They count from the cycle before this feature first ran (settings.overdueFrom), so old history never floods the list.
+  if (!state.settings.overdueFrom) { state.settings.overdueFrom = BT.periodRange(state, view, -1, TODAY).start; try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} }
+  const carried = isNow ? BT.occurrences(state, { start: [state.since, state.settings.overdueFrom].filter(Boolean).sort().pop(), end: r.start, view }, TODAY)
+    .filter(x => !x.budgeted && x.kind !== 'spend' && x.kind !== 'unalloc' && !x.paid && x.amount > 0).sort((a, b) => a.date.localeCompare(b.date)) : [];
   const nextKey = (dated.find(x => !x.paid && x.date >= TODAY) || {}).key;
   // Bank money out in this period that isn't recorded yet still counts as spent (shown as "to review").
   const { unrev, spentAll, remain } = heroNums(r, s);
@@ -3201,7 +3207,7 @@ function viewOverview() {
       : `${SUB_GROUPS.includes(x.group) && !x.category ? catIcon('Subscriptions') + '<span class="bcat">Subscriptions</span>' + (x.group === 'Apple Subscriptions' ? ' · Apple' : '') + (x.note ? ' · ' + esc(x.note) : '') : (x.category ? catIcon(x.category) + '<span class="bcat">' + esc(x.category) + '</span> · ' : '<span class="dot" style="--c:' + gc(x.group) + '"></span>') + esc(x.note || x.group)}${x.via ? ' <span class="tag via">via ' + esc(viaText(x.via)) + '</span>' : ''}${x.edited ? ' · usually ' + fmt(x.base) : ''}`;
     return `<li class="row${x.paid ? ' is-paid' : ''}${isNext ? ' is-next' : ''}">${check(x)}
       <div class="date" aria-hidden="true"><span class="dow">${DOW[d.getDay()]}</span><span class="dd">${d.getDate()}</span></div>
-      <div class="main tapzone" ${tapAttrs(x)}><div class="nm">${esc(x.name)}${isNext ? ' <span class="pill brass">Up next</span>' : ''}${late ? ' <span class="pill soft warn">Past due</span>' : ''}${x.paid ? '' : likelyPill(x.key)}</div>
+      <div class="main tapzone" ${tapAttrs(x)}><div class="nm">${esc(x.name)}${isNext ? ' <span class="pill brass">Up next</span>' : ''}${late ? ' <span class="pill soft warn">Overdue</span>' : ''}${x.paid ? '' : likelyPill(x.key)}</div>
       <div class="sub">${sub}<span class="sr">${md(x.date)}</span></div>${x.memo ? `<div class="nlabel">${esc(x.memo)}</div>` : ''}${x.paid ? '' : likelyDetail(x.key)}</div>${amtBtn(x)}</li>`;
   };
   const rowLiving = x => { const d = BT.parse(shown(x)); return `<li class="row${x.paid ? ' is-paid' : ''}">${check(x)}
@@ -3212,16 +3218,16 @@ function viewOverview() {
       <div class="main"><div class="nm">Unallocated spending</div><div class="sub">Tap to record where it went</div></div><div class="amt">${fmt(x.amount)}</div></li>`;
   // Upcoming (unpaid) first by date, then completed below by date. Unallocated stays pinned on top.
   const one = x => x.kind === 'unalloc' ? rowUnalloc(x) : x.kind === 'spend' ? rowLiving(x) : rowDated(x);
-  const pinned = dated.filter(x => x.pinned), open = dated.filter(x => !x.pinned && !x.paid);
+  const pinned = dated.filter(x => x.pinned), open = carried.concat(dated.filter(x => !x.pinned && !x.paid));
   const ds = state.settings.doneSort || 'recent', pd = x => x.paidOn || shown(x);
   const SORTS = { recent: (a, b) => pd(b).localeCompare(pd(a)), oldest: (a, b) => pd(a).localeCompare(pd(b)), high: (a, b) => b.amount - a.amount, low: (a, b) => a.amount - b.amount,
     name: (a, b) => a.name.localeCompare(b.name), cat: (a, b) => baseCat(a).localeCompare(baseCat(b)) || pd(b).localeCompare(pd(a)) };
   const done = dated.filter(x => !x.pinned && x.paid).sort(SORTS[ds] || SORTS.recent);
-  const rows = dated.length ? `<ul class="rows">${pinned.map(one).join('')}${open.map(one).join('') || (pinned.length ? '' : '<li class="empty all-done">All paid for this ' + VIEWNAME[view] + '.</li>')}</ul>`
+  const rows = dated.length || carried.length ? `<ul class="rows">${pinned.map(one).join('')}${open.map(one).join('') || (pinned.length ? '' : '<li class="empty all-done">All paid for this ' + VIEWNAME[view] + '.</li>')}</ul>`
     + (done.length ? `<div class="subhead done-h"><span>Completed · ${done.length} · ${fmt(done.reduce((a, x) => a + x.amount, 0))}</span><label class="sr" for="donesort">Sort completed</label><select id="donesort" class="done-sort">${[['recent', 'Most recent'], ['oldest', 'Oldest first'], ['high', 'Amount: high to low'], ['low', 'Amount: low to high'], ['name', 'Name A to Z'], ['cat', 'Category']].map(([v, l]) => `<option value="${v}"${v === ds ? ' selected' : ''}>${l}</option>`).join('')}</select></div><ul class="rows done-rows">${done.map(one).join('')}</ul>` : '')
     : '<div class="empty">Nothing due in this period.</div>';
   const rowsAll = rows + pausedHTML(r) + skippedHTML(r) + budgetsHTML(budgets);
-  OCC = new Map(s.items.map(x => [x.key, x]));
+  OCC = new Map(s.items.concat(carried).map(x => [x.key, x]));
 
   // The chart can show the whole calendar month around this cycle. Same math as the monthly view (budgets count per cycle).
   const chartMonth = state.settings.chartRange === 'month' && view !== 'monthly';
@@ -3261,7 +3267,7 @@ function viewOverview() {
       ${view === 'monthly' ? '' : `<div class="ch-range"><div class="seg" role="group" aria-label="Chart period"><button type="button" data-action="chart-range" data-r="cycle" aria-pressed="${!chartMonth}">${view === 'weekly' ? 'Week' : 'Cycle'}</button><button type="button" data-action="chart-range" data-r="month" aria-pressed="${chartMonth}">Month</button></div></div>`}
       <div class="card-b">${groups.length ? `<div class="donut-wrap">${donut(groups, chartTotal)}</div>${catScroller(groups, chartTotal)}${legendHTML(groups, chartTotal)}` : '<div class="empty">No spending yet.</div>'}</div>
     </section>
-  <section class="card ov-bills"><header class="card-h"><div><h2>Bills this ${VIEWNAME[view]}</h2><span class="meta">${s.items.length - budgets.length} items · ${fmt(s.due)} left</span></div><button class="icon-btn add-big" data-action="add" data-type="extra" aria-label="Add a spending">${ICON.plus}</button></header>
+  <section class="card ov-bills"><header class="card-h"><div><h2>Bills this ${VIEWNAME[view]}</h2><span class="meta">${s.items.length - budgets.length} items · ${fmt(s.due)} left${carried.length ? ` · <span class="warn-t">${carried.length} overdue</span>` : ''}</span></div><button class="icon-btn add-big" data-action="add" data-type="extra" aria-label="Add a spending">${ICON.plus}</button></header>
     ${rowsAll}
   </section>
     <section class="card ov-bars"><header class="card-h"><h2>Income and needs · 6 ${view === 'biweekly' ? 'pay cycles' : view === 'weekly' ? 'weeks' : 'months'}</h2></header>

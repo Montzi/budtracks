@@ -2,6 +2,9 @@
 
 Versions match `VERSION` in `sw.js`. Newest first.
 
+## v74
+- Unpaid bills from last cycle stay on Overview marked Overdue until you mark them paid, match them, skip or delete them. The header counts them. Past due now reads Overdue.
+
 ## v73
 - Bud's speech bubble stays behind an open window instead of covering it.
 

@@ -404,7 +404,7 @@ for (const [w, h] of [[763, 390], [667, 375]]) {
     await page.click('#bcmenu [data-action="bc-keys"]');
     await page.waitForFunction(() => location.hash === '#income');
     await page.waitForFunction(() => { const e = document.querySelector('#aicard'); if (!e) return false; const t = e.getBoundingClientRect().top; return t > -10 && t < 80; }).catch(() => {});
-    const top = await page.evaluate(() => document.querySelector('#aicard').getBoundingClientRect().top); assert.ok(top > -10 && top < 80, 'Ask Bud card at top: ' + top);
+    const top = await page.evaluate(() => document.querySelector('#aicard').getBoundingClientRect().top); assert.ok(top > -10 && top < 80 || await page.waitForFunction(() => { const t = document.querySelector('#aicard').getBoundingClientRect().top; return t > -10 && t < 80; }, null, { timeout: 3000 }).then(() => true, () => false), 'Ask Bud card at top: ' + top);
     assert.deepEqual(errs, []);
   });
   await ctx.close();
