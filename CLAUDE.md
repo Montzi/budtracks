@@ -3,7 +3,7 @@
 Working rules for anyone (or any Claude session) changing this repo. Keep this file current after every release.
 
 ## Status (2026-11-26)
-- Live release: `budtracks-v74` on https://montzi.github.io/budtracks/
+- Live release: `budtracks-v75` on https://montzi.github.io/budtracks/
 - Worker `budtracks-worker` live on Cloudflare, Plaid **production**.
 - AI: Claude Haiku 5.5 default, Gemini 3.8 Flash optional. Both keys work.
 - Nothing pending.
@@ -84,7 +84,7 @@ Aim: a small change ships in 5 to 8 minutes. The user checks it on the phone and
 ## Lessons learned
 - `register()` can resolve with no registration in tests. Guard `reg` before `reg.update()`.
 - Action names must be unique across the file (`lg-*` clashed with the chart legend, now `lgf-*`).
-- CSS class names too (`.bud` clashed with the speech bubble, chat uses `.bot`).
+- CSS class names too (`.bud` clashed with the speech bubble, chat uses `.bot`). The plan breakdown in the edit form is `.plan-bd`; `.plan-sum` is the Plans tab card, a grid, and once made the breakdown overlap.
 - Bud's bubble `.bud` is z-index 65, above the sheet's 40. While `#sheet` is open, `body:has(#sheet:not([hidden])) .bud` drops it to 30, behind the sheet.
 - Toasts must not block taps: the pill has `pointer-events: none`; only its buttons take taps.
 - Tests should close messages with ✕ instead of waiting for them to disappear.

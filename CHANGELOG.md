@@ -2,6 +2,9 @@
 
 Versions match `VERSION` in `sw.js`. Newest first.
 
+## v75
+- A payment plan's breakdown no longer overlaps, from Overview or the Plans tab.
+
 ## v74
 - Unpaid bills from last cycle stay on Overview marked Overdue until you mark them paid, match them, skip or delete them. The header counts them. Past due now reads Overdue.
 

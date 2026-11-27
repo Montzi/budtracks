@@ -778,18 +778,18 @@ html:not([data-scr]) .scr-pg:nth-child(1), html[data-scr="0"] .scr-pg:nth-child(
 .alloc-row .row-x + .fld { padding-right: 0; }
 .alloc-actions { flex-wrap: wrap; }
 
-.plan-sum{border:1px solid var(--line,rgba(127,127,127,.25));border-radius:14px;padding:12px 14px;margin:0 0 14px}
-.plan-sum .ps-total{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
-.plan-sum .ps-total span,.plan-sum .ps-row span{font-size:12px;opacity:.7;display:block}
-.plan-sum .ps-total b{font-family:var(--serif,Georgia,serif);font-size:28px;font-weight:600}
-.plan-sum .ps-row{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}
-.plan-sum .ps-row b{font-family:var(--mono,ui-monospace,monospace);font-size:15px}
-.plan-sum .ps-list{list-style:none;margin:0;padding:6px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.2))}
-.plan-sum .ps-list li{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;opacity:.75}
-.plan-sum .ps-list li.on{opacity:1}
-.plan-sum .ps-list li span:last-child{font-family:var(--mono,ui-monospace,monospace)}
+.plan-bd{border:1px solid var(--line,rgba(127,127,127,.25));border-radius:14px;padding:12px 14px;margin:0 0 14px}
+.plan-bd .ps-total{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.plan-bd .ps-total span,.plan-bd .ps-row span{font-size:12px;opacity:.7;display:block}
+.plan-bd .ps-total b{font-family:var(--serif,Georgia,serif);font-size:28px;font-weight:600}
+.plan-bd .ps-row{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}
+.plan-bd .ps-row b{font-family:var(--mono,ui-monospace,monospace);font-size:15px}
+.plan-bd .ps-list{list-style:none;margin:0;padding:6px 0 0;border-top:1px solid var(--line,rgba(127,127,127,.2))}
+.plan-bd .ps-list li{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;opacity:.75}
+.plan-bd .ps-list li.on{opacity:1}
+.plan-bd .ps-list li span:last-child{font-family:var(--mono,ui-monospace,monospace)}
 
-.plan-sum .ps-list li.cur{font-weight:700;opacity:1}
+.plan-bd .ps-list li.cur{font-weight:700;opacity:1}
 
 .ua-break{border:1px solid var(--line,rgba(127,127,127,.25));border-radius:14px;padding:10px 14px;margin:0 0 14px;font-size:13px}
 .ua-break>div{display:flex;justify-content:space-between;gap:12px;padding:4px 0}
@@ -4186,7 +4186,7 @@ function planSummary(p, curKey) {
     const n = i + 1, k = s.sched.find(x => x.n === n);
     return k ? { n, date: k.date, amount: k.amount, paid: k.paid, cur: k.key === curKey } : { n, date: '', amount: p.amount, paid: true };
   });
-  return `<div class="plan-sum"><div class="ps-total"><span>Total purchase</span><b>${fmt(s.total)}</b></div>
+  return `<div class="plan-bd"><div class="ps-total"><span>Total purchase</span><b>${fmt(s.total)}</b></div>
     <div class="ps-row"><div><span>Paid</span><b>${fmt(paid)}</b></div><div><span>Left</span><b>${fmt(s.owed)}</b></div><div><span>Payments</span><b>${s.paidCount} of ${p.total}</b></div></div>
     <ul class="ps-list">${all.map(x => `<li class="${x.paid ? 'on' : ''}${x.cur ? ' cur' : ''}"><span>${x.n} of ${p.total}${x.date ? ' · ' + md(x.date) : ''}</span><span>${fmt(x.amount)} ${x.paid ? 'paid' : 'due'}</span></li>`).join('')}</ul></div>`;
 }
