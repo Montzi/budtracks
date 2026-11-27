@@ -3,7 +3,7 @@
 Working rules for anyone (or any Claude session) changing this repo. Keep this file current after every release.
 
 ## Status (2026-11-26)
-- Live release: `budtracks-v76` on https://montzi.github.io/budtracks/
+- Live release: `budtracks-v77` on https://montzi.github.io/budtracks/
 - Worker `budtracks-worker` live on Cloudflare, Plaid **production**.
 - AI: Claude Haiku 5.5 default, Gemini 3.8 Flash optional. Both keys work.
 - Nothing pending.
@@ -72,6 +72,7 @@ Aim: a small change ships in 5 to 8 minutes. The user checks it on the phone and
 - Overdue: `viewOverview` adds `carried`, unpaid bills from earlier cycles, to the top of the current cycle's list with an Overdue pill. They start at `settings.overdueFrom`, set once to the previous cycle's start so old history never floods in. They are in `OCC` so the check works. Not counted in the hero sums.
 - Bank news on Transactions: the sync result goes to `budSay` instead of a toast, 15 s when there is news. Errors stay toasts. Tests read `#bud.on`.
 - Match picker `pkListHTML`: Best match, then this cycle's Budgets, then the rest. Older cycles' budgets are last, under Older budgets.
+- Opening a transaction: `tx-open` rebuilds `#txlist`, then scrolls by the tapped row's shift so it stays put, and refocuses its button with `preventScroll`.
 - Range control: `.tx-rg1` one button on phones, `.seg` in landscape. Tests click `[data-action="tx-range"][data-r="month"]:visible`.
 - iPhone Duo side tabs: `railCheck()` reads `#railprobe`'s env(safe-area-inset-left/right). Portrait with 24 px or more reserved sets `html.rail`. The Tabs setting in Appearance is `budtrack.rail` in localStorage: auto, side or bottom, per phone. Tests fake the column by padding `#railprobe`. The column ends with `.tab-set`, a Settings button shown only there, action `go-settings`. Icons are bottom-aligned, 50 px with 25 px glyphs, 2 px apart, inside a rounded pill on `.tabs-in`. `SETLIT` lights `.tab-set` instead of Income after a Settings tap; a tap on any tab clears it. `.tab-add` is a circled + glyph, 26 px, 1.7 stroke, in a 52 px frosted circle with the pill's background, border and shadow, 12 px above the pill, action `add` type `extra`.
 - Side column pin: `railPin()` runs on scroll. If iOS lets `.tabs` scroll away, it measures the real top and translates it back. `tests/v69.e2e.mjs` fakes the bug with `position: absolute`.

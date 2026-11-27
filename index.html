@@ -6604,7 +6604,14 @@ function txAct(act, a) {
     case 'tx-review': TXUI.filter = 'all'; TXUI.q = ''; TXUI.bank = ''; TXUI.open = null; TXUI.mode = ''; TXUI.limit = 60; TXUI.toReview = true; if (currentTab() === 'transactions') render(); else location.hash = '#transactions'; if (!$('#sheet').hidden) closeSheet(); break;
     case 'tx-filter': TXUI.filter = a.dataset.f; TXUI.open = null; TXUI.mode = ''; TXUI.limit = 60; render(); break;
     case 'tx-more': TXUI.limit += 60; { const l = $('#txlist'); if (l) l.innerHTML = txListHTML(); } break;
-    case 'tx-open': TXUI.open = TXUI.open === id ? null : id; TXUI.mode = ''; { const l = $('#txlist'); if (l) l.innerHTML = txListHTML(); } break;
+    case 'tx-open': { // only the tapped row opens or closes: keep it where it was on screen and keep focus on it without scrolling
+      TXUI.open = TXUI.open === id ? null : id; TXUI.mode = ''; const l = $('#txlist'); if (!l) break;
+      const sel = `.tx[data-id="${CSS.escape(id)}"]`, before = (l.querySelector(sel) || a).getBoundingClientRect().top, y = scrollY;
+      l.innerHTML = txListHTML(); scrollTo(0, y);
+      const row = l.querySelector(sel); if (!row) break;
+      const d = row.getBoundingClientRect().top - before; if (Math.abs(d) > 0.5) scrollTo(0, scrollY + d);
+      const btn = row.querySelector('.tx-main'); if (btn) btn.focus({ preventScroll: true });
+    } break;
     case 'tx-back': TXUI.mode = ''; render(); break;
     case 'tx-note': TXUI.mode = 'note'; render(); { const i = $('#txnote'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } } break;
     case 'tx-name': TXUI.mode = 'name'; render(); { const i = $('#txname'); if (i) { i.focus(); i.select(); } } break;

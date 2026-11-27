@@ -2,6 +2,9 @@
 
 Versions match `VERSION` in `sw.js`. Newest first.
 
+## v77
+- Opening or closing a transaction keeps it in place. The screen no longer jumps.
+
 ## v76
 - On Transactions, Bud says the bank news in his bubble. Match lists this cycle's budgets, like Gas and Groceries, right after the best match.
 
