@@ -5487,7 +5487,9 @@ async function bankSync(o) {
     const msg = em || (one && !auto ? [(o.label || 'Bank') + (o.refreshed ? ' refreshed' : ' synced'), news, note].filter(Boolean).join(' · ') : auto ? news : [count, news, asked, note].filter(Boolean).join(' · '));
     // News from the banks (matched, to review, updated) and sync errors stay on screen until closed.
     const pin = !!(applied || fresh || dropped || em);
-    if (applied || fresh || dropped || !auto) commit(msg, { sticky: pin }); else saveQuiet();
+    // On Transactions, Bud says the bank news in his bubble instead of a message in the middle of the screen. Errors stay messages.
+    const viaBud = currentTab() === 'transactions' && !em && msg;
+    if (applied || fresh || dropped || !auto) { commit(viaBud ? '' : msg, { sticky: pin }); if (viaBud) requestAnimationFrame(() => requestAnimationFrame(() => budSay(msg, pin ? 15000 : 8000))); } else saveQuiet();
     if (em) BANKUI.syncErr = em;
     if (em && (applied || fresh || dropped || auto)) toast(em, null, { sticky: true });
     if (errs.some(e => e.needsReconnect)) { BANKUI.enr = null; BANKUI.loadErr = ''; }
@@ -6457,9 +6459,11 @@ function pkListHTML() {
   const { best, same, near, up, earlier, budgets, more, cycles } = BT.pickSections(state, t, TODAY, { paid: PICK.paid, suggested: suggestedKey(t), cycles: PICK.cycles, match: x => !q || hay(x).includes(q) });
   [best, same, near, up, earlier].forEach(a => a.forEach(r => SEL.set(r.x.key, r.x))); budgets.forEach(x => SEL.set(x.key, x));
   const sec = (title, arr) => arr.length ? `<div class="pk-sec">${title}</div><div class="pk-grp">${arr.map(r => pkOpt(r.x, t)).join('')}</div>` : '';
-  const bq = budgets.filter(x => !q || ['count toward', x.name, x.category, 'budget'].join(' ').toLowerCase().includes(q));
-  const bsec = bq.length && t.amount > 0 ? `<div class="pk-sec">Budgets</div><div class="pk-grp">${bq.map(x => budOpt(x, t)).join('')}</div>` : '';
-  const body = sec('Best match', best) + sec('Same amount', same) + sec('Near this date', near) + sec('Everything upcoming', up) + sec('Earlier', earlier) + bsec;
+  // This cycle's budgets, like Gas and Groceries, come first: everyday spending is matched to them most often. Older cycles' budgets stay at the end.
+  const bq = t.amount > 0 ? budgets.filter(x => !q || ['count toward', x.name, x.category, 'budget'].join(' ').toLowerCase().includes(q)) : [];
+  const bNow = bq.filter(x => budgets.length && x.natural === budgets[0].natural), bOld = bq.filter(x => !bNow.includes(x));
+  const bsec = (title, l) => l.length ? `<div class="pk-sec">${title}</div><div class="pk-grp">${l.map(x => budOpt(x, t)).join('')}</div>` : '';
+  const body = sec('Best match', best) + bsec('Budgets', bNow) + sec('Same amount', same) + sec('Near this date', near) + sec('Everything upcoming', up) + sec('Earlier', earlier) + bsec('Older budgets', bOld);
   return (body || `<p class="note" style="margin-top:14px">${q ? 'Nothing matches that search.' : 'Nothing you entered is waiting for a payment around this date.'}</p>`)
     + `<div class="pk-more">${more ? `<button type="button" class="linkbtn" data-action="pk-older">Show older</button>` : ''}<button type="button" class="linkbtn" data-action="pk-paid">${PICK.paid ? 'Hide paid items' : 'Show paid items too'}</button></div>
     <p class="note pk-span">Showing bills, plans and cards from the last ${cycles} pay cycles${cycles > 3 ? ' (older ones are the "Show older" taps)' : ''}.</p>`;

@@ -94,7 +94,7 @@ for (const [w, h, dark] of [[390, 844, true], [390, 844, false], [669, 951, true
     await page.click('.tx-card .card-h [data-action="bk-sync"]');
     await page.waitForSelector('.tx-card .card-h [data-action="bk-sync"][disabled].spinning', { timeout: 500 });
     await noHScroll(page, 'syncing ' + tag);
-    await page.waitForFunction(() => /new transaction/i.test(document.querySelector('#toast').textContent), null, { timeout: 6000 });
+    await page.waitForFunction(() => /new transaction/i.test((document.querySelector('#bud.on') || {}).textContent), null, { timeout: 6000 });
     await page.waitForSelector('.tx-card .card-h [data-action="bk-sync"]:not([disabled])');
     assert.match(await txUpdated(page), /Updated just now/i);
     mock.syncDelay = 0;

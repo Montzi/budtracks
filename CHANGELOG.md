@@ -2,6 +2,9 @@
 
 Versions match `VERSION` in `sw.js`. Newest first.
 
+## v76
+- On Transactions, Bud says the bank news in his bubble. Match lists this cycle's budgets, like Gas and Groceries, right after the best match.
+
 ## v75
 - A payment plan's breakdown no longer overlaps, from Overview or the Plans tab.
 
